@@ -1,0 +1,478 @@
+/* ============================================
+   SUIDEX GAMES - GLOBAL THEME
+   Theme: "Crypto Forest" - Dark Green
+   ============================================
+   
+   This file is the SINGLE SOURCE OF TRUTH for all
+   theme variables. Update colors here and they
+   propagate everywhere via Tailwind + CSS vars.
+   
+   ============================================ */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================
+   CSS CUSTOM PROPERTIES (Theme Variables)
+   ============================================ */
+
+:root {
+  /* ----------------------------------------
+     CORE COLORS - Dark Green Theme
+     ---------------------------------------- */
+  
+  /* Backgrounds */
+  --background: #040a04;           /* Deep forest black */
+  --background-secondary: #071207; /* Slightly lighter */
+  --card: #0a1a0a;                 /* Dark green card */
+  --card-hover: #0f240f;           /* Card hover state */
+  
+  /* Borders */
+  --border: #143314;               /* Subtle green border */
+  --border-bright: #1a4a1a;        /* Bright border for focus */
+  
+  /* ----------------------------------------
+     ACCENT COLORS
+     ---------------------------------------- */
+  
+  /* Primary Accent - Neon Green */
+  --accent: #00ff88;               /* Main accent */
+  --accent-hover: #00cc6a;         /* Hover state */
+  --accent-muted: #00ff8833;       /* 20% opacity */
+  --accent-glow: rgba(0, 255, 136, 0.4);
+  
+  /* Secondary Accent - Emerald */
+  --secondary: #22c55e;            /* Emerald green */
+  --secondary-hover: #16a34a;      /* Darker emerald */
+  
+  /* ----------------------------------------
+     STATUS COLORS
+     ---------------------------------------- */
+  
+  --success: #00ff88;              /* Same as accent for consistency */
+  --warning: #ffaa00;              /* Amber */
+  --error: #ff4444;                /* Red */
+  --info: #4da2ff;                 /* SUI blue */
+  
+  /* ----------------------------------------
+     PRIZE COLORS (Wheel)
+     ---------------------------------------- */
+  
+  --prize-gold: #ffd700;           /* Jackpot / Rare */
+  --prize-purple: #a855f7;         /* Locked Victory */
+  --prize-cyan: #00ffff;           /* SuiTrump */
+  --prize-none: #333333;           /* No Prize slots */
+  --prize-liquid: #00ff88;         /* Liquid Victory */
+  
+  /* ----------------------------------------
+     TEXT COLORS
+     ---------------------------------------- */
+  
+  --text-primary: #ffffff;
+  --text-secondary: #88bb88;       /* Green-tinted gray */
+  --text-muted: #446644;           /* Darker muted */
+  --text-inverse: #040a04;         /* For light backgrounds */
+  
+  /* ----------------------------------------
+     TYPOGRAPHY
+     ---------------------------------------- */
+  
+  --font-sans: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-display: 'Orbitron', 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', 'Fira Code', monospace;
+  
+  /* ----------------------------------------
+     SPACING & SIZING
+     ---------------------------------------- */
+  
+  --radius-sm: 0.375rem;           /* 6px */
+  --radius-md: 0.5rem;             /* 8px */
+  --radius-lg: 0.75rem;            /* 12px */
+  --radius-xl: 1rem;               /* 16px */
+  --radius-2xl: 1.5rem;            /* 24px */
+  
+  /* ----------------------------------------
+     SHADOWS & EFFECTS
+     ---------------------------------------- */
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.5);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.5);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px var(--accent-glow);
+  --shadow-glow-lg: 0 0 40px var(--accent-glow);
+  
+  /* ----------------------------------------
+     ANIMATION DURATIONS
+     ---------------------------------------- */
+  
+  --duration-fast: 150ms;
+  --duration-normal: 300ms;
+  --duration-slow: 500ms;
+  --duration-wheel: 5000ms;
+  
+  /* ----------------------------------------
+     Z-INDEX SCALE
+     ---------------------------------------- */
+  
+  --z-dropdown: 100;
+  --z-modal: 200;
+  --z-toast: 300;
+  --z-tooltip: 400;
+}
+
+/* ============================================
+   BASE STYLES
+   ============================================ */
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+}
+
+body {
+  background: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-sans);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================================
+   CUSTOM SCROLLBAR
+   ============================================ */
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--border-bright);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-muted);
+}
+
+/* ============================================
+   SELECTION COLORS
+   ============================================ */
+
+::selection {
+  background: var(--accent-muted);
+  color: var(--text-primary);
+}
+
+/* ============================================
+   LINK STYLES
+   ============================================ */
+
+a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color var(--duration-fast) ease;
+}
+
+a:hover {
+  color: var(--accent-hover);
+}
+
+/* ============================================
+   FOCUS STYLES (Accessibility)
+   ============================================ */
+
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+/* Glow Effects */
+.glow {
+  box-shadow: var(--shadow-glow);
+}
+
+.glow-lg {
+  box-shadow: var(--shadow-glow-lg);
+}
+
+.glow-text {
+  text-shadow: 0 0 10px var(--accent-glow);
+}
+
+.glow-gold {
+  box-shadow: 0 0 30px rgba(255, 215, 0, 0.4);
+}
+
+/* Card Styles */
+.card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  transition: all var(--duration-normal) ease;
+}
+
+.card:hover {
+  background: var(--card-hover);
+  border-color: var(--border-bright);
+}
+
+.card-glow:hover {
+  box-shadow: var(--shadow-glow);
+}
+
+/* Button Base */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.5rem;
+  font-weight: 600;
+  border-radius: var(--radius-lg);
+  transition: all var(--duration-fast) ease;
+  cursor: pointer;
+  border: none;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Primary Button */
+.btn-primary {
+  background: var(--accent);
+  color: var(--text-inverse);
+}
+
+.btn-primary:hover:not(:disabled) {
+  background: var(--accent-hover);
+  box-shadow: var(--shadow-glow);
+}
+
+/* Secondary Button */
+.btn-secondary {
+  background: transparent;
+  color: var(--accent);
+  border: 1px solid var(--accent);
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: var(--accent-muted);
+}
+
+/* Ghost Button */
+.btn-ghost {
+  background: transparent;
+  color: var(--text-secondary);
+}
+
+.btn-ghost:hover:not(:disabled) {
+  background: var(--card);
+  color: var(--text-primary);
+}
+
+/* Input Styles */
+.input {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: var(--background);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  font-size: 1rem;
+  transition: all var(--duration-fast) ease;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-muted);
+}
+
+.input::placeholder {
+  color: var(--text-muted);
+}
+
+/* Badge Styles */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border-radius: 9999px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.badge-success {
+  background: rgba(0, 255, 136, 0.1);
+  color: var(--success);
+  border: 1px solid var(--success);
+}
+
+.badge-warning {
+  background: rgba(255, 170, 0, 0.1);
+  color: var(--warning);
+  border: 1px solid var(--warning);
+}
+
+.badge-error {
+  background: rgba(255, 68, 68, 0.1);
+  color: var(--error);
+  border: 1px solid var(--error);
+}
+
+/* Gradient Text */
+.gradient-text {
+  background: linear-gradient(135deg, var(--accent) 0%, var(--secondary) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Shimmer Effect */
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--card) 0%,
+    var(--card-hover) 50%,
+    var(--card) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
+}
+
+/* ============================================
+   WHEEL SPECIFIC STYLES
+   ============================================ */
+
+.wheel-container {
+  perspective: 1000px;
+}
+
+.wheel {
+  transform-style: preserve-3d;
+}
+
+.wheel-pointer {
+  filter: drop-shadow(0 0 10px var(--accent-glow));
+}
+
+/* Prize Slot Colors */
+.prize-slot-liquid {
+  background: linear-gradient(135deg, var(--prize-liquid), #00cc6a);
+}
+
+.prize-slot-locked {
+  background: linear-gradient(135deg, var(--prize-purple), #7c3aed);
+}
+
+.prize-slot-suitrump {
+  background: linear-gradient(135deg, var(--prize-cyan), #0891b2);
+}
+
+.prize-slot-none {
+  background: var(--prize-none);
+}
+
+.prize-slot-jackpot {
+  background: linear-gradient(135deg, var(--prize-gold), #f59e0b);
+}
+
+/* ============================================
+   RESPONSIVE UTILITIES
+   ============================================ */
+
+@media (max-width: 640px) {
+  :root {
+    --radius-xl: 0.75rem;
+    --radius-2xl: 1rem;
+  }
+  
+  .btn {
+    padding: 0.625rem 1.25rem;
+  }
+}
+
+/* ============================================
+   ADMIN PANEL SPECIFIC
+   ============================================ */
+
+.admin-sidebar {
+  background: var(--card);
+  border-right: 1px solid var(--border);
+}
+
+.admin-nav-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  color: var(--text-secondary);
+  border-radius: var(--radius-md);
+  transition: all var(--duration-fast) ease;
+}
+
+.admin-nav-item:hover,
+.admin-nav-item.active {
+  background: var(--accent-muted);
+  color: var(--accent);
+}
+
+/* ============================================
+   LOADING STATES
+   ============================================ */
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--card) 25%,
+    var(--card-hover) 50%,
+    var(--card) 75%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--radius-md);
+}
+
+/* ============================================
+   CONFETTI / CELEBRATION
+   ============================================ */
+
+.celebration-overlay {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: var(--z-toast);
+}
+
+/* ============================================
+   PRINT STYLES
+   ============================================ */
+
+@media print {
+  body {
+    background: white;
+    color: black;
+  }
+}

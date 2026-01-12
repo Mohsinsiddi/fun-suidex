@@ -1,0 +1,151 @@
+// ============================================
+// AdminConfig Model (Singleton)
+// ============================================
+
+import mongoose, { Schema, Document, Model } from 'mongoose'
+import type { AdminConfig, PrizeSlot } from '@/types'
+
+// ----------------------------------------
+// Interfaces
+// ----------------------------------------
+
+export interface AdminConfigDocument extends Omit<AdminConfig, '_id'>, Document {
+  _id: 'main'
+}
+
+// ----------------------------------------
+// Prize Slot Sub-Schema
+// ----------------------------------------
+
+const PrizeSlotSchema = new Schema<PrizeSlot>(
+  {
+    slotIndex: { type: Number, required: true, min: 0, max: 15 },
+    type: {
+      type: String,
+      enum: ['liquid_victory', 'locked_victory', 'suitrump', 'no_prize'],
+      required: true,
+    },
+    amount: { type: Number, required: true, default: 0 },
+    valueUSD: { type: Number, required: true, default: 0 },
+    weight: { type: Number, required: true, min: 0 },
+    lockDuration: {
+      type: String,
+      enum: ['1_year', null],
+      default: null,
+    },
+  },
+  { _id: false }
+)
+
+// ----------------------------------------
+// AdminConfig Schema
+// ----------------------------------------
+
+const AdminConfigSchema = new Schema<AdminConfigDocument>(
+  {
+    _id: {
+      type: String,
+      default: 'main',
+    },
+    
+    // Spin Purchase
+    spinRateSUI: {
+      type: Number,
+      default: 1,
+      min: 0.1,
+    },
+    spinPurchaseEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    maxSpinsPerPurchase: {
+      type: Number,
+      default: 100,
+      min: 1,
+    },
+    autoApprovalLimitSUI: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+    
+    // Admin Wallet
+    adminWalletAddress: {
+      type: String,
+      required: true,
+      lowercase: true,
+    },
+    
+    // Payment Verification
+    paymentLookbackHours: {
+      type: Number,
+      default: 48,
+      min: 1,
+      max: 168, // 1 week max
+    },
+    minPaymentSUI: {
+      type: Number,
+      default: 1,
+      min: 0.1,
+    },
+    
+    // Prize Table
+    prizeTable: {
+      type: [PrizeSlotSchema],
+      validate: {
+        validator: (table: PrizeSlot[]) => table.length === 16,
+        message: 'Prize table must have exactly 16 slots',
+      },
+    },
+    
+    // Referral
+    referralEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    referralCommissionPercent: {
+      type: Number,
+      default: 10,
+      min: 0,
+      max: 50,
+    },
+    
+    // Free Spin
+    freeSpinMinStakeUSD: {
+      type: Number,
+      default: 20,
+      min: 0,
+    },
+    freeSpinCooldownHours: {
+      type: Number,
+      default: 24,
+      min: 1,
+    },
+    
+    // Victory Token
+    victoryPriceUSD: {
+      type: Number,
+      default: 0.003,
+      min: 0,
+    },
+    
+    // Metadata
+    updatedBy: {
+      type: String,
+      default: 'system',
+    },
+  },
+  {
+    timestamps: { createdAt: false, updatedAt: 'updatedAt' },
+  }
+)
+
+// ----------------------------------------
+// Model Export
+// ----------------------------------------
+
+const AdminConfigModel: Model<AdminConfigDocument> =
+  mongoose.models.AdminConfig ||
+  mongoose.model<AdminConfigDocument>('AdminConfig', AdminConfigSchema)
+
+export default AdminConfigModel
