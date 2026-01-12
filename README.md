@@ -214,4 +214,3 @@ pnpm seed:defaults    # Seed default config
 ## License
 
 MIT
-# fun-suidex

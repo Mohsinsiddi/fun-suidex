@@ -9,22 +9,22 @@ import type { PrizeSlot, AdminConfig, AdminPermissions } from '@/types'
 // ----------------------------------------
 
 export const DEFAULT_PRIZE_TABLE: PrizeSlot[] = [
-  { slotIndex: 0, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 3.0 },
-  { slotIndex: 1, type: 'no_prize', amount: 0, valueUSD: 0, weight: 12.0 },
-  { slotIndex: 2, type: 'liquid_victory', amount: 10000, valueUSD: 30, weight: 2.0 },
-  { slotIndex: 3, type: 'suitrump', amount: 2500, valueUSD: 20, weight: 2.0 },
-  { slotIndex: 4, type: 'locked_victory', amount: 33333, valueUSD: 100, weight: 2.0, lockDuration: '1_year' },
-  { slotIndex: 5, type: 'no_prize', amount: 0, valueUSD: 0, weight: 10.0 },
-  { slotIndex: 6, type: 'liquid_victory', amount: 3333, valueUSD: 10, weight: 3.0 },
-  { slotIndex: 7, type: 'locked_victory', amount: 333333, valueUSD: 1000, weight: 0.5, lockDuration: '1_year' },
-  { slotIndex: 8, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 3.0 },
-  { slotIndex: 9, type: 'no_prize', amount: 0, valueUSD: 0, weight: 12.0 },
-  { slotIndex: 10, type: 'suitrump', amount: 12500, valueUSD: 100, weight: 1.0 },
-  { slotIndex: 11, type: 'liquid_victory', amount: 16667, valueUSD: 50, weight: 1.5 },
-  { slotIndex: 12, type: 'no_prize', amount: 0, valueUSD: 0, weight: 12.0 },
-  { slotIndex: 13, type: 'locked_victory', amount: 1166667, valueUSD: 3500, weight: 0.1, lockDuration: '1_year' },
-  { slotIndex: 14, type: 'liquid_victory', amount: 6667, valueUSD: 20, weight: 2.5 },
-  { slotIndex: 15, type: 'no_prize', amount: 0, valueUSD: 0, weight: 12.0 },
+  { slotIndex: 0, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 100, lockDuration: null },
+  { slotIndex: 1, type: 'liquid_victory', amount: 16667, valueUSD: 50, weight: 50, lockDuration: null },
+  { slotIndex: 2, type: 'liquid_victory', amount: 333333, valueUSD: 1000, weight: 5, lockDuration: null },
+  { slotIndex: 3, type: 'locked_victory', amount: 1667, valueUSD: 5, weight: 80, lockDuration: '1_week' },
+  { slotIndex: 4, type: 'locked_victory', amount: 6667, valueUSD: 20, weight: 60, lockDuration: '1_week' },
+  { slotIndex: 5, type: 'locked_victory', amount: 8333, valueUSD: 25, weight: 40, lockDuration: '3_month' },
+  { slotIndex: 6, type: 'locked_victory', amount: 16667, valueUSD: 50, weight: 30, lockDuration: '3_month' },
+  { slotIndex: 7, type: 'locked_victory', amount: 33333, valueUSD: 100, weight: 20, lockDuration: '1_year' },
+  { slotIndex: 8, type: 'locked_victory', amount: 83333, valueUSD: 250, weight: 10, lockDuration: '1_year' },
+  { slotIndex: 9, type: 'locked_victory', amount: 166667, valueUSD: 500, weight: 5, lockDuration: '3_year' },
+  { slotIndex: 10, type: 'locked_victory', amount: 666666, valueUSD: 2000, weight: 2, lockDuration: '3_year' },
+  { slotIndex: 11, type: 'locked_victory', amount: 1000000, valueUSD: 3500, weight: 1, lockDuration: '3_year' },
+  { slotIndex: 12, type: 'suitrump', amount: 10, valueUSD: 10, weight: 50, lockDuration: null },
+  { slotIndex: 13, type: 'suitrump', amount: 50, valueUSD: 50, weight: 20, lockDuration: null },
+  { slotIndex: 14, type: 'suitrump', amount: 500, valueUSD: 500, weight: 3, lockDuration: null },
+  { slotIndex: 15, type: 'no_prize', amount: 0, valueUSD: 0, weight: 200, lockDuration: null },
 ]
 
 // ----------------------------------------

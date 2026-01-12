@@ -4,14 +4,15 @@
 // ============================================
 // Usage: pnpm admin:create
 
+// Load environment variables FIRST
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 import * as readline from 'readline'
 import { connectDB, disconnectDB } from '../lib/db/mongodb'
 import { AdminModel } from '../lib/db/models'
 import { hashPassword, validatePassword, validateUsername } from '../lib/auth/password'
 import { SUPER_ADMIN_PERMISSIONS } from '../constants'
-
-// Load environment variables
-import 'dotenv/config'
 
 // ----------------------------------------
 // Readline Interface

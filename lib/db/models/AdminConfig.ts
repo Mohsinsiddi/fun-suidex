@@ -30,7 +30,7 @@ const PrizeSlotSchema = new Schema<PrizeSlot>(
     weight: { type: Number, required: true, min: 0 },
     lockDuration: {
       type: String,
-      enum: ['1_year', null],
+      enum: ['1_week', '3_month', '1_year', '3_year', null],
       default: null,
     },
   },

@@ -85,7 +85,6 @@ const UserSchema = new Schema<UserDocument>(
 // ----------------------------------------
 
 UserSchema.index({ 'sessions.refreshToken': 1 })
-UserSchema.index({ referralCode: 1 })
 UserSchema.index({ referredBy: 1 })
 
 // ----------------------------------------

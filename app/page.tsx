@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { GAMES } from '@/constants'
-import { Header } from '@/components/layout/Header'
+import { Header } from '@/components/shared/Header'
+import { Footer } from '@/components/shared/Footer'
 import { GameCard } from '@/components/ui/GameCard'
 
 // ----------------------------------------
@@ -129,46 +130,7 @@ export default function HomePage() {
         </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border py-8 px-4">
-        <div className="max-w-6xl mx-auto flex flex-col md:flex-row justify-between items-center gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-display font-bold text-accent">SuiDex</span>
-            <span className="text-text-muted">Games</span>
-          </div>
-          
-          <div className="flex gap-6 text-sm text-text-secondary">
-            <a
-              href="https://suidex.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-accent transition-colors"
-            >
-              Main DEX
-            </a>
-            <a
-              href="https://docs.suidex.org"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-accent transition-colors"
-            >
-              Docs
-            </a>
-            <a
-              href="https://twitter.com/suidex"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="hover:text-accent transition-colors"
-            >
-              Twitter
-            </a>
-          </div>
-          
-          <p className="text-sm text-text-muted">
-            © 2026 SuiDex. All rights reserved.
-          </p>
-        </div>
-      </footer>
+      <Footer />
     </div>
   )
 }

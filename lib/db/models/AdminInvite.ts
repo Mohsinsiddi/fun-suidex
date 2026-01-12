@@ -74,7 +74,6 @@ const AdminInviteSchema = new Schema<AdminInviteDocument>(
     expiresAt: {
       type: Date,
       required: true,
-      index: true,
     },
     usedAt: {
       type: Date,

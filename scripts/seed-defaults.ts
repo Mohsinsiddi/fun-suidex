@@ -4,13 +4,14 @@
 // ============================================
 // Usage: pnpm seed:defaults
 
+// Load environment variables FIRST
+import { config } from 'dotenv'
+config({ path: '.env.local' })
+
 import * as readline from 'readline'
 import { connectDB, disconnectDB } from '../lib/db/mongodb'
 import { AdminConfigModel } from '../lib/db/models'
 import { DEFAULT_ADMIN_CONFIG } from '../constants'
-
-// Load environment variables
-import 'dotenv/config'
 
 // ----------------------------------------
 // Readline Interface

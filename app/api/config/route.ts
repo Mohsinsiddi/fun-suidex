@@ -1,3 +1,8 @@
+// ============================================
+// Public Config API
+// ============================================
+// GET /api/config - Returns public config (no auth required)
+
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { AdminConfigModel } from '@/lib/db/models'
@@ -5,6 +10,7 @@ import { AdminConfigModel } from '@/lib/db/models'
 export async function GET() {
   try {
     await connectDB()
+
     const config = await AdminConfigModel.findById('main')
 
     if (!config) {
@@ -14,10 +20,14 @@ export async function GET() {
           spinRateSUI: 1,
           adminWalletAddress: '',
           spinPurchaseEnabled: false,
+          referralEnabled: false,
+          referralCommissionPercent: 10,
+          freeSpinMinStakeUSD: 20,
         },
       })
     }
 
+    // Return only public config (no sensitive data)
     return NextResponse.json({
       success: true,
       data: {
@@ -32,6 +42,9 @@ export async function GET() {
     })
   } catch (error) {
     console.error('Config fetch error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to fetch config' }, { status: 500 })
+    return NextResponse.json(
+      { success: false, error: 'Failed to fetch config' },
+      { status: 500 }
+    )
   }
 }

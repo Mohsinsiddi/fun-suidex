@@ -65,37 +65,26 @@ export async function POST(request: NextRequest) {
 
     // Determine spin type and check eligibility
     const body = await request.json().catch(() => ({}))
-    const requestedType = body.spinType || 'purchased'
 
     let spinType: 'free' | 'purchased' | 'bonus' = 'purchased'
     
-    // Check for available spins
-    if (requestedType === 'bonus' && user.bonusSpins > 0) {
+    // Auto-select available spin type (priority: bonus > purchased)
+    if (user.bonusSpins > 0) {
       spinType = 'bonus'
-    } else if (requestedType === 'free') {
-      // TODO: Check staking eligibility and cooldown
-      // For now, we'll just use purchased spins
+    } else if (user.purchasedSpins > 0) {
       spinType = 'purchased'
     } else {
-      spinType = 'purchased'
+      // No spins available
+      return NextResponse.json(
+        { success: false, error: ERRORS.NO_SPINS_AVAILABLE },
+        { status: 400 }
+      )
     }
 
     // Deduct spin
     if (spinType === 'bonus') {
-      if (user.bonusSpins <= 0) {
-        return NextResponse.json(
-          { success: false, error: ERRORS.NO_SPINS_AVAILABLE },
-          { status: 400 }
-        )
-      }
       user.bonusSpins -= 1
-    } else if (spinType === 'purchased') {
-      if (user.purchasedSpins <= 0) {
-        return NextResponse.json(
-          { success: false, error: ERRORS.NO_SPINS_AVAILABLE },
-          { status: 400 }
-        )
-      }
+    } else {
       user.purchasedSpins -= 1
     }
 

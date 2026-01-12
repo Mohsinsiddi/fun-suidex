@@ -4,6 +4,7 @@
 // Sui Wallet Provider
 // ============================================
 
+import '@mysten/dapp-kit/dist/index.css'
 import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit'
 import { getFullnodeUrl } from '@mysten/sui/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -30,7 +31,7 @@ export function SuiProvider({ children }: SuiProviderProps) {
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000, // 1 minute
+        staleTime: 60 * 1000,
         refetchOnWindowFocus: false,
       },
     },
@@ -39,11 +40,9 @@ export function SuiProvider({ children }: SuiProviderProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="mainnet">
-        <WalletProvider
+        <WalletProvider 
           autoConnect={true}
-          stashedWallet={{
-            name: 'SuiDex Games',
-          }}
+          preferredWallets={['Slush', 'Nightly', 'Sui Wallet', 'Suiet']}
         >
           {children}
         </WalletProvider>

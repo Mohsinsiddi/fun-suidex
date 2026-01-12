@@ -3,8 +3,7 @@
 // ============================================
 
 import mongoose from 'mongoose'
-import { config } from 'dotenv'
-config({ path: '.env.local' })
+
 // Connection cache for serverless
 interface MongooseCache {
   conn: typeof mongoose | null
@@ -14,12 +13,6 @@ interface MongooseCache {
 declare global {
   // eslint-disable-next-line no-var
   var mongooseCache: MongooseCache | undefined
-}
-
-const MONGODB_URI = process.env.MONGODB_URI
-
-if (!MONGODB_URI) {
-  throw new Error('Please define the MONGODB_URI environment variable')
 }
 
 const cached: MongooseCache = global.mongooseCache ?? {
@@ -36,6 +29,13 @@ if (!global.mongooseCache) {
  * Uses connection caching for serverless environments
  */
 export async function connectDB(): Promise<typeof mongoose> {
+  // Check for MONGODB_URI at connection time (allows dotenv to load first)
+  const MONGODB_URI = process.env.MONGODB_URI
+  
+  if (!MONGODB_URI) {
+    throw new Error('Please define the MONGODB_URI environment variable')
+  }
+
   if (cached.conn) {
     return cached.conn
   }
