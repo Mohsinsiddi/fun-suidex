@@ -12,8 +12,6 @@ import {
   LogOut,
   Save,
   RefreshCw,
-  Plus,
-  Trash2,
   AlertCircle,
   CheckCircle,
 } from 'lucide-react'
@@ -63,27 +61,17 @@ export default function AdminConfigPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  useEffect(() => {
-    fetchConfig()
-  }, [])
+  useEffect(() => { fetchConfig() }, [])
 
   const fetchConfig = async () => {
     setLoading(true)
     try {
       const res = await fetch('/api/admin/config')
-      if (res.status === 401) {
-        router.push('/admin/login')
-        return
-      }
+      if (res.status === 401) { router.push('/admin/login'); return }
       const data = await res.json()
-      if (data.success) {
-        setConfig(data.data)
-      } else {
-        setError(data.error)
-      }
-    } catch (err) {
-      setError('Failed to load config')
-    }
+      if (data.success) setConfig(data.data)
+      else setError(data.error)
+    } catch (err) { setError('Failed to load config') }
     setLoading(false)
   }
 
@@ -92,7 +80,6 @@ export default function AdminConfigPage() {
     setSaving(true)
     setError(null)
     setSuccess(null)
-
     try {
       const res = await fetch('/api/admin/config', {
         method: 'PUT',
@@ -103,12 +90,8 @@ export default function AdminConfigPage() {
       if (data.success) {
         setSuccess('Configuration saved successfully!')
         setTimeout(() => setSuccess(null), 3000)
-      } else {
-        setError(data.error)
-      }
-    } catch (err) {
-      setError('Failed to save config')
-    }
+      } else setError(data.error)
+    } catch (err) { setError('Failed to save config') }
     setSaving(false)
   }
 
@@ -126,53 +109,28 @@ export default function AdminConfigPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-900">
-        <RefreshCw className="w-8 h-8 animate-spin text-purple-400" />
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <RefreshCw className="w-8 h-8 animate-spin text-accent" />
       </div>
     )
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-900">
+    <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-xl font-bold text-white">
-            <span className="text-yellow-400">SuiDex</span> Admin
-          </h1>
+      <aside className="w-64 admin-sidebar flex flex-col">
+        <div className="p-6 border-b border-border">
+          <h1 className="font-display text-xl font-bold"><span className="text-accent">SuiDex</span> Admin</h1>
         </div>
-
         <nav className="flex-1 p-4 space-y-1">
-          <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700 transition-colors">
-            <LayoutDashboard className="w-5 h-5" />
-            Dashboard
-          </Link>
-          <Link href="/admin/revenue" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700 transition-colors">
-            <DollarSign className="w-5 h-5" />
-            Revenue
-          </Link>
-          <Link href="/admin/distribute" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700 transition-colors">
-            <Gift className="w-5 h-5" />
-            Distribute
-          </Link>
-          <Link href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700 transition-colors">
-            <Users className="w-5 h-5" />
-            Users
-          </Link>
-          <Link href="/admin/config" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-600 text-white">
-            <Settings className="w-5 h-5" />
-            Config
-          </Link>
+          <Link href="/admin/dashboard" className="admin-nav-item"><LayoutDashboard className="w-5 h-5" />Dashboard</Link>
+          <Link href="/admin/revenue" className="admin-nav-item"><DollarSign className="w-5 h-5" />Revenue</Link>
+          <Link href="/admin/distribute" className="admin-nav-item"><Gift className="w-5 h-5" />Distribute</Link>
+          <Link href="/admin/users" className="admin-nav-item"><Users className="w-5 h-5" />Users</Link>
+          <Link href="/admin/config" className="admin-nav-item active"><Settings className="w-5 h-5" />Config</Link>
         </nav>
-
-        <div className="p-4 border-t border-slate-700">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 w-full transition-colors"
-          >
-            <LogOut className="w-5 h-5" />
-            Logout
-          </button>
+        <div className="p-4 border-t border-border">
+          <button onClick={handleLogout} className="admin-nav-item w-full text-error hover:bg-error/10"><LogOut className="w-5 h-5" />Logout</button>
         </div>
       </aside>
 
@@ -182,14 +140,10 @@ export default function AdminConfigPage() {
           {/* Header */}
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-white">Configuration</h2>
-              <p className="text-gray-400">Manage prize table and game settings</p>
+              <h2 className="text-2xl font-bold">Configuration</h2>
+              <p className="text-text-secondary">Manage prize table and game settings</p>
             </div>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="flex items-center gap-2 px-6 py-3 bg-green-600 hover:bg-green-700 rounded-lg text-white font-medium transition-colors disabled:opacity-50"
-            >
+            <button onClick={handleSave} disabled={saving} className="btn btn-primary">
               {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save Changes
             </button>
@@ -197,13 +151,13 @@ export default function AdminConfigPage() {
 
           {/* Messages */}
           {error && (
-            <div className="mb-6 flex items-center gap-2 p-4 bg-red-500/10 border border-red-500/20 rounded-lg text-red-400">
+            <div className="mb-6 flex items-center gap-2 p-4 bg-error/10 border border-error/20 rounded-lg text-error">
               <AlertCircle className="w-5 h-5" />
               {error}
             </div>
           )}
           {success && (
-            <div className="mb-6 flex items-center gap-2 p-4 bg-green-500/10 border border-green-500/20 rounded-lg text-green-400">
+            <div className="mb-6 flex items-center gap-2 p-4 bg-success/10 border border-success/20 rounded-lg text-success">
               <CheckCircle className="w-5 h-5" />
               {success}
             </div>
@@ -212,65 +166,65 @@ export default function AdminConfigPage() {
           {config && (
             <>
               {/* General Settings */}
-              <div className="bg-slate-800 rounded-xl p-6 mb-6 border border-slate-700">
-                <h3 className="text-lg font-semibold text-white mb-4">General Settings</h3>
+              <div className="card p-6 mb-6">
+                <h3 className="text-lg font-semibold mb-4">General Settings</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Spin Rate (SUI per spin)</label>
+                    <label className="block text-sm text-text-secondary mb-2">Spin Rate (SUI per spin)</label>
                     <input
                       type="number"
                       value={config.spinRateSUI}
                       onChange={(e) => setConfig({ ...config, spinRateSUI: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                       step="0.1"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Admin Wallet Address</label>
+                    <label className="block text-sm text-text-secondary mb-2">Admin Wallet Address</label>
                     <input
                       type="text"
                       value={config.adminWalletAddress}
                       onChange={(e) => setConfig({ ...config, adminWalletAddress: e.target.value })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white font-mono text-sm"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg font-mono text-sm"
                       placeholder="0x..."
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Auto-Approval Limit (SUI)</label>
+                    <label className="block text-sm text-text-secondary mb-2">Auto-Approval Limit (SUI)</label>
                     <input
                       type="number"
                       value={config.autoApprovalLimitSUI}
                       onChange={(e) => setConfig({ ...config, autoApprovalLimitSUI: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Payment Lookback (hours)</label>
+                    <label className="block text-sm text-text-secondary mb-2">Payment Lookback (hours)</label>
                     <input
                       type="number"
                       value={config.paymentLookbackHours}
                       onChange={(e) => setConfig({ ...config, paymentLookbackHours: parseInt(e.target.value) || 48 })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Referral Commission (%)</label>
+                    <label className="block text-sm text-text-secondary mb-2">Referral Commission (%)</label>
                     <input
                       type="number"
                       value={config.referralCommissionPercent}
                       onChange={(e) => setConfig({ ...config, referralCommissionPercent: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                       min="0"
                       max="100"
                     />
                   </div>
                   <div>
-                    <label className="block text-sm text-gray-400 mb-2">Free Spin Min Stake (USD)</label>
+                    <label className="block text-sm text-text-secondary mb-2">Free Spin Min Stake (USD)</label>
                     <input
                       type="number"
                       value={config.freeSpinMinStakeUSD}
                       onChange={(e) => setConfig({ ...config, freeSpinMinStakeUSD: parseFloat(e.target.value) || 0 })}
-                      className="w-full px-4 py-2 bg-slate-700 border border-slate-600 rounded-lg text-white"
+                      className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                     />
                   </div>
                 </div>
@@ -281,46 +235,46 @@ export default function AdminConfigPage() {
                       type="checkbox"
                       checked={config.spinPurchaseEnabled}
                       onChange={(e) => setConfig({ ...config, spinPurchaseEnabled: e.target.checked })}
-                      className="w-5 h-5 rounded bg-slate-700 border-slate-600"
+                      className="w-5 h-5 rounded bg-background border-border accent-accent"
                     />
-                    <span className="text-gray-300">Enable Spin Purchases</span>
+                    <span className="text-text-secondary">Enable Spin Purchases</span>
                   </label>
                   <label className="flex items-center gap-2 cursor-pointer">
                     <input
                       type="checkbox"
                       checked={config.referralEnabled}
                       onChange={(e) => setConfig({ ...config, referralEnabled: e.target.checked })}
-                      className="w-5 h-5 rounded bg-slate-700 border-slate-600"
+                      className="w-5 h-5 rounded bg-background border-border accent-accent"
                     />
-                    <span className="text-gray-300">Enable Referrals</span>
+                    <span className="text-text-secondary">Enable Referrals</span>
                   </label>
                 </div>
               </div>
 
               {/* Prize Table */}
-              <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-                <h3 className="text-lg font-semibold text-white mb-4">Prize Table (16 Slots)</h3>
+              <div className="card p-6">
+                <h3 className="text-lg font-semibold mb-4">Prize Table (16 Slots)</h3>
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead>
-                      <tr className="border-b border-slate-700">
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">#</th>
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">Type</th>
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">Amount</th>
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">Value (USD)</th>
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">Weight</th>
-                        <th className="px-3 py-3 text-left text-xs text-gray-400">Lock</th>
+                      <tr className="border-b border-border">
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">#</th>
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">Type</th>
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">Amount</th>
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">Value (USD)</th>
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">Weight</th>
+                        <th className="px-3 py-3 text-left text-xs text-text-secondary">Lock</th>
                       </tr>
                     </thead>
                     <tbody>
                       {config.prizeTable.map((slot, i) => (
-                        <tr key={i} className="border-b border-slate-700/50 hover:bg-slate-700/30">
-                          <td className="px-3 py-2 text-gray-400 text-sm">{i}</td>
+                        <tr key={i} className="border-b border-border/50 hover:bg-card-hover">
+                          <td className="px-3 py-2 text-text-secondary text-sm">{i}</td>
                           <td className="px-3 py-2">
                             <select
                               value={slot.type}
                               onChange={(e) => updatePrizeSlot(i, 'type', e.target.value)}
-                              className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white"
+                              className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
                             >
                               {PRIZE_TYPES.map((t) => (
                                 <option key={t.value} value={t.value}>{t.label}</option>
@@ -332,7 +286,7 @@ export default function AdminConfigPage() {
                               type="number"
                               value={slot.amount}
                               onChange={(e) => updatePrizeSlot(i, 'amount', parseInt(e.target.value) || 0)}
-                              className="w-24 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white"
+                              className="w-24 px-2 py-1 bg-background border border-border rounded text-sm"
                               disabled={slot.type === 'no_prize'}
                             />
                           </td>
@@ -341,7 +295,7 @@ export default function AdminConfigPage() {
                               type="number"
                               value={slot.valueUSD}
                               onChange={(e) => updatePrizeSlot(i, 'valueUSD', parseInt(e.target.value) || 0)}
-                              className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white"
+                              className="w-20 px-2 py-1 bg-background border border-border rounded text-sm"
                               disabled={slot.type === 'no_prize'}
                             />
                           </td>
@@ -350,7 +304,7 @@ export default function AdminConfigPage() {
                               type="number"
                               value={slot.weight}
                               onChange={(e) => updatePrizeSlot(i, 'weight', parseInt(e.target.value) || 1)}
-                              className="w-20 px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white"
+                              className="w-20 px-2 py-1 bg-background border border-border rounded text-sm"
                               min="1"
                             />
                           </td>
@@ -358,7 +312,7 @@ export default function AdminConfigPage() {
                             <select
                               value={slot.lockDuration || ''}
                               onChange={(e) => updatePrizeSlot(i, 'lockDuration', e.target.value || undefined)}
-                              className="w-full px-2 py-1 bg-slate-700 border border-slate-600 rounded text-sm text-white"
+                              className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
                               disabled={slot.type !== 'locked_victory'}
                             >
                               {LOCK_DURATIONS.map((d) => (
@@ -372,9 +326,9 @@ export default function AdminConfigPage() {
                   </table>
                 </div>
 
-                <div className="mt-4 p-4 bg-slate-700/50 rounded-lg">
-                  <p className="text-sm text-gray-400">
-                    <strong className="text-yellow-400">Weight:</strong> Higher weight = more likely to land. 
+                <div className="mt-4 p-4 bg-background rounded-lg">
+                  <p className="text-sm text-text-secondary">
+                    <strong className="text-accent">Weight:</strong> Higher weight = more likely to land. 
                     Total weight: {config.prizeTable.reduce((sum, s) => sum + s.weight, 0)}
                   </p>
                 </div>

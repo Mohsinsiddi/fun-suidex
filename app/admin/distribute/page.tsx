@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { LayoutDashboard, Settings, DollarSign, Users, Gift, LogOut, RefreshCw, Check, X, ExternalLink } from 'lucide-react'
+import { LayoutDashboard, Settings, DollarSign, Users, Gift, LogOut, RefreshCw, Check, ExternalLink } from 'lucide-react'
 
 interface PendingPrize {
   _id: string
@@ -45,9 +45,7 @@ export default function AdminDistributePage() {
         body: JSON.stringify({ spinId, txHash }),
       })
       const data = await res.json()
-      if (data.success) {
-        setPrizes(prev => prev.filter(p => p._id !== spinId))
-      }
+      if (data.success) setPrizes(prev => prev.filter(p => p._id !== spinId))
     } catch (err) { console.error(err) }
     setProcessing(null)
   }
@@ -67,21 +65,21 @@ export default function AdminDistributePage() {
   }
 
   return (
-    <div className="min-h-screen flex bg-slate-900">
+    <div className="min-h-screen flex bg-background">
       {/* Sidebar */}
-      <aside className="w-64 bg-slate-800 border-r border-slate-700 flex flex-col">
-        <div className="p-6 border-b border-slate-700">
-          <h1 className="text-xl font-bold text-white"><span className="text-yellow-400">SuiDex</span> Admin</h1>
+      <aside className="w-64 admin-sidebar flex flex-col">
+        <div className="p-6 border-b border-border">
+          <h1 className="font-display text-xl font-bold"><span className="text-accent">SuiDex</span> Admin</h1>
         </div>
         <nav className="flex-1 p-4 space-y-1">
-          <Link href="/admin/dashboard" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700"><LayoutDashboard className="w-5 h-5" />Dashboard</Link>
-          <Link href="/admin/revenue" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700"><DollarSign className="w-5 h-5" />Revenue</Link>
-          <Link href="/admin/distribute" className="flex items-center gap-3 px-4 py-3 rounded-lg bg-purple-600 text-white"><Gift className="w-5 h-5" />Distribute</Link>
-          <Link href="/admin/users" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700"><Users className="w-5 h-5" />Users</Link>
-          <Link href="/admin/config" className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-300 hover:bg-slate-700"><Settings className="w-5 h-5" />Config</Link>
+          <Link href="/admin/dashboard" className="admin-nav-item"><LayoutDashboard className="w-5 h-5" />Dashboard</Link>
+          <Link href="/admin/revenue" className="admin-nav-item"><DollarSign className="w-5 h-5" />Revenue</Link>
+          <Link href="/admin/distribute" className="admin-nav-item active"><Gift className="w-5 h-5" />Distribute</Link>
+          <Link href="/admin/users" className="admin-nav-item"><Users className="w-5 h-5" />Users</Link>
+          <Link href="/admin/config" className="admin-nav-item"><Settings className="w-5 h-5" />Config</Link>
         </nav>
-        <div className="p-4 border-t border-slate-700">
-          <button onClick={handleLogout} className="flex items-center gap-3 px-4 py-3 rounded-lg text-red-400 hover:bg-red-500/10 w-full"><LogOut className="w-5 h-5" />Logout</button>
+        <div className="p-4 border-t border-border">
+          <button onClick={handleLogout} className="admin-nav-item w-full text-error hover:bg-error/10"><LogOut className="w-5 h-5" />Logout</button>
         </div>
       </aside>
 
@@ -90,90 +88,104 @@ export default function AdminDistributePage() {
         <div className="max-w-6xl mx-auto">
           <div className="flex items-center justify-between mb-8">
             <div>
-              <h2 className="text-2xl font-bold text-white">Prize Distribution</h2>
-              <p className="text-gray-400">Distribute pending prizes to winners</p>
+              <h2 className="text-2xl font-bold">Prize Distribution</h2>
+              <p className="text-text-secondary">Distribute pending prizes to winners</p>
             </div>
-            <button onClick={fetchPrizes} disabled={loading} className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 rounded-lg text-white">
+            <button onClick={fetchPrizes} disabled={loading} className="btn btn-ghost">
               <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+              Refresh
             </button>
           </div>
 
           {/* Summary */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <p className="text-gray-400 text-sm">Pending Prizes</p>
-              <p className="text-3xl font-bold text-yellow-400">{prizes.length}</p>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Pending Prizes</p>
+                  <p className="text-2xl font-bold mt-1 text-warning">{prizes.length}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-warning/10 text-warning"><Gift className="w-5 h-5" /></div>
+              </div>
             </div>
-            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <p className="text-gray-400 text-sm">Total Value (USD)</p>
-              <p className="text-3xl font-bold text-green-400">${prizes.reduce((s, p) => s + p.prizeValueUSD, 0).toFixed(0)}</p>
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Total Value (USD)</p>
+                  <p className="text-2xl font-bold mt-1 text-success">${prizes.reduce((s, p) => s + p.prizeValueUSD, 0).toFixed(0)}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-success/10 text-success"><DollarSign className="w-5 h-5" /></div>
+              </div>
             </div>
-            <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-              <p className="text-gray-400 text-sm">Total VICT</p>
-              <p className="text-3xl font-bold text-purple-400">{prizes.filter(p => p.prizeType !== 'suitrump').reduce((s, p) => s + p.prizeAmount, 0).toLocaleString()}</p>
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Total VICT</p>
+                  <p className="text-2xl font-bold mt-1 text-accent">{prizes.filter(p => p.prizeType !== 'suitrump').reduce((s, p) => s + p.prizeAmount, 0).toLocaleString()}</p>
+                </div>
+                <div className="p-3 rounded-lg bg-accent/10 text-accent"><Gift className="w-5 h-5" /></div>
+              </div>
             </div>
           </div>
 
           {/* Pending Prizes Table */}
-          <div className="bg-slate-800 rounded-xl border border-slate-700">
-            <div className="p-4 border-b border-slate-700">
-              <h3 className="text-lg font-semibold text-white">Pending Prizes</h3>
+          <div className="card">
+            <div className="p-4 border-b border-border">
+              <h3 className="text-lg font-semibold">Pending Prizes</h3>
             </div>
             <table className="w-full">
               <thead>
-                <tr className="border-b border-slate-700">
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Wallet</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Type</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Value</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Lock</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Date</th>
-                  <th className="px-4 py-3 text-left text-xs text-gray-400">Actions</th>
+                <tr className="border-b border-border">
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Wallet</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Type</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Amount</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Value</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Lock</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Date</th>
+                  <th className="px-4 py-3 text-left text-xs text-text-secondary">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {prizes.map((prize) => (
-                  <tr key={prize._id} className="border-b border-slate-700/50">
+                  <tr key={prize._id} className="border-b border-border/50 hover:bg-card-hover">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm text-white">{prize.wallet.slice(0, 8)}...{prize.wallet.slice(-4)}</span>
-                        <a href={`https://suiscan.xyz/mainnet/account/${prize.wallet}`} target="_blank" rel="noopener noreferrer" className="text-gray-500 hover:text-white">
+                        <span className="font-mono text-sm">{prize.wallet.slice(0, 8)}...{prize.wallet.slice(-4)}</span>
+                        <a href={`https://suiscan.xyz/mainnet/account/${prize.wallet}`} target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-accent">
                           <ExternalLink className="w-3 h-3" />
                         </a>
                       </div>
                     </td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded text-xs ${
-                        prize.prizeType === 'liquid_victory' ? 'bg-yellow-500/20 text-yellow-400' :
+                        prize.prizeType === 'liquid_victory' ? 'bg-warning/20 text-warning' :
                         prize.prizeType === 'locked_victory' ? 'bg-purple-500/20 text-purple-400' :
                         'bg-cyan-500/20 text-cyan-400'
                       }`}>
                         {getPrizeTypeLabel(prize.prizeType)}
                       </span>
                     </td>
-                    <td className="px-4 py-3 text-white font-medium">{prize.prizeAmount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-green-400">${prize.prizeValueUSD}</td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">{prize.lockDuration || '-'}</td>
-                    <td className="px-4 py-3 text-gray-400 text-sm">{new Date(prize.createdAt).toLocaleDateString()}</td>
+                    <td className="px-4 py-3 font-medium">{prize.prizeAmount.toLocaleString()}</td>
+                    <td className="px-4 py-3 text-success">${prize.prizeValueUSD}</td>
+                    <td className="px-4 py-3 text-text-secondary text-sm">{prize.lockDuration || '-'}</td>
+                    <td className="px-4 py-3 text-text-secondary text-sm">{new Date(prize.createdAt).toLocaleDateString()}</td>
                     <td className="px-4 py-3">
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => {
-                            const txHash = prompt('Enter transaction hash:')
-                            if (txHash) handleDistribute(prize._id, txHash)
-                          }}
-                          disabled={processing === prize._id}
-                          className="flex items-center gap-1 px-3 py-1 bg-green-600 hover:bg-green-700 rounded text-white text-xs disabled:opacity-50"
-                        >
-                          <Check className="w-3 h-3" />
-                          {processing === prize._id ? 'Processing...' : 'Mark Sent'}
-                        </button>
-                      </div>
+                      <button
+                        onClick={() => {
+                          const txHash = prompt('Enter transaction hash:')
+                          if (txHash) handleDistribute(prize._id, txHash)
+                        }}
+                        disabled={processing === prize._id}
+                        className="flex items-center gap-1 px-3 py-1 bg-success hover:bg-success/80 rounded text-white text-xs disabled:opacity-50"
+                      >
+                        <Check className="w-3 h-3" />
+                        {processing === prize._id ? 'Processing...' : 'Mark Sent'}
+                      </button>
                     </td>
                   </tr>
                 ))}
                 {prizes.length === 0 && (
-                  <tr><td colSpan={7} className="px-4 py-8 text-center text-gray-500">No pending prizes 🎉</td></tr>
+                  <tr><td colSpan={7} className="px-4 py-8 text-center text-text-secondary">No pending prizes 🎉</td></tr>
                 )}
               </tbody>
             </table>
