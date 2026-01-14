@@ -1,115 +1,93 @@
 'use client'
 
+// ============================================
+// Enhanced Header with Official dApp-Kit
+// ============================================
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { useCurrentAccount, useConnectWallet, useDisconnectWallet, useWallets } from '@mysten/dapp-kit'
-import { Wallet, LogOut, Menu, X } from 'lucide-react'
+import { ConnectButton } from '@mysten/dapp-kit'
+import { Menu, X, Gamepad2, Sparkles } from 'lucide-react'
 import { useState } from 'react'
 
 export function Header() {
   const pathname = usePathname()
-  const account = useCurrentAccount()
-  const wallets = useWallets()
-  const { mutate: connect } = useConnectWallet()
-  const { mutate: disconnect } = useDisconnectWallet()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
-  const [showWalletModal, setShowWalletModal] = useState(false)
-
-  const handleConnect = (wallet: any) => {
-    connect({ wallet })
-    setShowWalletModal(false)
-  }
-
-  const handleDisconnect = () => {
-    disconnect()
-  }
 
   const isActive = (path: string) => pathname === path
 
-  // Sort wallets - Slush and Nightly first
-  const sortedWallets = [...wallets].sort((a, b) => {
-    const priority = ['Slush', 'Nightly', 'Sui Wallet', 'Suiet']
-    const aIndex = priority.findIndex(p => a.name.toLowerCase().includes(p.toLowerCase()))
-    const bIndex = priority.findIndex(p => b.name.toLowerCase().includes(p.toLowerCase()))
-    if (aIndex === -1 && bIndex === -1) return 0
-    if (aIndex === -1) return 1
-    if (bIndex === -1) return -1
-    return aIndex - bIndex
-  })
+  const navItems = [
+    { href: '/', label: 'Home', icon: null },
+    { href: '/wheel', label: 'Wheel', icon: '🎡', highlight: true },
+    { href: '#', label: 'Lottery', icon: '🎟️', disabled: true, badge: 'Soon' },
+  ]
 
   return (
-    <>
-      <header className="bg-surface border-b border-border sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4">
-          <div className="flex items-center justify-between h-16">
+    <header className="sticky top-0 z-40">
+      {/* Gradient Border Top */}
+      <div className="h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent" />
+      
+      <div className="bg-surface/95 backdrop-blur-md border-b border-border/50">
+        <div className="max-w-7xl mx-auto px-3 sm:px-4">
+          <div className="flex items-center justify-between h-14 sm:h-16">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
-              <span className="text-2xl">🎮</span>
-              <span className="font-display text-xl font-bold">
-                <span className="text-accent">Sui</span>
-                <span className="text-white">Dex</span>
-                <span className="text-text-secondary ml-1 text-sm font-normal">Games</span>
-              </span>
+            <Link href="/" className="flex items-center gap-2 sm:gap-3 group">
+              <div className="relative">
+                <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full group-hover:bg-accent/30 transition-colors" />
+                <div className="relative w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-accent to-secondary rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-accent/20">
+                  <Gamepad2 className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
+                </div>
+              </div>
+              <div className="flex flex-col">
+                <span className="font-display text-lg sm:text-xl font-bold leading-tight">
+                  <span className="text-accent">Sui</span>
+                  <span className="text-white">Dex</span>
+                </span>
+                <span className="text-[8px] sm:text-[10px] text-text-muted uppercase tracking-widest hidden xs:block">Games</span>
+              </div>
             </Link>
 
             {/* Desktop Nav */}
-            <nav className="hidden md:flex items-center gap-1">
-              <Link
-                href="/"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/') ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:text-white hover:bg-white/5'
-                }`}
-              >
-                Home
-              </Link>
-              <Link
-                href="/wheel"
-                className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive('/wheel') ? 'bg-accent/10 text-accent' : 'text-text-secondary hover:text-white hover:bg-white/5'
-                }`}
-              >
-                🎡 Wheel
-              </Link>
-              <Link
-                href="#"
-                className="px-4 py-2 rounded-lg text-sm font-medium text-text-muted cursor-not-allowed"
-              >
-                🎟️ Lottery (Soon)
-              </Link>
+            <nav className="hidden md:flex items-center gap-1 bg-background/50 rounded-xl p-1 border border-border/50">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`
+                    relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
+                    ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}
+                    ${isActive(item.href) 
+                      ? 'bg-accent text-black shadow-md shadow-accent/30' 
+                      : 'text-text-secondary hover:text-white hover:bg-white/5'
+                    }
+                  `}
+                  onClick={item.disabled ? (e) => e.preventDefault() : undefined}
+                >
+                  {item.icon && <span>{item.icon}</span>}
+                  <span>{item.label}</span>
+                  {item.badge && (
+                    <span className="px-1.5 py-0.5 text-[10px] bg-secondary/20 text-secondary rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                  {item.highlight && isActive(item.href) && (
+                    <Sparkles className="w-3 h-3 text-black animate-pulse" />
+                  )}
+                </Link>
+              ))}
             </nav>
 
-            {/* Wallet */}
-            <div className="flex items-center gap-3">
-              {!account ? (
-                <button
-                  onClick={() => setShowWalletModal(true)}
-                  className="flex items-center gap-2 px-4 py-2 bg-accent hover:bg-accent-hover rounded-lg text-black font-medium text-sm transition-colors"
-                >
-                  <Wallet className="w-4 h-4" />
-                  <span className="hidden sm:inline">Connect</span>
-                </button>
-              ) : (
-                <div className="flex items-center gap-2">
-                  <div className="hidden sm:block px-3 py-1.5 bg-surface-alt rounded-lg border border-border">
-                    <span className="text-xs text-text-secondary">Connected</span>
-                    <p className="text-sm font-mono text-accent">
-                      {account.address.slice(0, 6)}...{account.address.slice(-4)}
-                    </p>
-                  </div>
-                  <button
-                    onClick={handleDisconnect}
-                    className="p-2 text-text-secondary hover:text-error hover:bg-error/10 rounded-lg transition-colors"
-                    title="Disconnect Wallet"
-                  >
-                    <LogOut className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
+            {/* Right Side */}
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* Official dApp-Kit Connect Button */}
+              <div className="[&_button]:!px-3 [&_button]:!py-2 [&_button]:!text-xs sm:[&_button]:!px-4 sm:[&_button]:!py-2 sm:[&_button]:!text-sm [&_button]:!rounded-lg sm:[&_button]:!rounded-xl">
+                <ConnectButton connectText="Connect" />
+              </div>
 
               {/* Mobile Menu Toggle */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-text-secondary hover:text-white"
+                className="md:hidden p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors"
               >
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
@@ -118,82 +96,35 @@ export function Header() {
 
           {/* Mobile Menu */}
           {mobileMenuOpen && (
-            <nav className="md:hidden py-4 border-t border-border space-y-1">
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-4 py-2 rounded-lg ${isActive('/') ? 'bg-accent/10 text-accent' : 'text-text-secondary'}`}
-              >
-                Home
-              </Link>
-              <Link
-                href="/wheel"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`block px-4 py-2 rounded-lg ${isActive('/wheel') ? 'bg-accent/10 text-accent' : 'text-text-secondary'}`}
-              >
-                🎡 Wheel of Victory
-              </Link>
+            <nav className="md:hidden py-3 border-t border-border/50 space-y-1">
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  onClick={() => !item.disabled && setMobileMenuOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all
+                    ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}
+                    ${isActive(item.href) 
+                      ? 'bg-accent/10 text-accent border border-accent/30' 
+                      : 'text-text-secondary hover:bg-white/5'
+                    }
+                  `}
+                >
+                  {item.icon && <span className="text-xl">{item.icon}</span>}
+                  <span className="font-medium">{item.label}</span>
+                  {item.badge && (
+                    <span className="ml-auto px-2 py-0.5 text-xs bg-secondary/20 text-secondary rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </Link>
+              ))}
             </nav>
           )}
         </div>
-      </header>
-
-      {/* Wallet Selection Modal */}
-      {showWalletModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4" onClick={() => setShowWalletModal(false)}>
-          <div className="bg-surface border border-border rounded-2xl p-6 max-w-sm w-full" onClick={e => e.stopPropagation()}>
-            <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-bold text-white">Connect Wallet</h3>
-              <button onClick={() => setShowWalletModal(false)} className="text-text-muted hover:text-white">
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-            
-            {sortedWallets.length > 0 ? (
-              <div className="space-y-2">
-                {sortedWallets.map((wallet) => (
-                  <button
-                    key={wallet.name}
-                    onClick={() => handleConnect(wallet)}
-                    className="w-full flex items-center gap-3 px-4 py-3 bg-background hover:bg-accent/10 border border-border hover:border-accent/30 rounded-xl transition-colors"
-                  >
-                    {wallet.icon && (
-                      <img src={wallet.icon} alt={wallet.name} className="w-8 h-8 rounded-lg" />
-                    )}
-                    <span className="font-medium text-white">{wallet.name}</span>
-                    {(wallet.name.toLowerCase().includes('slush') || wallet.name.toLowerCase().includes('nightly')) && (
-                      <span className="ml-auto text-xs bg-accent/20 text-accent px-2 py-0.5 rounded">Recommended</span>
-                    )}
-                  </button>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-text-secondary mb-4">No wallets detected</p>
-                <div className="space-y-2">
-                  <a
-                    href="https://slush.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block px-4 py-3 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-xl text-accent font-medium"
-                  >
-                    Install Slush Wallet
-                  </a>
-                  <a
-                    href="https://nightly.app"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block px-4 py-3 bg-purple-500/10 hover:bg-purple-500/20 border border-purple-500/30 rounded-xl text-purple-400 font-medium"
-                  >
-                    Install Nightly Wallet
-                  </a>
-                </div>
-              </div>
-            )}
-          </div>
-        </div>
-      )}
-    </>
+      </div>
+    </header>
   )
 }
 
