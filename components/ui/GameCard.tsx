@@ -13,16 +13,10 @@ export function GameCard({ slug, name, description, status }: GameCardProps) {
   const isComingSoon = status === 'coming_soon'
   const isMaintenance = status === 'maintenance'
 
-  const Wrapper = isLive ? Link : 'div'
-  const wrapperProps = isLive ? { href: `/${slug}` } : {}
+  const cardClassName = `card p-6 group ${isLive ? 'cursor-pointer card-glow' : 'opacity-75'}`
 
-  return (
-    <Wrapper
-      {...wrapperProps}
-      className={`card p-6 group ${
-        isLive ? 'cursor-pointer card-glow' : 'opacity-75'
-      }`}
-    >
+  const content = (
+    <>
       {/* Status Badge */}
       <div className="flex justify-between items-start mb-4">
         <div
@@ -69,7 +63,17 @@ export function GameCard({ slug, name, description, status }: GameCardProps) {
           </span>
         </div>
       )}
-    </Wrapper>
+    </>
+  )
+
+  return isLive ? (
+    <Link href={`/${slug}`} className={cardClassName}>
+      {content}
+    </Link>
+  ) : (
+    <div className={cardClassName}>
+      {content}
+    </div>
   )
 }
 

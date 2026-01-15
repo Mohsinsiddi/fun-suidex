@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit'
@@ -11,7 +11,7 @@ import { GameCard } from '@/components/ui/GameCard'
 import { ReferralBanner } from '@/components/referral'
 import { Users, ArrowRight } from 'lucide-react'
 
-export default function HomePage() {
+function HomePageContent() {
   const searchParams = useSearchParams()
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
@@ -252,5 +252,13 @@ function StepCard({ number, title, description }: { number: number; title: strin
       <h3 className="font-display text-lg sm:text-xl font-bold mb-2 text-white">{title}</h3>
       <p className="text-text-secondary text-sm sm:text-base">{description}</p>
     </div>
+  )
+}
+
+export default function HomePage() {
+  return (
+    <Suspense fallback={<div className="min-h-screen flex items-center justify-center bg-[var(--background)]"><div className="text-[var(--text-secondary)]">Loading...</div></div>}>
+      <HomePageContent />
+    </Suspense>
   )
 }

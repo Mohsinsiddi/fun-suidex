@@ -39,7 +39,7 @@ export async function GET(
     await connectDB()
 
     // Find spin
-    const spin = await SpinModel.findById(spinId)
+    const spin = await SpinModel.findById(spinId).lean()
 
     if (!spin) {
       return NextResponse.json(

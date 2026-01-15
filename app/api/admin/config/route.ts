@@ -94,10 +94,7 @@ export async function PUT(request: NextRequest) {
     const before = config ? config.toObject() : null
 
     if (!config) {
-      config = new AdminConfigModel({
-        _id: 'main',
-        ...DEFAULT_ADMIN_CONFIG,
-      })
+      config = new AdminConfigModel(DEFAULT_ADMIN_CONFIG)
     }
 
     // Update fields

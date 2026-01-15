@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, Search, Plus, AlertCircle, CheckCircle } from 'lucide-react'
+import { Pagination, PaginationInfo, SkeletonTable, ErrorState } from '@/components/ui'
 
 interface User {
   _id: string
@@ -20,8 +21,15 @@ export default function AdminUsersPage() {
   const [users, setUsers] = useState<User[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
+  const [searchInput, setSearchInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
+
+  // Pagination state
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const limit = 20
 
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditWallet, setCreditWallet] = useState('')
@@ -29,19 +37,36 @@ export default function AdminUsersPage() {
   const [creditType, setCreditType] = useState<'purchased' | 'bonus'>('purchased')
   const [crediting, setCrediting] = useState(false)
 
-  useEffect(() => { fetchUsers() }, [])
-
-  const fetchUsers = async () => {
+  const fetchUsers = useCallback(async () => {
     setLoading(true)
+    setError(null)
     try {
-      const res = await fetch('/api/admin/users')
+      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      if (search) params.set('search', search)
+      const res = await fetch(`/api/admin/users?${params}`)
       if (res.status === 401) { router.push('/admin/login'); return }
       const data = await res.json()
-      if (data.success) setUsers(data.data || [])
-      else setError(data.error)
+      if (data.success) {
+        setUsers(data.items || [])
+        setTotalPages(data.pagination?.totalPages || 1)
+        setTotal(data.pagination?.total || 0)
+      } else {
+        setError(data.error)
+      }
     } catch (err) { setError('Failed to load users') }
     setLoading(false)
-  }
+  }, [page, search, router])
+
+  useEffect(() => { fetchUsers() }, [fetchUsers])
+
+  // Debounced search
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setSearch(searchInput)
+      setPage(1)
+    }, 300)
+    return () => clearTimeout(timeout)
+  }, [searchInput])
 
   const handleCredit = async () => {
     if (!creditWallet || creditAmount <= 0) return
@@ -66,8 +91,6 @@ export default function AdminUsersPage() {
     setCrediting(false)
   }
 
-  const filteredUsers = users.filter(u => u.wallet.toLowerCase().includes(search.toLowerCase()))
-
   return (
     <>
       {/* Header */}
@@ -87,13 +110,13 @@ export default function AdminUsersPage() {
       </div>
 
       {/* Messages */}
-      {error && (
-        <div className="mb-6 flex items-center gap-2 p-4 bg-error/10 border border-error/20 rounded-lg text-error">
+      {error && !loading && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg text-[var(--error)]">
           <AlertCircle className="w-5 h-5" />{error}
         </div>
       )}
       {success && (
-        <div className="mb-6 flex items-center gap-2 p-4 bg-success/10 border border-success/20 rounded-lg text-success">
+        <div className="mb-6 flex items-center gap-2 p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-[var(--success)]">
           <CheckCircle className="w-5 h-5" />{success}
         </div>
       )}
@@ -101,61 +124,72 @@ export default function AdminUsersPage() {
       {/* Search */}
       <div className="mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
           <input
             type="text"
             placeholder="Search by wallet address..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-lg placeholder-text-secondary"
+            value={searchInput}
+            onChange={(e) => setSearchInput(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 bg-[var(--card)] border border-[var(--border)] rounded-lg placeholder-[var(--text-secondary)]"
           />
         </div>
       </div>
 
       {/* Users Table */}
       <div className="card overflow-hidden">
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-border">
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Wallet</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Purchased</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Bonus</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Total Spins</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Wins (USD)</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Last Active</th>
-              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredUsers.map((user) => (
-              <tr key={user._id} className="border-b border-border/50 hover:bg-card-hover">
-                <td className="px-6 py-4 font-mono text-sm">{user.wallet.slice(0, 10)}...{user.wallet.slice(-6)}</td>
-                <td className="px-6 py-4 text-warning font-medium">{user.purchasedSpins}</td>
-                <td className="px-6 py-4 text-purple-400 font-medium">{user.bonusSpins}</td>
-                <td className="px-6 py-4 text-text-secondary">{user.totalSpins}</td>
-                <td className="px-6 py-4 text-success">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
-                <td className="px-6 py-4 text-text-secondary text-sm">
-                  {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
-                </td>
-                <td className="px-6 py-4">
-                  <button
-                    onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
-                    className="text-sm text-accent hover:text-accent/80"
-                  >
-                    Credit
-                  </button>
-                </td>
-              </tr>
-            ))}
-            {filteredUsers.length === 0 && (
-              <tr>
-                <td colSpan={7} className="px-6 py-8 text-center text-text-secondary">
-                  {loading ? 'Loading...' : 'No users found'}
-                </td>
-              </tr>
-            )}
-          </tbody>
-        </table>
+        {loading ? (
+          <SkeletonTable rows={10} columns={7} />
+        ) : users.length === 0 ? (
+          <ErrorState
+            title="No users found"
+            message={search ? `No users matching "${search}"` : 'No users have signed up yet.'}
+            onRetry={fetchUsers}
+          />
+        ) : (
+          <>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-[var(--border)]">
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wallet</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Purchased</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Bonus</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Total Spins</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wins (USD)</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Last Active</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {users.map((user) => (
+                  <tr key={user._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
+                    <td className="px-6 py-4 font-mono text-sm">{user.wallet.slice(0, 10)}...{user.wallet.slice(-6)}</td>
+                    <td className="px-6 py-4 text-[var(--warning)] font-medium">{user.purchasedSpins}</td>
+                    <td className="px-6 py-4 text-purple-400 font-medium">{user.bonusSpins}</td>
+                    <td className="px-6 py-4 text-[var(--text-secondary)]">{user.totalSpins}</td>
+                    <td className="px-6 py-4 text-[var(--success)]">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
+                    <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
+                      {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
+                    </td>
+                    <td className="px-6 py-4">
+                      <button
+                        onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
+                        className="text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
+                      >
+                        Credit
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between p-4 border-t border-[var(--border)]">
+              <PaginationInfo page={page} limit={limit} total={total} />
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          </>
+        )}
       </div>
 
       {/* Credit Modal */}

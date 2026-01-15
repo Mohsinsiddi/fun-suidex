@@ -1,3 +1,7 @@
+// ============================================
+// Referral Stats API
+// ============================================
+
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
@@ -15,22 +19,79 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const [referrals, rewards] = await Promise.all([
-      ReferralModel.find({ referrerWallet: payload.wallet }),
-      AffiliateRewardModel.find({ referrerWallet: payload.wallet }),
+    // Optimized: Use aggregation pipelines instead of loading all documents
+    const [referralStats, rewardStats] = await Promise.all([
+      // Referral counts
+      ReferralModel.aggregate([
+        { $match: { referrerWallet: payload.wallet } },
+        {
+          $group: {
+            _id: null,
+            totalReferred: { $sum: 1 },
+            activeReferred: {
+              $sum: { $cond: [{ $ne: ['$isActive', false] }, 1, 0] },
+            },
+          },
+        },
+      ]),
+      // Reward stats
+      AffiliateRewardModel.aggregate([
+        { $match: { referrerWallet: payload.wallet } },
+        {
+          $group: {
+            _id: null,
+            totalEarningsVICT: { $sum: '$rewardAmountVICT' },
+            totalEarningsUSD: { $sum: '$rewardValueUSD' },
+            pendingTweets: {
+              $sum: {
+                $cond: [
+                  { $in: ['$tweetStatus', ['pending', 'clicked']] },
+                  1,
+                  0,
+                ],
+              },
+            },
+            readyForPayout: {
+              $sum: { $cond: [{ $eq: ['$payoutStatus', 'ready'] }, 1, 0] },
+            },
+            paidOut: {
+              $sum: { $cond: [{ $eq: ['$payoutStatus', 'paid'] }, 1, 0] },
+            },
+            pendingEarningsVICT: {
+              $sum: {
+                $cond: [
+                  { $ne: ['$payoutStatus', 'paid'] },
+                  '$rewardAmountVICT',
+                  0,
+                ],
+              },
+            },
+          },
+        },
+      ]),
     ])
+
+    const refStats = referralStats[0] || { totalReferred: 0, activeReferred: 0 }
+    const rewStats = rewardStats[0] || {
+      totalEarningsVICT: 0,
+      totalEarningsUSD: 0,
+      pendingTweets: 0,
+      readyForPayout: 0,
+      paidOut: 0,
+      pendingEarningsVICT: 0,
+    }
 
     return NextResponse.json({
       success: true,
       stats: {
-        totalReferred: referrals.length,
-        activeReferred: referrals.filter(r => r.isActive !== false).length,
-        totalEarningsVICT: rewards.reduce((s, r) => s + (r.rewardAmountVICT || 0), 0),
-        totalEarningsUSD: rewards.reduce((s, r) => s + (r.rewardValueUSD || 0), 0),
-        pendingTweets: rewards.filter(r => r.tweetStatus === 'pending' || r.tweetStatus === 'clicked').length,
-        readyForPayout: rewards.filter(r => r.payoutStatus === 'ready').length,
-        paidOut: rewards.filter(r => r.payoutStatus === 'paid').length,
-        pendingEarningsVICT: rewards.filter(r => r.payoutStatus !== 'paid').reduce((s, r) => s + (r.rewardAmountVICT || 0), 0),
+        totalReferred: refStats.totalReferred,
+        activeReferred: refStats.activeReferred,
+        totalEarningsVICT: rewStats.totalEarningsVICT,
+        totalEarningsUSD: rewStats.totalEarningsUSD,
+        pendingTweets: rewStats.pendingTweets,
+        readyForPayout: rewStats.readyForPayout,
+        paidOut: rewStats.paidOut,
+        pendingEarningsVICT: rewStats.pendingEarningsVICT,
       },
     })
   } catch (error) {

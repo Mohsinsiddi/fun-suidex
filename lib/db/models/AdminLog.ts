@@ -71,6 +71,9 @@ const AdminLogSchema = new Schema<AdminLogDocument>(
 
 AdminLogSchema.index({ createdAt: -1 })
 AdminLogSchema.index({ action: 1, createdAt: -1 })
+AdminLogSchema.index({ targetType: 1, createdAt: -1 }) // For audit by entity type
+AdminLogSchema.index({ adminUsername: 1, createdAt: -1 }) // For admin action history
+AdminLogSchema.index({ targetId: 1, createdAt: -1 }) // For entity change history
 
 // ----------------------------------------
 // Model Export

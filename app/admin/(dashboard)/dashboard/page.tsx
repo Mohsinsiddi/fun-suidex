@@ -15,6 +15,7 @@ import {
   CheckCircle,
   AlertCircle,
 } from 'lucide-react'
+import { Skeleton } from '@/components/ui'
 
 interface DashboardStats {
   totalUsers: number
@@ -106,12 +107,12 @@ export default function AdminDashboardPage() {
           <h3 className="text-lg font-semibold mb-4">Today</h3>
           <div className="space-y-4">
             <div className="flex justify-between">
-              <span className="text-text-secondary">Spins</span>
-              <span className="font-mono">{stats?.todaySpins ?? '-'}</span>
+              <span className="text-[var(--text-secondary)]">Spins</span>
+              {loading ? <Skeleton className="h-5 w-12" /> : <span className="font-mono">{stats?.todaySpins ?? '-'}</span>}
             </div>
             <div className="flex justify-between">
-              <span className="text-text-secondary">Revenue</span>
-              <span className="font-mono text-accent">{stats?.todayRevenueSUI?.toFixed(2) ?? '-'} SUI</span>
+              <span className="text-[var(--text-secondary)]">Revenue</span>
+              {loading ? <Skeleton className="h-5 w-20" /> : <span className="font-mono text-[var(--accent)]">{stats?.todayRevenueSUI?.toFixed(2) ?? '-'} SUI</span>}
             </div>
           </div>
         </div>
@@ -181,12 +182,16 @@ function StatCard({ title, value, icon: Icon, loading, accent, warning }: {
     <div className="card p-6">
       <div className="flex items-start justify-between">
         <div>
-          <p className="text-text-secondary text-sm">{title}</p>
-          <p className={`text-2xl font-bold mt-1 ${loading ? 'skeleton h-8 w-20' : accent ? 'text-accent' : warning ? 'text-warning' : ''}`}>
-            {loading ? '' : value}
-          </p>
+          <p className="text-[var(--text-secondary)] text-sm">{title}</p>
+          {loading ? (
+            <Skeleton className="h-8 w-20 mt-1" />
+          ) : (
+            <p className={`text-2xl font-bold mt-1 ${accent ? 'text-[var(--accent)]' : warning ? 'text-[var(--warning)]' : ''}`}>
+              {value}
+            </p>
+          )}
         </div>
-        <div className={`p-3 rounded-lg ${accent ? 'bg-accent/10 text-accent' : warning ? 'bg-warning/10 text-warning' : 'bg-card text-text-secondary'}`}>
+        <div className={`p-3 rounded-lg ${accent ? 'bg-[var(--accent)]/10 text-[var(--accent)]' : warning ? 'bg-[var(--warning)]/10 text-[var(--warning)]' : 'bg-[var(--card)] text-[var(--text-secondary)]'}`}>
           <Icon className="w-5 h-5" />
         </div>
       </div>

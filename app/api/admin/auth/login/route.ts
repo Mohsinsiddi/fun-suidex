@@ -74,9 +74,17 @@ export async function POST(request: NextRequest) {
     // Create JWT token
     const token = await createAdminToken(admin.username, admin.role, sessionId)
 
-    // Set HTTP-only cookie
+    // Set HTTP-only cookies
     const cookieStore = await cookies()
     cookieStore.set('admin_token', token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      expires: expiresAt,
+    })
+    // Also set admin_session for middleware check
+    cookieStore.set('admin_session', sessionId, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

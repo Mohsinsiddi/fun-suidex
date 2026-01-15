@@ -33,11 +33,18 @@ const UserSchema = new Schema<UserDocument>({
   lastActiveAt: { type: Date, default: Date.now },
 }, { timestamps: true })
 
-UserSchema.index({ wallet: 1 })
-UserSchema.index({ referralCode: 1 })
+// Primary indexes (wallet and referralCode already indexed via unique: true)
 UserSchema.index({ referredBy: 1 })
+
+// Session indexes
 UserSchema.index({ 'sessions.sessionId': 1 })
 UserSchema.index({ 'sessions.refreshToken': 1 })
+
+// Query optimization indexes
+UserSchema.index({ hasCompletedFirstSpin: 1, createdAt: -1 }) // For referral eligibility checks
+UserSchema.index({ lastActiveAt: -1 }) // For admin user list sorting
+UserSchema.index({ createdAt: -1 }) // For pagination
+UserSchema.index({ totalSpins: -1 }) // For leaderboard queries
 
 UserSchema.pre('save', function(next) {
   if (!this.referralCode) this.referralCode = nanoid(8).toUpperCase()

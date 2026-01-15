@@ -1,8 +1,13 @@
+// ============================================
+// Referral Earnings API
+// ============================================
+
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { AffiliateRewardModel } from '@/lib/db/models'
 import { verifyAccessToken } from '@/lib/auth/jwt'
+import { parsePaginationParams } from '@/lib/utils/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,20 +20,43 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const { searchParams } = new URL(request.url)
-    const status = searchParams.get('status')
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '20')
+    // Parse pagination params (max 50 enforced by utility)
+    const { page, limit, skip } = parsePaginationParams(request)
 
-    const query: any = { referrerWallet: payload.wallet }
-    if (status && status !== 'all') query.payoutStatus = status
+    const url = new URL(request.url)
+    const status = url.searchParams.get('status')
 
+    // Build query
+    const query: Record<string, unknown> = { referrerWallet: payload.wallet }
+    if (status && status !== 'all') {
+      query.payoutStatus = status
+    }
+
+    // Get earnings with pagination
     const [rewards, total] = await Promise.all([
-      AffiliateRewardModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+      AffiliateRewardModel.find(query)
+        .select('refereeWallet fromWallet originalPrizeVICT originalPrizeUSD rewardAmountVICT rewardValueUSD tweetStatus payoutStatus createdAt paidAt paidTxHash tweetIntentUrl')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       AffiliateRewardModel.countDocuments(query),
     ])
 
-    return NextResponse.json({ success: true, rewards, pagination: { page, limit, total, pages: Math.ceil(total / limit) } })
+    return NextResponse.json({
+      success: true,
+      data: {
+        items: rewards,
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
+    })
   } catch (error) {
     console.error('Referral earnings error:', error)
     return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })

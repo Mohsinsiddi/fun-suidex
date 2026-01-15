@@ -42,12 +42,19 @@ const AffiliateRewardSchema = new Schema<AffiliateRewardDocument>({
   paidTxHash: { type: String, default: null },
 }, { timestamps: true })
 
+// Existing indexes
 AffiliateRewardSchema.index({ referrerWallet: 1, createdAt: -1 })
 AffiliateRewardSchema.index({ referrerWallet: 1, payoutStatus: 1 })
 AffiliateRewardSchema.index({ referrerWallet: 1, tweetStatus: 1 })
 AffiliateRewardSchema.index({ weekEnding: 1, payoutStatus: 1 })
 AffiliateRewardSchema.index({ payoutStatus: 1 })
 AffiliateRewardSchema.index({ refereeWallet: 1 })
+
+// Additional optimization indexes
+AffiliateRewardSchema.index({ tweetStatus: 1, createdAt: -1 }) // For tweet campaign status
+AffiliateRewardSchema.index({ payoutStatus: 1, createdAt: -1 }) // For pagination with status filter
+AffiliateRewardSchema.index({ status: 1, createdAt: -1 }) // For pending rewards
+AffiliateRewardSchema.index({ paidAt: -1 }) // For payment history
 
 const AffiliateRewardModel: Model<AffiliateRewardDocument> = mongoose.models.AffiliateReward || mongoose.model<AffiliateRewardDocument>('AffiliateReward', AffiliateRewardSchema)
 export default AffiliateRewardModel

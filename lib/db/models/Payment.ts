@@ -110,9 +110,15 @@ const PaymentSchema = new Schema<PaymentDocument>(
 // Indexes
 // ----------------------------------------
 
+// Existing indexes
 PaymentSchema.index({ senderWallet: 1, claimStatus: 1 })
 PaymentSchema.index({ claimStatus: 1, timestamp: -1 })
 PaymentSchema.index({ timestamp: -1 })
+
+// Additional optimization indexes
+PaymentSchema.index({ claimStatus: 1, claimedAt: -1 }) // For revenue queries by claim time
+PaymentSchema.index({ createdAt: -1 }) // For pagination sorting
+PaymentSchema.index({ senderWallet: 1, claimStatus: 1, timestamp: -1 }) // For user payment history
 
 // ----------------------------------------
 // Model Export

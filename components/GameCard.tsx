@@ -26,26 +26,18 @@ export function GameCard({
 }: GameCardProps) {
   const isLive = status === 'live';
 
-  const CardWrapper = isLive ? Link : 'div';
-  const cardProps = isLive ? { href: `/${slug}` } : {};
+  const cardClassName = `
+    block h-full p-6 rounded-2xl
+    bg-[var(--card)] border border-[var(--border)]
+    transition-all duration-300
+    ${isLive
+      ? 'hover:border-[var(--border-hover)] hover:shadow-[0_0_40px_var(--accent-glow)] cursor-pointer'
+      : 'opacity-70 cursor-default'
+    }
+  `;
 
-  return (
-    <motion.div
-      whileHover={isLive ? { y: -4 } : {}}
-      className="h-full"
-    >
-      <CardWrapper
-        {...cardProps}
-        className={`
-          block h-full p-6 rounded-2xl
-          bg-[var(--card)] border border-[var(--border)]
-          transition-all duration-300
-          ${isLive 
-            ? 'hover:border-[var(--border-hover)] hover:shadow-[0_0_40px_var(--accent-glow)] cursor-pointer' 
-            : 'opacity-70 cursor-default'
-          }
-        `}
-      >
+  const cardContent = (
+    <>
         {/* Header */}
         <div className="flex items-start justify-between mb-4">
           <motion.div
@@ -90,7 +82,23 @@ export function GameCard({
             <span>Expected {expectedDate}</span>
           </div>
         )}
-      </CardWrapper>
+    </>
+  );
+
+  return (
+    <motion.div
+      whileHover={isLive ? { y: -4 } : {}}
+      className="h-full"
+    >
+      {isLive ? (
+        <Link href={`/${slug}`} className={cardClassName}>
+          {cardContent}
+        </Link>
+      ) : (
+        <div className={cardClassName}>
+          {cardContent}
+        </div>
+      )}
     </motion.div>
   );
 }

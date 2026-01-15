@@ -124,10 +124,17 @@ const SpinSchema = new Schema<SpinDocument>(
 // Indexes
 // ----------------------------------------
 
+// Existing compound indexes
 SpinSchema.index({ wallet: 1, createdAt: -1 })
 SpinSchema.index({ status: 1, createdAt: 1 })
 SpinSchema.index({ referredBy: 1, createdAt: -1 })
 SpinSchema.index({ prizeType: 1, status: 1 })
+
+// Additional optimization indexes
+SpinSchema.index({ createdAt: -1 }) // For general pagination
+SpinSchema.index({ status: 1, prizeAmount: 1 }) // For pending prizes with rewards query
+SpinSchema.index({ wallet: 1, status: 1 }) // For user spin history by status
+SpinSchema.index({ distributedAt: -1 }) // For distribution timeline
 
 // ----------------------------------------
 // Model Export

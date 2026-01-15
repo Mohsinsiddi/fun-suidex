@@ -100,7 +100,7 @@ export interface AdminInvite {
 export type SpinType = 'free' | 'purchased' | 'bonus'
 export type PrizeType = 'liquid_victory' | 'locked_victory' | 'suitrump' | 'no_prize'
 export type SpinStatus = 'pending' | 'distributed' | 'failed'
-export type LockDuration = '1_year' | null
+export type LockDuration = '1_week' | '3_month' | '1_year' | '3_year' | null
 
 export interface Spin {
   _id: string
@@ -306,16 +306,18 @@ export interface JWTPayload {
   wallet: string
   sessionId: string
   type: 'access' | 'refresh'
-  iat: number
-  exp: number
+  iat?: number
+  exp?: number
+  [key: string]: unknown
 }
 
 export interface AdminJWTPayload {
   username: string
   role: 'super_admin' | 'admin'
   sessionId: string
-  iat: number
-  exp: number
+  iat?: number
+  exp?: number
+  [key: string]: unknown
 }
 
 export interface AuthNonce {

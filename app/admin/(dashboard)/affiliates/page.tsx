@@ -1,8 +1,9 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, CheckCircle, Clock, XCircle, Users, DollarSign } from 'lucide-react'
+import { Pagination, PaginationInfo, SkeletonTable, SkeletonCardGrid, EmptyState } from '@/components/ui'
 
 interface AffiliateReward {
   _id: string
@@ -35,21 +36,33 @@ export default function AdminAffiliatesPage() {
   const [txHash, setTxHash] = useState('')
   const [paying, setPaying] = useState(false)
 
-  useEffect(() => { fetchData() }, [filter])
+  // Pagination
+  const [page, setPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
+  const [total, setTotal] = useState(0)
+  const limit = 20
 
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true)
     try {
-      const res = await fetch(`/api/admin/affiliates?status=${filter}`)
+      const params = new URLSearchParams({ status: filter, page: String(page), limit: String(limit) })
+      const res = await fetch(`/api/admin/affiliates?${params}`)
       if (res.status === 401) { router.push('/admin/login'); return }
       const data = await res.json()
       if (data.success) {
-        setRewards(data.rewards || [])
-        setStats(data.stats)
+        setRewards(data.data?.items || [])
+        setStats(data.data?.stats || null)
+        setTotalPages(data.pagination?.totalPages || 1)
+        setTotal(data.pagination?.total || 0)
       }
     } catch (err) { console.error(err) }
     setLoading(false)
-  }
+  }, [filter, page, router])
+
+  useEffect(() => { fetchData() }, [fetchData])
+
+  // Reset page when filter changes
+  useEffect(() => { setPage(1) }, [filter])
 
   const handleSelectAll = () => {
     const readyIds = rewards.filter(r => r.payoutStatus === 'ready').map(r => r._id)
@@ -113,27 +126,29 @@ export default function AdminAffiliatesPage() {
       </div>
 
       {/* Stats */}
-      {stats && (
+      {loading && !stats ? (
+        <SkeletonCardGrid count={5} />
+      ) : stats && (
         <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
           <div className="card p-4">
-            <p className="text-text-secondary text-xs mb-1">Pending Tweet</p>
+            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending Tweet</p>
             <p className="text-2xl font-bold text-yellow-400">{stats.pendingTweet}</p>
           </div>
           <div className="card p-4">
-            <p className="text-text-secondary text-xs mb-1">Ready to Pay</p>
+            <p className="text-[var(--text-secondary)] text-xs mb-1">Ready to Pay</p>
             <p className="text-2xl font-bold text-blue-400">{stats.ready}</p>
           </div>
           <div className="card p-4">
-            <p className="text-text-secondary text-xs mb-1">Paid</p>
+            <p className="text-[var(--text-secondary)] text-xs mb-1">Paid</p>
             <p className="text-2xl font-bold text-green-400">{stats.paid}</p>
           </div>
           <div className="card p-4">
-            <p className="text-text-secondary text-xs mb-1">Pending VICT</p>
+            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending VICT</p>
             <p className="text-2xl font-bold text-white">{(stats.pendingVICT || 0).toLocaleString()}</p>
           </div>
           <div className="card p-4">
-            <p className="text-text-secondary text-xs mb-1">Pending USD</p>
-            <p className="text-2xl font-bold text-accent">${(stats.pendingUSD || 0).toFixed(2)}</p>
+            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending USD</p>
+            <p className="text-2xl font-bold text-[var(--accent)]">${(stats.pendingUSD || 0).toFixed(2)}</p>
           </div>
         </div>
       )}
@@ -170,52 +185,59 @@ export default function AdminAffiliatesPage() {
       {/* Table */}
       <div className="card overflow-hidden">
         {loading ? (
-          <div className="p-8 text-center">
-            <RefreshCw className="w-8 h-8 animate-spin text-accent mx-auto" />
-          </div>
+          <SkeletonTable rows={10} columns={8} />
         ) : rewards.length === 0 ? (
-          <div className="p-12 text-center">
-            <Users size={48} className="mx-auto mb-4 text-text-muted" />
-            <p className="text-text-secondary">No rewards found</p>
-          </div>
+          <EmptyState
+            title="No rewards found"
+            message={filter !== 'all' ? `No rewards with status "${filter}"` : 'No affiliate rewards have been generated yet.'}
+            icon={Users}
+          />
         ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">SELECT</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">REFERRER</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">REFEREE</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">PRIZE</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">COMMISSION</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">TWEET</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">STATUS</th>
-                  <th className="text-left py-3 px-4 text-xs text-text-secondary">DATE</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rewards.map(r => (
-                  <tr key={r._id} className="border-b border-border/50 hover:bg-card-hover">
-                    <td className="py-3 px-4">
-                      {r.payoutStatus === 'ready' && (
-                        <input type="checkbox" checked={selectedIds.includes(r._id)} onChange={() => handleToggle(r._id)} className="w-4 h-4" />
-                      )}
-                    </td>
-                    <td className="py-3 px-4 font-mono text-sm">{formatWallet(r.referrerWallet)}</td>
-                    <td className="py-3 px-4 font-mono text-sm text-text-secondary">{formatWallet(r.refereeWallet)}</td>
-                    <td className="py-3 px-4">${(r.originalPrizeUSD || 0).toFixed(2)}</td>
-                    <td className="py-3 px-4">
-                      <span className="text-green-400">${(r.rewardValueUSD || 0).toFixed(2)}</span>
-                      <span className="text-text-muted text-xs ml-1">({(r.rewardAmountVICT || 0).toLocaleString()})</span>
-                    </td>
-                    <td className="py-3 px-4">{getTweetIcon(r.tweetStatus)}</td>
-                    <td className="py-3 px-4">{getStatusBadge(r.payoutStatus)}</td>
-                    <td className="py-3 px-4 text-text-secondary text-sm">{formatDate(r.createdAt)}</td>
+          <>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">SELECT</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">REFERRER</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">REFEREE</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">PRIZE</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">COMMISSION</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">TWEET</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">STATUS</th>
+                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">DATE</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+                </thead>
+                <tbody>
+                  {rewards.map(r => (
+                    <tr key={r._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
+                      <td className="py-3 px-4">
+                        {r.payoutStatus === 'ready' && (
+                          <input type="checkbox" checked={selectedIds.includes(r._id)} onChange={() => handleToggle(r._id)} className="w-4 h-4" />
+                        )}
+                      </td>
+                      <td className="py-3 px-4 font-mono text-sm">{formatWallet(r.referrerWallet)}</td>
+                      <td className="py-3 px-4 font-mono text-sm text-[var(--text-secondary)]">{formatWallet(r.refereeWallet)}</td>
+                      <td className="py-3 px-4">${(r.originalPrizeUSD || 0).toFixed(2)}</td>
+                      <td className="py-3 px-4">
+                        <span className="text-green-400">${(r.rewardValueUSD || 0).toFixed(2)}</span>
+                        <span className="text-[var(--text-muted)] text-xs ml-1">({(r.rewardAmountVICT || 0).toLocaleString()})</span>
+                      </td>
+                      <td className="py-3 px-4">{getTweetIcon(r.tweetStatus)}</td>
+                      <td className="py-3 px-4">{getStatusBadge(r.payoutStatus)}</td>
+                      <td className="py-3 px-4 text-[var(--text-secondary)] text-sm">{formatDate(r.createdAt)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Pagination */}
+            <div className="flex items-center justify-between p-4 border-t border-[var(--border)]">
+              <PaginationInfo page={page} limit={limit} total={total} />
+              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+            </div>
+          </>
         )}
       </div>
     </>

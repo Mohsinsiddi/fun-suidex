@@ -98,7 +98,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, data: { spinId: spin._id.toString(), slotIndex: slot.slotIndex } })
+    return NextResponse.json({ success: true, data: { spinId: String(spin._id), slotIndex: slot.slotIndex } })
   } catch (error) {
     console.error('Spin error:', error)
     return NextResponse.json({ success: false, error: ERRORS.INTERNAL_ERROR }, { status: 500 })

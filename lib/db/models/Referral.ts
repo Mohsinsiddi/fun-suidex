@@ -59,7 +59,10 @@ const ReferralSchema = new Schema<ReferralDocument>(
 // Indexes
 // ----------------------------------------
 
-ReferralSchema.index({ referrerWallet: 1, linkedAt: -1 })
+// Primary indexes (referredWallet already indexed via unique: true, referrerWallet via index: true)
+ReferralSchema.index({ referrerWallet: 1, linkedAt: -1 }) // For referrer's referral list with sorting
+ReferralSchema.index({ linkedAt: -1 }) // For recent referrals timeline
+ReferralSchema.index({ referrerWallet: 1, totalCommissionVICT: -1 }) // For top referrers
 
 // ----------------------------------------
 // Model Export

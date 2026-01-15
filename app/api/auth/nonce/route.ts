@@ -6,19 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { generateNonce } from '@/lib/utils/nanoid'
 import { isValidSuiAddress } from '@/lib/sui/client'
-
-// In-memory nonce store (use Redis in production)
-const nonceStore = new Map<string, { nonce: string; expiresAt: number }>()
-
-// Clean expired nonces periodically
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, value] of nonceStore.entries()) {
-    if (value.expiresAt < now) {
-      nonceStore.delete(key)
-    }
-  }
-}, 60000) // Every minute
+import { setNonce } from '@/lib/auth/nonceStore'
 
 export async function POST(request: NextRequest) {
   try {
@@ -45,7 +33,7 @@ export async function POST(request: NextRequest) {
     const expiresAt = Date.now() + 5 * 60 * 1000 // 5 minutes
 
     // Store nonce
-    nonceStore.set(wallet.toLowerCase(), { nonce, expiresAt })
+    setNonce(wallet, nonce, expiresAt)
 
     return NextResponse.json({
       success: true,
@@ -58,13 +46,4 @@ export async function POST(request: NextRequest) {
       { status: 500 }
     )
   }
-}
-
-// Export for use in verify endpoint
-export function getNonce(wallet: string): { nonce: string; expiresAt: number } | null {
-  return nonceStore.get(wallet.toLowerCase()) || null
-}
-
-export function deleteNonce(wallet: string): void {
-  nonceStore.delete(wallet.toLowerCase())
 }

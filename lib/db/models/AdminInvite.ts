@@ -94,6 +94,10 @@ AdminInviteSchema.index(
   { expireAfterSeconds: 604800 } // 7 days after expiry
 )
 
+// Additional indexes
+AdminInviteSchema.index({ status: 1, expiresAt: -1 }) // For finding valid pending invites
+AdminInviteSchema.index({ createdBy: 1, createdAt: -1 }) // For invite audit trail
+
 // ----------------------------------------
 // Static Methods
 // ----------------------------------------

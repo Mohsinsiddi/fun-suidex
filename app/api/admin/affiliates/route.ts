@@ -1,8 +1,13 @@
+// ============================================
+// Admin Affiliates API
+// ============================================
+
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { AffiliateRewardModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
+import { parsePaginationParams } from '@/lib/utils/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,37 +20,80 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const { searchParams } = new URL(request.url)
-    const statusFilter = searchParams.get('status') || 'all'
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    // Parse pagination params (max 50 enforced by utility)
+    const { page, limit, skip } = parsePaginationParams(request)
 
-    const query: any = {}
-    if (statusFilter !== 'all') query.payoutStatus = statusFilter
+    const url = new URL(request.url)
+    const statusFilter = url.searchParams.get('status') || 'all'
 
-    const [rewards, total, stats] = await Promise.all([
-      AffiliateRewardModel.find(query).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
+    // Build query
+    const query: Record<string, unknown> = {}
+    if (statusFilter !== 'all') {
+      query.payoutStatus = statusFilter
+    }
+
+    // Optimized: Single aggregation pipeline for stats instead of multiple queries
+    const [rewards, total, statsResult] = await Promise.all([
+      AffiliateRewardModel.find(query)
+        .select('referrerWallet refereeWallet fromWallet rewardAmountVICT rewardValueUSD tweetStatus payoutStatus createdAt paidAt paidTxHash')
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(limit)
+        .lean(),
       AffiliateRewardModel.countDocuments(query),
-      Promise.all([
-        AffiliateRewardModel.countDocuments({ payoutStatus: 'pending_tweet' }),
-        AffiliateRewardModel.countDocuments({ payoutStatus: 'ready' }),
-        AffiliateRewardModel.countDocuments({ payoutStatus: 'paid' }),
-        AffiliateRewardModel.aggregate([{ $match: { payoutStatus: { $ne: 'paid' } } }, { $group: { _id: null, total: { $sum: '$rewardAmountVICT' } } }]),
-        AffiliateRewardModel.aggregate([{ $match: { payoutStatus: { $ne: 'paid' } } }, { $group: { _id: null, total: { $sum: '$rewardValueUSD' } } }]),
+      // Single aggregation for all stats
+      AffiliateRewardModel.aggregate([
+        {
+          $facet: {
+            statusCounts: [
+              {
+                $group: {
+                  _id: '$payoutStatus',
+                  count: { $sum: 1 },
+                },
+              },
+            ],
+            pendingTotals: [
+              { $match: { payoutStatus: { $ne: 'paid' } } },
+              {
+                $group: {
+                  _id: null,
+                  totalVICT: { $sum: '$rewardAmountVICT' },
+                  totalUSD: { $sum: '$rewardValueUSD' },
+                },
+              },
+            ],
+          },
+        },
       ]),
     ])
 
+    // Process stats from aggregation result
+    const statusCounts = statsResult[0]?.statusCounts || []
+    const pendingTotals = statsResult[0]?.pendingTotals[0] || { totalVICT: 0, totalUSD: 0 }
+
+    const stats = {
+      pendingTweet: statusCounts.find((s: { _id: string; count: number }) => s._id === 'pending_tweet')?.count || 0,
+      ready: statusCounts.find((s: { _id: string; count: number }) => s._id === 'ready')?.count || 0,
+      paid: statusCounts.find((s: { _id: string; count: number }) => s._id === 'paid')?.count || 0,
+      pendingVICT: pendingTotals.totalVICT,
+      pendingUSD: pendingTotals.totalUSD,
+    }
+
     return NextResponse.json({
       success: true,
-      rewards,
-      stats: {
-        pendingTweet: stats[0],
-        ready: stats[1],
-        paid: stats[2],
-        pendingVICT: stats[3][0]?.total || 0,
-        pendingUSD: stats[4][0]?.total || 0,
+      data: {
+        items: rewards,
+        stats,
       },
-      pagination: { page, limit, total, pages: Math.ceil(total / limit) },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
+      },
     })
   } catch (error) {
     console.error('Admin affiliates error:', error)

@@ -103,7 +103,10 @@ const AdminSchema = new Schema<AdminDocument>(
 // Indexes
 // ----------------------------------------
 
+// Primary index (username already indexed via unique: true)
 AdminSchema.index({ 'sessions.sessionId': 1 })
+AdminSchema.index({ role: 1 }) // For filtering by role
+AdminSchema.index({ lastLoginAt: -1 }) // For activity tracking
 
 // ----------------------------------------
 // Model Export

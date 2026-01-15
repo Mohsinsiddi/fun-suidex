@@ -1,11 +1,11 @@
 import crypto from 'crypto';
-import { IPrizeSlot } from '@/lib/db/models/AdminConfig';
+import type { PrizeSlot } from '@/types';
 
 export interface SpinResult {
   serverSeed: string;
   randomValue: number;
   slotIndex: number;
-  prizeSlot: IPrizeSlot;
+  prizeSlot: PrizeSlot;
 }
 
 /**
@@ -21,7 +21,7 @@ export function generateSecureRandom(): { seed: string; value: number } {
 /**
  * Select a prize slot based on weighted probabilities
  */
-export function selectPrizeSlot(prizeTable: IPrizeSlot[], randomValue: number): IPrizeSlot {
+export function selectPrizeSlot(prizeTable: PrizeSlot[], randomValue: number): PrizeSlot {
   // Calculate total weight
   const totalWeight = prizeTable.reduce((sum, slot) => sum + slot.weight, 0);
   
@@ -43,7 +43,7 @@ export function selectPrizeSlot(prizeTable: IPrizeSlot[], randomValue: number): 
 /**
  * Execute a spin and get the result
  */
-export function executeSpin(prizeTable: IPrizeSlot[]): SpinResult {
+export function executeSpin(prizeTable: PrizeSlot[]): SpinResult {
   const { seed, value } = generateSecureRandom();
   const prizeSlot = selectPrizeSlot(prizeTable, value);
   

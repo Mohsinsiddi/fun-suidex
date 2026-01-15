@@ -10,7 +10,8 @@
     "admin:create": "tsx scripts/admin-create.ts",
     "admin:list": "tsx scripts/admin-list.ts",
     "admin:delete": "tsx scripts/admin-delete.ts",
-    "seed:defaults": "tsx scripts/seed-defaults.ts"
+    "seed:defaults": "tsx scripts/seed-defaults.ts",
+    "seed:mock": "tsx scripts/seed-mock-data.ts"
   },
   "dependencies": {
     "@mysten/dapp-kit": "0.14.37",
