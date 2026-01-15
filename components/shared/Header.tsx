@@ -1,13 +1,9 @@
 'use client'
 
-// ============================================
-// Enhanced Header with Official dApp-Kit
-// ============================================
-
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from '@mysten/dapp-kit'
-import { Menu, X, Gamepad2, Sparkles } from 'lucide-react'
+import { Menu, X, Gamepad2, Sparkles, Users } from 'lucide-react'
 import { useState } from 'react'
 
 export function Header() {
@@ -19,12 +15,12 @@ export function Header() {
   const navItems = [
     { href: '/', label: 'Home', icon: null },
     { href: '/wheel', label: 'Wheel', icon: '🎡', highlight: true },
+    { href: '/referral', label: 'Referral', icon: <Users className="w-4 h-4" /> },
     { href: '#', label: 'Lottery', icon: '🎟️', disabled: true, badge: 'Soon' },
   ]
 
   return (
     <header className="sticky top-0 z-40">
-      {/* Gradient Border Top */}
       <div className="h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent" />
       
       <div className="bg-surface/95 backdrop-blur-md border-b border-border/50">
@@ -53,42 +49,23 @@ export function Header() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`
-                    relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all
-                    ${item.disabled ? 'cursor-not-allowed opacity-50' : ''}
-                    ${isActive(item.href) 
-                      ? 'bg-accent text-black shadow-md shadow-accent/30' 
-                      : 'text-text-secondary hover:text-white hover:bg-white/5'
-                    }
-                  `}
+                  className={`relative flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${item.disabled ? 'cursor-not-allowed opacity-50' : ''} ${isActive(item.href) ? 'bg-accent text-black shadow-md shadow-accent/30' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
                   onClick={item.disabled ? (e) => e.preventDefault() : undefined}
                 >
-                  {item.icon && <span>{item.icon}</span>}
+                  {typeof item.icon === 'string' ? <span>{item.icon}</span> : item.icon}
                   <span>{item.label}</span>
-                  {item.badge && (
-                    <span className="px-1.5 py-0.5 text-[10px] bg-secondary/20 text-secondary rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
-                  {item.highlight && isActive(item.href) && (
-                    <Sparkles className="w-3 h-3 text-black animate-pulse" />
-                  )}
+                  {item.badge && <span className="px-1.5 py-0.5 text-[10px] bg-secondary/20 text-secondary rounded-full">{item.badge}</span>}
+                  {item.highlight && isActive(item.href) && <Sparkles className="w-3 h-3 text-black animate-pulse" />}
                 </Link>
               ))}
             </nav>
 
             {/* Right Side */}
             <div className="flex items-center gap-2 sm:gap-3">
-              {/* Official dApp-Kit Connect Button */}
               <div className="[&_button]:!px-3 [&_button]:!py-2 [&_button]:!text-xs sm:[&_button]:!px-4 sm:[&_button]:!py-2 sm:[&_button]:!text-sm [&_button]:!rounded-lg sm:[&_button]:!rounded-xl">
                 <ConnectButton connectText="Connect" />
               </div>
-
-              {/* Mobile Menu Toggle */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors"
-              >
+              <button onClick={() => setMobileMenuOpen(!mobileMenuOpen)} className="md:hidden p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors">
                 {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
               </button>
             </div>
@@ -102,22 +79,11 @@ export function Header() {
                   key={item.href}
                   href={item.href}
                   onClick={() => !item.disabled && setMobileMenuOpen(false)}
-                  className={`
-                    flex items-center gap-3 px-4 py-3 rounded-xl transition-all
-                    ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''}
-                    ${isActive(item.href) 
-                      ? 'bg-accent/10 text-accent border border-accent/30' 
-                      : 'text-text-secondary hover:bg-white/5'
-                    }
-                  `}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${item.disabled ? 'opacity-50 cursor-not-allowed' : ''} ${isActive(item.href) ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5'}`}
                 >
-                  {item.icon && <span className="text-xl">{item.icon}</span>}
+                  {typeof item.icon === 'string' ? <span className="text-xl">{item.icon}</span> : item.icon}
                   <span className="font-medium">{item.label}</span>
-                  {item.badge && (
-                    <span className="ml-auto px-2 py-0.5 text-xs bg-secondary/20 text-secondary rounded-full">
-                      {item.badge}
-                    </span>
-                  )}
+                  {item.badge && <span className="ml-auto px-2 py-0.5 text-xs bg-secondary/20 text-secondary rounded-full">{item.badge}</span>}
                 </Link>
               ))}
             </nav>

@@ -1,95 +1,53 @@
-// ============================================
-// AffiliateReward Model
-// ============================================
-
 import mongoose, { Schema, Document, Model, Types } from 'mongoose'
-import type { AffiliateReward } from '@/types'
 
-// ----------------------------------------
-// Interfaces
-// ----------------------------------------
-
-export interface AffiliateRewardDocument extends Omit<AffiliateReward, '_id' | 'fromSpinId'>, Document {
+export interface AffiliateRewardDocument extends Document {
+  referrerWallet: string
+  refereeWallet: string
   fromSpinId: Types.ObjectId
+  fromWallet: string
+  originalPrizeVICT: number
+  originalPrizeUSD: number
+  commissionRate: number
+  rewardAmountVICT: number
+  rewardValueUSD: number
+  tweetStatus: 'pending' | 'clicked' | 'completed'
+  tweetClickedAt: Date | null
+  tweetReturnedAt: Date | null
+  tweetIntentUrl: string | null
+  weekEnding: Date
+  payoutStatus: 'pending_tweet' | 'ready' | 'paid'
+  status: 'pending' | 'paid'
+  paidAt: Date | null
+  paidTxHash: string | null
 }
 
-// ----------------------------------------
-// AffiliateReward Schema
-// ----------------------------------------
+const AffiliateRewardSchema = new Schema<AffiliateRewardDocument>({
+  referrerWallet: { type: String, required: true, lowercase: true },
+  refereeWallet: { type: String, lowercase: true },
+  fromSpinId: { type: Schema.Types.ObjectId, ref: 'Spin', required: true },
+  fromWallet: { type: String, required: true, lowercase: true },
+  originalPrizeVICT: { type: Number, default: 0 },
+  originalPrizeUSD: { type: Number, default: 0 },
+  commissionRate: { type: Number, default: 0.10 },
+  rewardAmountVICT: { type: Number, required: true, default: 0 },
+  rewardValueUSD: { type: Number, required: true, default: 0 },
+  tweetStatus: { type: String, enum: ['pending', 'clicked', 'completed'], default: 'pending' },
+  tweetClickedAt: { type: Date, default: null },
+  tweetReturnedAt: { type: Date, default: null },
+  tweetIntentUrl: { type: String, default: null },
+  weekEnding: { type: Date, required: true },
+  payoutStatus: { type: String, enum: ['pending_tweet', 'ready', 'paid'], default: 'pending_tweet' },
+  status: { type: String, enum: ['pending', 'paid'], default: 'pending' },
+  paidAt: { type: Date, default: null },
+  paidTxHash: { type: String, default: null },
+}, { timestamps: true })
 
-const AffiliateRewardSchema = new Schema<AffiliateRewardDocument>(
-  {
-    referrerWallet: {
-      type: String,
-      required: true,
-      lowercase: true,
-      index: true,
-    },
-    
-    // Source
-    fromSpinId: {
-      type: Schema.Types.ObjectId,
-      ref: 'Spin',
-      required: true,
-    },
-    fromWallet: {
-      type: String,
-      required: true,
-      lowercase: true,
-    },
-    
-    // Reward
-    rewardAmountVICT: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    rewardValueUSD: {
-      type: Number,
-      required: true,
-      default: 0,
-    },
-    
-    // Weekly Batching (Sunday)
-    weekEnding: {
-      type: Date,
-      required: true,
-      index: true,
-    },
-    
-    // Status
-    status: {
-      type: String,
-      enum: ['pending', 'paid'],
-      default: 'pending',
-    },
-    paidAt: {
-      type: Date,
-      default: null,
-    },
-    paidTxHash: {
-      type: String,
-      default: null,
-    },
-  },
-  {
-    timestamps: true,
-  }
-)
+AffiliateRewardSchema.index({ referrerWallet: 1, createdAt: -1 })
+AffiliateRewardSchema.index({ referrerWallet: 1, payoutStatus: 1 })
+AffiliateRewardSchema.index({ referrerWallet: 1, tweetStatus: 1 })
+AffiliateRewardSchema.index({ weekEnding: 1, payoutStatus: 1 })
+AffiliateRewardSchema.index({ payoutStatus: 1 })
+AffiliateRewardSchema.index({ refereeWallet: 1 })
 
-// ----------------------------------------
-// Indexes
-// ----------------------------------------
-
-AffiliateRewardSchema.index({ referrerWallet: 1, weekEnding: -1 })
-AffiliateRewardSchema.index({ status: 1, weekEnding: 1 })
-
-// ----------------------------------------
-// Model Export
-// ----------------------------------------
-
-const AffiliateRewardModel: Model<AffiliateRewardDocument> =
-  mongoose.models.AffiliateReward ||
-  mongoose.model<AffiliateRewardDocument>('AffiliateReward', AffiliateRewardSchema)
-
+const AffiliateRewardModel: Model<AffiliateRewardDocument> = mongoose.models.AffiliateReward || mongoose.model<AffiliateRewardDocument>('AffiliateReward', AffiliateRewardSchema)
 export default AffiliateRewardModel
