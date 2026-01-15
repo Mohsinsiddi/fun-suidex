@@ -41,7 +41,7 @@ export default function ReferralPage() {
           const linkRes = await fetch('/api/referral/link')
           const linkData = await linkRes.json()
           if (linkData.success) {
-            setReferralLink(linkData.link)
+            setReferralLink(linkData.data.link)
             setEligible(true)
           }
         }

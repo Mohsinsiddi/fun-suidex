@@ -11,7 +11,7 @@ export default function ReferralStats() {
   useEffect(() => {
     fetch('/api/referral/stats')
       .then(r => r.json())
-      .then(d => { if (d.success) setStats(d.stats) })
+      .then(d => { if (d.success) setStats(d.data) })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [])

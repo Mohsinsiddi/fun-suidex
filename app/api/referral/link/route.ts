@@ -15,7 +15,7 @@ export async function GET(request: NextRequest) {
     if (!payload) return NextResponse.json({ success: false, error: 'Session expired' }, { status: 401 })
 
     await connectDB()
-    const user = await UserModel.findOne({ wallet: payload.wallet })
+    const user = await UserModel.findOne({ wallet: payload.wallet }).select('wallet referralCode hasCompletedFirstSpin').lean()
     
     if (!user?.hasCompletedFirstSpin) {
       return NextResponse.json({ success: false, error: 'Complete first spin to unlock', eligible: false }, { status: 403 })
@@ -23,10 +23,12 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      eligible: true,
-      link: generateReferralLink(user.wallet),
-      code: user.referralCode,
-      wallet: user.wallet,
+      data: {
+        eligible: true,
+        link: generateReferralLink(user.wallet),
+        code: user.referralCode,
+        wallet: user.wallet,
+      },
     })
   } catch (error) {
     console.error('Referral link error:', error)

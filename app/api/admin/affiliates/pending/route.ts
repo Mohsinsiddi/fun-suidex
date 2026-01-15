@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { AffiliateRewardModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
+import { parsePaginationParams } from '@/lib/utils/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -15,25 +16,66 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    const rewards = await AffiliateRewardModel.find({ payoutStatus: 'ready' }).sort({ createdAt: -1 }).lean()
+    // Parse pagination params
+    const { page, limit, skip } = parsePaginationParams(request)
 
-    const byWallet = new Map<string, { wallet: string; rewards: any[]; totalVICT: number; totalUSD: number }>()
-    rewards.forEach(r => {
-      const existing = byWallet.get(r.referrerWallet) || { wallet: r.referrerWallet, rewards: [], totalVICT: 0, totalUSD: 0 }
-      existing.rewards.push(r)
-      existing.totalVICT += r.rewardAmountVICT || 0
-      existing.totalUSD += r.rewardValueUSD || 0
-      byWallet.set(r.referrerWallet, existing)
-    })
+    // Use aggregation to group by wallet with pagination
+    const [payoutSheet, totalsResult, totalWallets] = await Promise.all([
+      // Paginated grouped results
+      AffiliateRewardModel.aggregate([
+        { $match: { payoutStatus: 'ready' } },
+        {
+          $group: {
+            _id: '$referrerWallet',
+            wallet: { $first: '$referrerWallet' },
+            totalVICT: { $sum: '$rewardAmountVICT' },
+            totalUSD: { $sum: '$rewardValueUSD' },
+            rewardCount: { $sum: 1 },
+            rewards: { $push: { _id: '$_id', rewardAmountVICT: '$rewardAmountVICT', rewardValueUSD: '$rewardValueUSD', createdAt: '$createdAt' } },
+          },
+        },
+        { $sort: { totalUSD: -1 } },
+        { $skip: skip },
+        { $limit: limit },
+        { $project: { _id: 0, wallet: 1, totalVICT: 1, totalUSD: 1, rewardCount: 1, rewards: 1 } },
+      ]),
+      // Global totals
+      AffiliateRewardModel.aggregate([
+        { $match: { payoutStatus: 'ready' } },
+        {
+          $group: {
+            _id: null,
+            totalVICT: { $sum: '$rewardAmountVICT' },
+            totalUSD: { $sum: '$rewardValueUSD' },
+            totalRewards: { $sum: 1 },
+          },
+        },
+      ]),
+      // Count unique wallets for pagination
+      AffiliateRewardModel.distinct('referrerWallet', { payoutStatus: 'ready' }),
+    ])
+
+    const totals = totalsResult[0] || { totalVICT: 0, totalUSD: 0, totalRewards: 0 }
+    const total = totalWallets.length
 
     return NextResponse.json({
       success: true,
-      payoutSheet: Array.from(byWallet.values()),
-      totals: {
-        totalVICT: rewards.reduce((s, r) => s + (r.rewardAmountVICT || 0), 0),
-        totalUSD: rewards.reduce((s, r) => s + (r.rewardValueUSD || 0), 0),
-        totalRecipients: byWallet.size,
-        totalRewards: rewards.length,
+      data: {
+        payoutSheet,
+        totals: {
+          totalVICT: totals.totalVICT,
+          totalUSD: totals.totalUSD,
+          totalRecipients: total,
+          totalRewards: totals.totalRewards,
+        },
+      },
+      pagination: {
+        page,
+        limit,
+        total,
+        totalPages: Math.ceil(total / limit),
+        hasNext: page < Math.ceil(total / limit),
+        hasPrev: page > 1,
       },
     })
   } catch (error) {
