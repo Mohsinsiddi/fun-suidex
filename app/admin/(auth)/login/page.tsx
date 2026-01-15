@@ -29,7 +29,6 @@ export default function AdminLoginPage() {
         throw new Error(data.error || 'Login failed')
       }
 
-      // Redirect to dashboard
       router.push('/admin/dashboard')
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Login failed')
@@ -41,7 +40,6 @@ export default function AdminLoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center px-4 bg-background">
       <div className="w-full max-w-md">
-        {/* Logo */}
         <div className="text-center mb-8">
           <h1 className="font-display text-3xl font-bold">
             <span className="text-accent">SuiDex</span> Admin
@@ -51,10 +49,8 @@ export default function AdminLoginPage() {
           </p>
         </div>
 
-        {/* Login Card */}
         <div className="card p-8">
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Error Message */}
             {error && (
               <div className="flex items-center gap-2 p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm">
                 <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -62,12 +58,8 @@ export default function AdminLoginPage() {
               </div>
             )}
 
-            {/* Username */}
             <div>
-              <label
-                htmlFor="username"
-                className="block text-sm font-medium text-text-secondary mb-2"
-              >
+              <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-2">
                 Username
               </label>
               <div className="relative">
@@ -85,12 +77,8 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Password */}
             <div>
-              <label
-                htmlFor="password"
-                className="block text-sm font-medium text-text-secondary mb-2"
-              >
+              <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
                 Password
               </label>
               <div className="relative">
@@ -108,24 +96,14 @@ export default function AdminLoginPage() {
               </div>
             </div>
 
-            {/* Submit */}
-            <button
-              type="submit"
-              disabled={loading || !username || !password}
-              className="btn btn-primary w-full"
-            >
+            <button type="submit" disabled={loading || !username || !password} className="btn btn-primary w-full">
               {loading ? 'Signing in...' : 'Sign In'}
             </button>
           </form>
         </div>
 
-        {/* Footer */}
         <p className="text-center text-sm text-text-muted mt-6">
-          First time? Run{' '}
-          <code className="text-accent bg-card px-2 py-1 rounded">
-            pnpm admin:create
-          </code>{' '}
-          to create an account.
+          First time? Run <code className="text-accent bg-card px-2 py-1 rounded">pnpm admin:create</code> to create an account.
         </p>
       </div>
     </div>
