@@ -333,15 +333,15 @@ export default function WheelPage() {
                 
                 {/* Pointer */}
                 <div className="absolute left-1/2 -translate-x-1/2 -top-3 z-30">
-                  <svg width="32" height="44" viewBox="0 0 50 65" className="sm:w-[38px] sm:h-[52px] drop-shadow-[0_0_8px_rgba(0,255,136,0.6)]">
+                  <svg width="32" height="44" viewBox="0 0 50 65" className="sm:w-[38px] sm:h-[52px] drop-shadow-[0_0_8px_rgba(0,229,255,0.6)]">
                     <defs>
                       <linearGradient id="pGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="#00ff88" />
-                        <stop offset="100%" stopColor="#00aa55" />
+                        <stop offset="0%" stopColor="#00e5ff" />
+                        <stop offset="100%" stopColor="#00b8d4" />
                       </linearGradient>
                     </defs>
-                    <polygon points="25,58 8,12 25,24 42,12" fill="url(#pGrad)" stroke="#00ff88" strokeWidth="2" />
-                    <circle cx="25" cy="16" r="4" fill="#0a0f0a" stroke="#00ff88" strokeWidth="2" />
+                    <polygon points="25,58 8,12 25,24 42,12" fill="url(#pGrad)" stroke="#00e5ff" strokeWidth="2" />
+                    <circle cx="25" cy="16" r="4" fill="#0a0f0a" stroke="#00e5ff" strokeWidth="2" />
                   </svg>
                 </div>
 
@@ -364,8 +364,8 @@ export default function WheelPage() {
                   </defs>
                   
                   {/* Outer ring */}
-                  <circle cx={cx} cy={cy} r="195" fill="#0a1a0a" stroke="#00ff88" strokeWidth="3" />
-                  <circle cx={cx} cy={cy} r="188" fill="none" stroke="rgba(0,255,136,0.2)" strokeWidth="1" />
+                  <circle cx={cx} cy={cy} r="195" fill="#0a1a0a" stroke="#00e5ff" strokeWidth="3" />
+                  <circle cx={cx} cy={cy} r="188" fill="none" stroke="rgba(0,229,255,0.2)" strokeWidth="1" />
                   
                   {/* Wheel Slices */}
                   {wheelSlots.map((slot, i) => {
@@ -433,9 +433,9 @@ export default function WheelPage() {
                   })}
                   
                   {/* Center hub */}
-                  <circle cx={cx} cy={cy} r="38" fill="#0a1a0a" stroke="#00ff88" strokeWidth="3" />
-                  <circle cx={cx} cy={cy} r="30" fill="#0f2a0f" />
-                  <circle cx={cx} cy={cy} r="22" fill="#0a1a0a" stroke="rgba(0,255,136,0.3)" strokeWidth="1" />
+                  <circle cx={cx} cy={cy} r="38" fill="#0a1a0a" stroke="#00e5ff" strokeWidth="3" />
+                  <circle cx={cx} cy={cy} r="30" fill="#0f1a2a" />
+                  <circle cx={cx} cy={cy} r="22" fill="#0a1a0a" stroke="rgba(0,229,255,0.3)" strokeWidth="1" />
                   <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="18">🎰</text>
                 </svg>
 
@@ -443,16 +443,16 @@ export default function WheelPage() {
                 {[...Array(24)].map((_, i) => {
                   const angle = (i * 15 - 90) * (Math.PI / 180)
                   return (
-                    <div 
-                      key={i} 
-                      className={`absolute w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full z-20 ${isSpinning ? 'animate-blink' : ''}`} 
-                      style={{ 
-                        left: `calc(50% + ${48 * Math.cos(angle)}% - 3px)`, 
-                        top: `calc(50% + ${48 * Math.sin(angle)}% - 3px)`, 
-                        backgroundColor: '#00ff88', 
-                        boxShadow: '0 0 6px rgba(0,255,136,0.9)', 
-                        animationDelay: `${i * 0.04}s` 
-                      }} 
+                    <div
+                      key={i}
+                      className={`absolute w-1.5 h-1.5 sm:w-2 sm:h-2 rounded-full z-20 ${isSpinning ? 'animate-blink' : ''}`}
+                      style={{
+                        left: `calc(50% + ${48 * Math.cos(angle)}% - 3px)`,
+                        top: `calc(50% + ${48 * Math.sin(angle)}% - 3px)`,
+                        backgroundColor: '#00e5ff',
+                        boxShadow: '0 0 6px rgba(0,229,255,0.9)',
+                        animationDelay: `${i * 0.04}s`
+                      }}
                     />
                   )
                 })}
