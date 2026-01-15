@@ -1,6 +1,6 @@
 /* ============================================
    SUIDEX GAMES - GLOBAL THEME
-   Theme: "Crypto Forest" - Dark Green
+   Theme: "Electric Cyan" - Clean Gaming
    ============================================
    
    This file is the SINGLE SOURCE OF TRUTH for all
@@ -19,38 +19,38 @@
 
 :root {
   /* ----------------------------------------
-     CORE COLORS - Dark Green Theme
+     CORE COLORS - Electric Cyan Theme
      ---------------------------------------- */
   
   /* Backgrounds */
-  --background: #040a04;           /* Deep forest black */
-  --background-secondary: #071207; /* Slightly lighter */
-  --card: #0a1a0a;                 /* Dark green card */
-  --card-hover: #0f240f;           /* Card hover state */
+  --background: #050609;           /* Near black */
+  --background-secondary: #0a0c10; /* Slightly lighter */
+  --card: #0f1218;                 /* Dark slate card */
+  --card-hover: #161b24;           /* Card hover state */
   
   /* Borders */
-  --border: #143314;               /* Subtle green border */
-  --border-bright: #1a4a1a;        /* Bright border for focus */
+  --border: #1e2530;               /* Subtle slate border */
+  --border-bright: #2a3544;        /* Bright border for focus */
   
   /* ----------------------------------------
      ACCENT COLORS
      ---------------------------------------- */
   
-  /* Primary Accent - Neon Green */
-  --accent: #00ff88;               /* Main accent */
-  --accent-hover: #00cc6a;         /* Hover state */
-  --accent-muted: #00ff8833;       /* 20% opacity */
-  --accent-glow: rgba(0, 255, 136, 0.4);
+  /* Primary Accent - Electric Cyan */
+  --accent: #00e5ff;               /* Main accent */
+  --accent-hover: #00b8d4;         /* Hover state */
+  --accent-muted: #00e5ff20;       /* 12% opacity */
+  --accent-glow: rgba(0, 229, 255, 0.4);
   
-  /* Secondary Accent - Emerald */
-  --secondary: #22c55e;            /* Emerald green */
-  --secondary-hover: #16a34a;      /* Darker emerald */
+  /* Secondary Accent - Blue */
+  --secondary: #3b82f6;            /* Royal blue */
+  --secondary-hover: #2563eb;      /* Darker blue */
   
   /* ----------------------------------------
      STATUS COLORS
      ---------------------------------------- */
   
-  --success: #00ff88;              /* Same as accent for consistency */
+  --success: #22c55e;              /* Green for success */
   --warning: #ffaa00;              /* Amber */
   --error: #ff4444;                /* Red */
   --info: #4da2ff;                 /* SUI blue */
@@ -61,18 +61,18 @@
   
   --prize-gold: #ffd700;           /* Jackpot / Rare */
   --prize-purple: #a855f7;         /* Locked Victory */
-  --prize-cyan: #00ffff;           /* SuiTrump */
-  --prize-none: #333333;           /* No Prize slots */
-  --prize-liquid: #00ff88;         /* Liquid Victory */
+  --prize-cyan: #00e5ff;           /* SuiTrump */
+  --prize-none: #1a2030;           /* No Prize slots */
+  --prize-liquid: #22c55e;         /* Liquid Victory */
   
   /* ----------------------------------------
      TEXT COLORS
      ---------------------------------------- */
   
   --text-primary: #ffffff;
-  --text-secondary: #88bb88;       /* Green-tinted gray */
-  --text-muted: #446644;           /* Darker muted */
-  --text-inverse: #040a04;         /* For light backgrounds */
+  --text-secondary: #8899aa;       /* Blue-tinted gray */
+  --text-muted: #4a5568;           /* Darker muted */
+  --text-inverse: #050609;         /* For light backgrounds */
   
   /* ----------------------------------------
      TYPOGRAPHY
@@ -325,7 +325,7 @@ a:hover {
 }
 
 .badge-success {
-  background: rgba(0, 255, 136, 0.1);
+  background: rgba(34, 197, 94, 0.1);
   color: var(--success);
   border: 1px solid var(--success);
 }
@@ -362,6 +362,15 @@ a:hover {
   animation: shimmer 2s linear infinite;
 }
 
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
 /* ============================================
    WHEEL SPECIFIC STYLES
    ============================================ */
@@ -380,7 +389,7 @@ a:hover {
 
 /* Prize Slot Colors */
 .prize-slot-liquid {
-  background: linear-gradient(135deg, var(--prize-liquid), #00cc6a);
+  background: linear-gradient(135deg, var(--prize-liquid), #16a34a);
 }
 
 .prize-slot-locked {
