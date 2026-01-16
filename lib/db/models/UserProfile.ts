@@ -32,6 +32,7 @@ const UserProfileSchema = new Schema<UserProfileDocument>(
     stats: { type: ProfileStatsSchema, required: true },
     featuredBadges: [{ type: String, ref: 'Badge' }],
     unlockedAt: { type: Date, default: Date.now },
+    isSeedUser: { type: Boolean, default: false },
   },
   {
     timestamps: true,

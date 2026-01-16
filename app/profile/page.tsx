@@ -78,69 +78,58 @@ export default function ProfileSettingsPage() {
 
   const checkAuthAndFetchProfile = async () => {
     try {
-      const meRes = await fetch('/api/auth/me')
-      const meData = await meRes.json()
+      // Single consolidated API call - includes profile and badges
+      const res = await fetch('/api/auth/me?include=profile,badges')
+      const data = await res.json()
 
-      if (meData.success) {
+      if (data.success) {
         setIsAuthenticated(true)
-        setProfileEligible(meData.data.profileEligible)
-        setProfileMinSpins(meData.data.profileMinSpins || 10)
+        setProfileEligible(data.data.profileEligible)
+        setProfileMinSpins(data.data.profileMinSpins || 10)
 
-        // Fetch full profile data
-        const profileRes = await fetch('/api/profile')
-        const profileData = await profileRes.json()
-
-        if (profileData.success && profileData.data) {
-          // API returns { isEligible, isEnabled, minSpins, currentSpins, profile }
-          setProfileEligible(profileData.data.isEligible)
-          setProfileMinSpins(profileData.data.minSpins || 10)
-
-          const profileInfo = profileData.data.profile
-          if (profileInfo) {
-            // Map the profile data to our expected structure
-            setProfile({
-              wallet: profileInfo.wallet,
-              profileSlug: profileInfo.slug,
-              isProfilePublic: profileInfo.isPublic,
-              displayName: profileInfo.displayName,
-              bio: profileInfo.bio,
-              totalSpins: profileInfo.stats?.totalSpins || 0,
-              totalWinsUSD: profileInfo.stats?.totalWinsUSD || 0,
-              biggestWinUSD: profileInfo.stats?.biggestWinUSD || 0,
-              totalReferred: profileInfo.stats?.totalReferred || 0,
-              currentStreak: profileInfo.stats?.currentStreak || 0,
-              longestStreak: profileInfo.stats?.longestStreak || 0,
-              memberSince: profileInfo.stats?.memberSince || profileInfo.createdAt,
-              lastActiveAt: profileInfo.stats?.lastActive || profileInfo.updatedAt,
-            })
-            setDisplayName(profileInfo.displayName || '')
-            setBio(profileInfo.bio || '')
-            setIsPublic(profileInfo.isPublic || false)
-          } else {
-            // No profile yet but user is eligible - show empty form
-            setProfile({
-              wallet: meData.data.wallet,
-              profileSlug: null,
-              isProfilePublic: false,
-              totalSpins: profileData.data.currentSpins || 0,
-              totalWinsUSD: 0,
-              biggestWinUSD: 0,
-              totalReferred: 0,
-              currentStreak: 0,
-              longestStreak: 0,
-              memberSince: meData.data.memberSince || new Date().toISOString(),
-              lastActiveAt: meData.data.lastActiveAt || new Date().toISOString(),
-            })
-          }
+        const profileInfo = data.data.profile
+        if (profileInfo) {
+          // Map the profile data to our expected structure
+          setProfile({
+            wallet: data.data.wallet,
+            profileSlug: profileInfo.slug,
+            isProfilePublic: profileInfo.isPublic,
+            displayName: profileInfo.displayName,
+            bio: profileInfo.bio,
+            totalSpins: profileInfo.stats?.totalSpins || data.data.totalSpins || 0,
+            totalWinsUSD: profileInfo.stats?.totalWinsUSD || data.data.totalWinsUSD || 0,
+            biggestWinUSD: profileInfo.stats?.biggestWinUSD || data.data.biggestWinUSD || 0,
+            totalReferred: profileInfo.stats?.totalReferred || data.data.totalReferred || 0,
+            currentStreak: profileInfo.stats?.currentStreak || data.data.currentStreak || 0,
+            longestStreak: profileInfo.stats?.longestStreak || data.data.longestStreak || 0,
+            memberSince: profileInfo.stats?.memberSince || data.data.memberSince || new Date().toISOString(),
+            lastActiveAt: profileInfo.stats?.lastActive || data.data.lastActiveAt || new Date().toISOString(),
+          })
+          setDisplayName(profileInfo.displayName || '')
+          setBio(profileInfo.bio || '')
+          setIsPublic(profileInfo.isPublic || false)
+        } else {
+          // No profile yet but user is eligible - show empty form with user stats
+          setProfile({
+            wallet: data.data.wallet,
+            profileSlug: null,
+            isProfilePublic: false,
+            totalSpins: data.data.totalSpins || 0,
+            totalWinsUSD: data.data.totalWinsUSD || 0,
+            biggestWinUSD: data.data.biggestWinUSD || 0,
+            totalReferred: data.data.totalReferred || 0,
+            currentStreak: data.data.currentStreak || 0,
+            longestStreak: data.data.longestStreak || 0,
+            memberSince: data.data.memberSince || new Date().toISOString(),
+            lastActiveAt: data.data.lastActiveAt || new Date().toISOString(),
+          })
         }
 
-        // Fetch badges
-        const badgeRes = await fetch('/api/badges/user')
-        const badgeData = await badgeRes.json()
-        if (badgeData.success) {
-          setBadges(badgeData.data.earned || [])
-          setBadgeCount(badgeData.data.stats?.totalBadges || 0)
-          setBadgesByTier(badgeData.data.stats?.badgesByTier)
+        // Set badges from consolidated response
+        if (data.data.badges) {
+          setBadges(data.data.badges.earned || [])
+          setBadgeCount(data.data.badges.stats?.totalBadges || 0)
+          setBadgesByTier(data.data.badges.stats?.badgesByTier)
         }
       } else {
         setIsAuthenticated(false)

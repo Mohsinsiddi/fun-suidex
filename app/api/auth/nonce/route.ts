@@ -5,27 +5,24 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { generateNonce } from '@/lib/utils/nanoid'
-import { isValidSuiAddress } from '@/lib/sui/client'
 import { setNonce } from '@/lib/auth/nonceStore'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
+import { validateBody, authNonceSchema } from '@/lib/validations'
+import { errors } from '@/lib/utils/apiResponse'
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json()
-    const { wallet } = body
-
-    if (!wallet) {
-      return NextResponse.json(
-        { success: false, error: 'Wallet address is required' },
-        { status: 400 }
-      )
+    // Rate limit check (IP-based for unauthenticated endpoint)
+    const rateLimit = checkRateLimit(request, 'auth')
+    if (!rateLimit.allowed) {
+      return errors.rateLimited(rateLimit.resetIn)
     }
 
-    if (!isValidSuiAddress(wallet)) {
-      return NextResponse.json(
-        { success: false, error: 'Invalid wallet address' },
-        { status: 400 }
-      )
-    }
+    // Validate request body
+    const { data, error } = await validateBody(request, authNonceSchema)
+    if (error) return error
+
+    const { wallet } = data
 
     // Generate nonce message
     const randomPart = generateNonce()
@@ -41,9 +38,6 @@ export async function POST(request: NextRequest) {
     })
   } catch (error) {
     console.error('Nonce generation error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Failed to generate nonce' },
-      { status: 500 }
-    )
+    return errors.internal('Failed to generate nonce')
   }
 }

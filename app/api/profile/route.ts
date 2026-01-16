@@ -1,143 +1,99 @@
+// ============================================
+// Profile API
+// ============================================
+// GET /api/profile - Get own profile
+// PUT /api/profile - Create or update profile
+
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, UserProfileModel, AdminConfigModel } from '@/lib/db/models'
-import { verifyAccessToken } from '@/lib/auth/jwt'
 import { nanoid } from '@/lib/utils/nanoid'
+import { withAuth, AuthContext } from '@/lib/auth/withAuth'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
+import { validateBody, profileUpdateSchema } from '@/lib/validations'
+import { errors, success } from '@/lib/utils/apiResponse'
 
 // GET /api/profile - Get own profile
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext) => {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
-    }
-
-    const payload = await verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Session expired' },
-        { status: 401 }
-      )
-    }
-
     await connectDB()
 
     const [user, profile, config] = await Promise.all([
-      UserModel.findOne({ wallet: payload.wallet }).lean(),
-      UserProfileModel.findOne({ wallet: payload.wallet }).lean(),
+      UserModel.findOne({ wallet }).lean(),
+      UserProfileModel.findOne({ wallet }).lean(),
       AdminConfigModel.findById('main').select('profileShareMinSpins profileSharingEnabled').lean(),
     ])
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
+      return errors.notFound('User')
     }
 
     const minSpins = config?.profileShareMinSpins || 10
     const isEligible = user.totalSpins >= minSpins
     const isEnabled = config?.profileSharingEnabled !== false
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        isEligible,
-        isEnabled,
-        minSpins,
-        currentSpins: user.totalSpins,
-        profile: profile || null,
-      },
+    return success({
+      isEligible,
+      isEnabled,
+      minSpins,
+      currentSpins: user.totalSpins,
+      profile: profile || null,
     })
   } catch (error) {
     console.error('Profile GET error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    )
+    return errors.internal()
   }
-}
+})
 
 // PUT /api/profile - Create or update profile
-export async function PUT(request: NextRequest) {
+export const PUT = withAuth(async (request: NextRequest, { wallet }: AuthContext) => {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized' },
-        { status: 401 }
-      )
+    // Rate limit check
+    const rateLimit = checkRateLimit(request, 'default')
+    if (!rateLimit.allowed) {
+      return errors.rateLimited(rateLimit.resetIn)
     }
 
-    const payload = await verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: 'Session expired' },
-        { status: 401 }
-      )
-    }
+    // Validate request body
+    const { data, error } = await validateBody(request, profileUpdateSchema)
+    if (error) return error
 
-    const body = await request.json()
-    const { isPublic, displayName, bio, featuredBadges } = body
+    const { isPublic, displayName, bio, featuredBadges } = data
 
     await connectDB()
 
     const [user, config] = await Promise.all([
-      UserModel.findOne({ wallet: payload.wallet }).lean(),
+      UserModel.findOne({ wallet }).lean(),
       AdminConfigModel.findById('main').select('profileShareMinSpins profileSharingEnabled').lean(),
     ])
 
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: 'User not found' },
-        { status: 404 }
-      )
+      return errors.notFound('User')
     }
 
     const minSpins = config?.profileShareMinSpins || 10
     if (user.totalSpins < minSpins) {
-      return NextResponse.json(
-        { success: false, error: `Complete ${minSpins} spins to unlock profile` },
-        { status: 403 }
-      )
+      return errors.notEligible(`Complete ${minSpins} spins to unlock profile`)
     }
 
     if (!config?.profileSharingEnabled) {
-      return NextResponse.json(
-        { success: false, error: 'Profile sharing is disabled' },
-        { status: 403 }
-      )
+      return errors.featureDisabled('Profile sharing')
     }
 
-    // Validate inputs
-    const cleanDisplayName = displayName?.trim().slice(0, 50) || undefined
-    const cleanBio = bio?.trim().slice(0, 160) || undefined
-    const cleanFeaturedBadges = Array.isArray(featuredBadges)
-      ? featuredBadges.slice(0, 5)
-      : []
-
     // Find or create profile
-    let profile = await UserProfileModel.findOne({ wallet: payload.wallet })
+    let profile = await UserProfileModel.findOne({ wallet })
 
     if (!profile) {
       // Generate unique slug
       const slug = nanoid(8).toLowerCase()
 
       profile = await UserProfileModel.create({
-        wallet: payload.wallet,
+        wallet,
         slug,
         isPublic: isPublic === true,
-        displayName: cleanDisplayName,
-        bio: cleanBio,
-        featuredBadges: cleanFeaturedBadges,
+        displayName,
+        bio,
+        featuredBadges: featuredBadges || [],
         stats: {
           totalSpins: user.totalSpins,
           totalWinsUSD: user.totalWinsUSD,
@@ -153,7 +109,7 @@ export async function PUT(request: NextRequest) {
 
       // Update user with profile slug
       await UserModel.updateOne(
-        { wallet: payload.wallet },
+        { wallet },
         {
           $set: {
             profileSlug: slug,
@@ -165,9 +121,9 @@ export async function PUT(request: NextRequest) {
     } else {
       // Update existing profile
       profile.isPublic = isPublic === true
-      if (cleanDisplayName !== undefined) profile.displayName = cleanDisplayName
-      if (cleanBio !== undefined) profile.bio = cleanBio
-      profile.featuredBadges = cleanFeaturedBadges
+      if (displayName !== undefined) profile.displayName = displayName
+      if (bio !== undefined) profile.bio = bio
+      if (featuredBadges !== undefined) profile.featuredBadges = featuredBadges
 
       // Update stats
       profile.stats = {
@@ -183,24 +139,15 @@ export async function PUT(request: NextRequest) {
 
       await profile.save()
 
-      await UserModel.updateOne(
-        { wallet: payload.wallet },
-        { $set: { isProfilePublic: isPublic === true } }
-      )
+      await UserModel.updateOne({ wallet }, { $set: { isProfilePublic: isPublic === true } })
     }
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        profile: profile.toObject(),
-        shareUrl: profile.isPublic ? `/u/${profile.slug}` : null,
-      },
+    return success({
+      profile: profile.toObject(),
+      shareUrl: profile.isPublic ? `/u/${profile.slug}` : null,
     })
   } catch (error) {
     console.error('Profile PUT error:', error)
-    return NextResponse.json(
-      { success: false, error: 'Server error' },
-      { status: 500 }
-    )
+    return errors.internal()
   }
-}
+})

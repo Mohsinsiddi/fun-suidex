@@ -2,80 +2,55 @@
 // Payment Claim API
 // ============================================
 // POST /api/payment/claim - Claim spins from a TX
-// GET /api/payment/scan - Scan for user's unclaimed TXs
+// GET /api/payment/claim - Scan for user's unclaimed TXs
 
 import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, PaymentModel, AdminConfigModel } from '@/lib/db/models'
-import { verifyAccessToken } from '@/lib/auth/jwt'
 import { verifyPayment, getIncomingTransactions } from '@/lib/sui/client'
+import { withAuth, AuthContext } from '@/lib/auth/withAuth'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
+import { validateBody, paymentClaimSchema } from '@/lib/validations'
+import { errors, success } from '@/lib/utils/apiResponse'
 import { ERRORS } from '@/constants'
 
 // ============================================
 // POST - Claim spins from a transaction
 // ============================================
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContext) => {
   try {
-    // Verify user session
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.UNAUTHORIZED },
-        { status: 401 }
-      )
+    // Rate limit check
+    const rateLimit = checkRateLimit(request, 'payment')
+    if (!rateLimit.allowed) {
+      return errors.rateLimited(rateLimit.resetIn)
     }
 
-    const payload = await verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.SESSION_EXPIRED },
-        { status: 401 }
-      )
-    }
+    // Validate request body
+    const { data, error } = await validateBody(request, paymentClaimSchema)
+    if (error) return error
+
+    const { txHash } = data
 
     await connectDB()
 
     // Get user
-    const user = await UserModel.findOne({ wallet: payload.wallet })
+    const user = await UserModel.findOne({ wallet })
     if (!user) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.UNAUTHORIZED },
-        { status: 401 }
-      )
+      return errors.unauthorized()
     }
 
     // Get config
     const config = await AdminConfigModel.findById('main')
     if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'System not configured' },
-        { status: 500 }
-      )
-    }
-
-    // Get request body
-    const body = await request.json()
-    const { txHash } = body
-
-    if (!txHash) {
-      return NextResponse.json(
-        { success: false, error: 'Transaction hash is required' },
-        { status: 400 }
-      )
+      return errors.notConfigured()
     }
 
     // Check if already claimed
     const existingPayment = await PaymentModel.findOne({ txHash })
     if (existingPayment) {
       if (existingPayment.claimStatus === 'claimed') {
-        return NextResponse.json(
-          { success: false, error: ERRORS.PAYMENT_ALREADY_CLAIMED },
-          { status: 400 }
-        )
+        return errors.conflict(ERRORS.PAYMENT_ALREADY_CLAIMED)
       }
       if (existingPayment.claimStatus === 'pending_approval') {
         return NextResponse.json({
@@ -89,36 +64,31 @@ export async function POST(request: NextRequest) {
     // Verify the payment on chain
     const tx = await verifyPayment(
       txHash,
-      payload.wallet,
+      wallet,
       config.adminWalletAddress,
       config.minPaymentSUI
     )
 
     if (!tx) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.PAYMENT_NOT_FOUND },
-        { status: 400 }
-      )
+      return errors.badRequest(ERRORS.PAYMENT_NOT_FOUND)
     }
 
     // Check lookback period
     const lookbackMs = config.paymentLookbackHours * 60 * 60 * 1000
     const cutoffDate = new Date(Date.now() - lookbackMs)
     if (tx.timestamp < cutoffDate) {
-      return NextResponse.json({
-        success: false,
-        error: `Transaction is too old. Payments must be within ${config.paymentLookbackHours} hours.`,
-      })
+      return errors.badRequest(
+        `Transaction is too old. Payments must be within ${config.paymentLookbackHours} hours.`
+      )
     }
 
     // Calculate spins
     const spinsCredited = Math.floor(tx.amountSUI / config.spinRateSUI)
-    
+
     if (spinsCredited <= 0) {
-      return NextResponse.json({
-        success: false,
-        error: `Payment too small. Minimum is ${config.spinRateSUI} SUI for 1 spin.`,
-      })
+      return errors.badRequest(
+        `Payment too small. Minimum is ${config.spinRateSUI} SUI for 1 spin.`
+      )
     }
 
     // Check if requires admin approval (> 10 SUI)
@@ -140,7 +110,7 @@ export async function POST(request: NextRequest) {
         },
         $set: {
           claimStatus: requiresApproval ? 'pending_approval' : 'claimed',
-          claimedBy: payload.wallet,
+          claimedBy: wallet,
           claimedAt: new Date(),
           spinsCredited: requiresApproval ? 0 : spinsCredited,
           rateAtClaim: config.spinRateSUI,
@@ -150,15 +120,12 @@ export async function POST(request: NextRequest) {
     )
 
     if (requiresApproval) {
-      return NextResponse.json({
-        success: true,
+      return success({
+        status: 'pending_approval',
         message: `Payment of ${tx.amountSUI} SUI detected. Pending admin approval for ${spinsCredited} spins.`,
-        data: {
-          status: 'pending_approval',
-          amountSUI: tx.amountSUI,
-          potentialSpins: spinsCredited,
-          txHash,
-        },
+        amountSUI: tx.amountSUI,
+        potentialSpins: spinsCredited,
+        txHash,
       })
     }
 
@@ -166,60 +133,32 @@ export async function POST(request: NextRequest) {
     user.purchasedSpins += spinsCredited
     await user.save()
 
-    return NextResponse.json({
-      success: true,
+    return success({
+      status: 'claimed',
       message: `Successfully claimed ${spinsCredited} spins!`,
-      data: {
-        status: 'claimed',
-        amountSUI: tx.amountSUI,
-        spinsCredited,
-        newBalance: user.purchasedSpins,
-        txHash,
-      },
+      amountSUI: tx.amountSUI,
+      spinsCredited,
+      newBalance: user.purchasedSpins,
+      txHash,
     })
   } catch (error) {
     console.error('Payment claim error:', error)
-    return NextResponse.json(
-      { success: false, error: ERRORS.INTERNAL_ERROR },
-      { status: 500 }
-    )
+    return errors.internal()
   }
-}
+})
 
 // ============================================
 // GET - Scan for unclaimed transactions
 // ============================================
 
-export async function GET(request: NextRequest) {
+export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext) => {
   try {
-    // Verify user session
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-
-    if (!token) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.UNAUTHORIZED },
-        { status: 401 }
-      )
-    }
-
-    const payload = await verifyAccessToken(token)
-    if (!payload) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.SESSION_EXPIRED },
-        { status: 401 }
-      )
-    }
-
     await connectDB()
 
     // Get config
     const config = await AdminConfigModel.findById('main')
     if (!config) {
-      return NextResponse.json(
-        { success: false, error: 'System not configured' },
-        { status: 500 }
-      )
+      return errors.notConfigured()
     }
 
     // Calculate time range
@@ -227,14 +166,11 @@ export async function GET(request: NextRequest) {
     const fromDate = new Date(Date.now() - lookbackMs)
 
     // Get transactions from chain
-    const transactions = await getIncomingTransactions(
-      config.adminWalletAddress,
-      fromDate
-    )
+    const transactions = await getIncomingTransactions(config.adminWalletAddress, fromDate)
 
     // Filter for this user's transactions
     const userTxs = transactions.filter(
-      (tx) => tx.sender.toLowerCase() === payload.wallet.toLowerCase()
+      (tx) => tx.sender.toLowerCase() === wallet.toLowerCase()
     )
 
     // Check which are already claimed
@@ -255,20 +191,14 @@ export async function GET(request: NextRequest) {
         requiresApproval: tx.amountSUI > config.autoApprovalLimitSUI,
       }))
 
-    return NextResponse.json({
-      success: true,
-      data: {
-        unclaimed: unclaimedTxs,
-        rate: config.spinRateSUI,
-        adminWallet: config.adminWalletAddress,
-        lookbackHours: config.paymentLookbackHours,
-      },
+    return success({
+      unclaimed: unclaimedTxs,
+      rate: config.spinRateSUI,
+      adminWallet: config.adminWalletAddress,
+      lookbackHours: config.paymentLookbackHours,
     })
   } catch (error) {
     console.error('Payment scan error:', error)
-    return NextResponse.json(
-      { success: false, error: ERRORS.INTERNAL_ERROR },
-      { status: 500 }
-    )
+    return errors.internal()
   }
-}
+})

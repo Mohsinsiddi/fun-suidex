@@ -139,3 +139,59 @@ export function getRateLimitHeaders(
     'X-RateLimit-Reset': String(Math.ceil(result.resetIn / 1000)),
   }
 }
+
+/**
+ * Combined Wallet + IP rate limiting
+ * Checks both IP and wallet separately - both must pass
+ * Use for critical user actions like spinning
+ */
+export function checkWalletAndIPRateLimit(
+  request: NextRequest,
+  wallet: string,
+  type: RateLimitType = 'default'
+): { allowed: boolean; remaining: number; resetIn: number; blockedBy: 'ip' | 'wallet' | null } {
+  const ip = getClientIP(request)
+
+  // Check IP-based limit
+  const ipResult = checkRateLimit(request, type, `ip:${ip}`)
+  if (!ipResult.allowed) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetIn: ipResult.resetIn,
+      blockedBy: 'ip',
+    }
+  }
+
+  // Check wallet-based limit
+  const walletResult = checkRateLimit(request, type, `wallet:${wallet.toLowerCase()}`)
+  if (!walletResult.allowed) {
+    return {
+      allowed: false,
+      remaining: 0,
+      resetIn: walletResult.resetIn,
+      blockedBy: 'wallet',
+    }
+  }
+
+  // Both passed - return the lower remaining count
+  return {
+    allowed: true,
+    remaining: Math.min(ipResult.remaining, walletResult.remaining),
+    resetIn: Math.min(ipResult.resetIn, walletResult.resetIn),
+    blockedBy: null,
+  }
+}
+
+/**
+ * Simple wallet + IP rate limit check
+ * Returns true if allowed, false if blocked
+ */
+export function rateLimitWalletAndIP(
+  request: NextRequest,
+  wallet: string,
+  type: RateLimitType = 'default'
+): boolean {
+  const result = checkWalletAndIPRateLimit(request, wallet, type)
+  return result.allowed
+}

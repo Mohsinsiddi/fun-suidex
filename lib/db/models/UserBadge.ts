@@ -14,6 +14,7 @@ const UserBadgeSchema = new Schema<UserBadgeDocument>(
     unlockedAt: { type: Date, default: Date.now },
     awardedBy: { type: String },      // Admin username if special badge
     awardReason: { type: String },    // Reason for special badge
+    isSeedUser: { type: Boolean, default: false },
   },
   {
     timestamps: true,

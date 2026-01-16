@@ -47,6 +47,9 @@ const UserSchema = new Schema<UserDocument>({
   profileSlug: { type: String, unique: true, sparse: true },
   isProfilePublic: { type: Boolean, default: false },
   profileUnlockedAt: { type: Date, default: null },
+
+  // Seed data marker (for testing/development)
+  isSeedUser: { type: Boolean, default: false },
 }, { timestamps: true })
 
 // Primary indexes (wallet and referralCode already indexed via unique: true)
@@ -62,6 +65,9 @@ UserSchema.index({ lastActiveAt: -1 }) // For admin user list sorting
 UserSchema.index({ createdAt: -1 }) // For pagination
 UserSchema.index({ totalSpins: -1 }) // For leaderboard queries
 UserSchema.index({ longestStreak: -1 }) // For streak leaderboards
+UserSchema.index({ totalWinsUSD: -1 }) // For top winners leaderboard
+UserSchema.index({ biggestWinUSD: -1 }) // For biggest win leaderboard
+UserSchema.index({ totalReferred: -1 }) // For top referrers leaderboard
 
 UserSchema.pre('save', function(next) {
   if (!this.referralCode) this.referralCode = nanoid(8).toUpperCase()

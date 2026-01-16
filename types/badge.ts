@@ -41,6 +41,7 @@ export interface UserBadge {
   unlockedAt: Date
   awardedBy?: string      // Admin username if special badge
   awardReason?: string    // Reason for special badge
+  isSeedUser?: boolean    // Marker for test data
 }
 
 export interface BadgeProgress {

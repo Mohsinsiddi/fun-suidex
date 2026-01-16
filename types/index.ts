@@ -43,6 +43,9 @@ export interface User {
   isProfilePublic: boolean
   profileUnlockedAt: Date | null
 
+  // Seed data marker (for testing/development)
+  isSeedUser?: boolean
+
   // Timestamps
   createdAt: Date
   updatedAt: Date

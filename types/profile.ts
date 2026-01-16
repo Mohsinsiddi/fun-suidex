@@ -28,6 +28,7 @@ export interface UserProfile {
   featuredBadges: string[]  // Badge IDs
 
   unlockedAt: Date          // When profile was unlocked
+  isSeedUser?: boolean      // Marker for test data
   createdAt: Date
   updatedAt: Date
 }

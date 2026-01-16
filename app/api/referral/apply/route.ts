@@ -1,43 +1,70 @@
-import { NextRequest, NextResponse } from 'next/server'
-import { cookies } from 'next/headers'
+// ============================================
+// Referral Apply API
+// ============================================
+// POST /api/referral/apply - Link a referrer to user
+
+import { NextRequest } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, ReferralModel } from '@/lib/db/models'
-import { verifyAccessToken } from '@/lib/auth/jwt'
 import { checkAndAwardBadges } from '@/lib/badges'
+import { withAuth, AuthContext } from '@/lib/auth/withAuth'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
+import { validateBody, referralApplySchema } from '@/lib/validations'
+import { errors, success } from '@/lib/utils/apiResponse'
 
-export async function POST(request: NextRequest) {
+export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContext) => {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-    if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })
+    // Rate limit check
+    const rateLimit = checkRateLimit(request, 'default')
+    if (!rateLimit.allowed) {
+      return errors.rateLimited(rateLimit.resetIn)
+    }
 
-    const payload = await verifyAccessToken(token)
-    if (!payload) return NextResponse.json({ success: false, error: 'Session expired' }, { status: 401 })
+    // Validate request body
+    const { data, error } = await validateBody(request, referralApplySchema)
+    if (error) return error
 
-    const { referrerWallet } = await request.json()
-    if (!referrerWallet) return NextResponse.json({ success: false, error: 'Referrer required' }, { status: 400 })
-    if (referrerWallet.toLowerCase() === payload.wallet.toLowerCase()) {
-      return NextResponse.json({ success: false, error: 'Cannot refer yourself' }, { status: 400 })
+    const { referrerWallet } = data
+
+    // Cannot refer yourself
+    if (referrerWallet.toLowerCase() === wallet.toLowerCase()) {
+      return errors.badRequest('Cannot refer yourself')
     }
 
     await connectDB()
 
-    const user = await UserModel.findOne({ wallet: payload.wallet })
-    if (user?.referredBy) return NextResponse.json({ success: false, error: 'Already referred', alreadyReferred: true }, { status: 400 })
+    const user = await UserModel.findOne({ wallet })
+    if (user?.referredBy) {
+      return errors.conflict('Already referred by another user')
+    }
 
-    const referrer = await UserModel.findOne({ wallet: referrerWallet.toLowerCase(), hasCompletedFirstSpin: true })
-    if (!referrer) return NextResponse.json({ success: false, error: 'Invalid referrer' }, { status: 400 })
+    const referrer = await UserModel.findOne({
+      wallet: referrerWallet.toLowerCase(),
+      hasCompletedFirstSpin: true,
+    })
+    if (!referrer) {
+      return errors.badRequest('Invalid referrer. Referrer must have completed at least one spin.')
+    }
 
-    await ReferralModel.create({ referrerWallet: referrerWallet.toLowerCase(), referredWallet: payload.wallet })
-    await UserModel.updateOne({ wallet: payload.wallet }, { $set: { referredBy: referrerWallet.toLowerCase() } })
-    await UserModel.updateOne({ wallet: referrerWallet.toLowerCase() }, { $inc: { totalReferred: 1 } })
+    // Create referral link
+    await ReferralModel.create({
+      referrerWallet: referrerWallet.toLowerCase(),
+      referredWallet: wallet,
+    })
+    await UserModel.updateOne({ wallet }, { $set: { referredBy: referrerWallet.toLowerCase() } })
+    await UserModel.updateOne(
+      { wallet: referrerWallet.toLowerCase() },
+      { $inc: { totalReferred: 1 } }
+    )
 
-    // Check referral badges for the referrer
-    checkAndAwardBadges(referrerWallet.toLowerCase()).catch(err => console.error('Badge check error:', err))
+    // Check referral badges for the referrer (non-blocking)
+    checkAndAwardBadges(referrerWallet.toLowerCase()).catch((err) =>
+      console.error('Badge check error:', err)
+    )
 
-    return NextResponse.json({ success: true, message: 'Referral linked' })
+    return success({ message: 'Referral linked successfully' })
   } catch (error) {
     console.error('Apply referral error:', error)
-    return NextResponse.json({ success: false, error: 'Server error' }, { status: 500 })
+    return errors.internal()
   }
-}
+})
