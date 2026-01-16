@@ -1,17 +1,18 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit'
+import { useCurrentAccount, useSignPersonalMessage, ConnectButton } from '@mysten/dapp-kit'
 import Link from 'next/link'
 import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { ReferralStats, ReferralEarningsTable, ShareButtons } from '@/components/referral'
-import { Users, Copy, Check, ArrowLeft, Lock, Loader2 } from 'lucide-react'
+import { Users, Copy, Check, ArrowLeft, Lock, Loader2, Wallet } from 'lucide-react'
+import { ReferralBanner } from '@/components/referral'
 
 export default function ReferralPage() {
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
-  
+
   const [referralLink, setReferralLink] = useState('')
   const [copied, setCopied] = useState(false)
   const [eligible, setEligible] = useState(false)
@@ -19,6 +20,7 @@ export default function ReferralPage() {
   const [isAuthenticated, setIsAuthenticated] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [referredBy, setReferredBy] = useState<string | null>(null)
 
   useEffect(() => {
     if (account?.address) {
@@ -26,6 +28,7 @@ export default function ReferralPage() {
     } else {
       setIsAuthenticated(false)
       setEligible(false)
+      setReferredBy(null)
       setLoading(false)
     }
   }, [account?.address])
@@ -34,9 +37,11 @@ export default function ReferralPage() {
     try {
       const meRes = await fetch('/api/auth/me')
       const meData = await meRes.json()
-      
+
       if (meData.success) {
         setIsAuthenticated(true)
+        setReferredBy(meData.data.referredBy || null)
+
         if (meData.data.hasCompletedFirstSpin) {
           const linkRes = await fetch('/api/referral/link')
           const linkData = await linkRes.json()
@@ -45,7 +50,6 @@ export default function ReferralPage() {
             setEligible(true)
           }
         }
-
       } else {
         setIsAuthenticated(false)
       }
@@ -126,28 +130,51 @@ export default function ReferralPage() {
             </div>
           </div>
 
+          {/* Referred By Banner - Show if user joined via referral */}
+          {referredBy && isAuthenticated && (
+            <ReferralBanner
+              referrerWallet={referredBy}
+              isLinked={true}
+              onClose={() => setReferredBy(null)}
+            />
+          )}
+
           {loading ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-accent" />
             </div>
           ) : !account ? (
             <div className="p-8 sm:p-12 rounded-2xl text-center bg-surface border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <Users size={32} className="text-accent" />
+              <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-4">
+                <Wallet size={32} className="text-green-400" />
               </div>
               <h2 className="text-xl font-bold mb-2 text-white">Connect Your Wallet</h2>
-              <p className="text-text-secondary mb-6">Connect your wallet to access the referral program</p>
+              <p className="text-text-secondary mb-6">Connect your wallet to access the referral program and start earning</p>
+              <div className="inline-block connect-button-cta">
+                <ConnectButton connectText="Connect Wallet" />
+              </div>
             </div>
           ) : !isAuthenticated ? (
             <div className="p-8 sm:p-12 rounded-2xl text-center bg-surface border border-border">
               <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
                 <Lock size={32} className="text-accent" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-white">Sign In Required</h2>
-              <p className="text-text-secondary mb-6">Sign a message to verify your wallet and access referrals</p>
+              <h2 className="text-xl font-bold mb-2 text-white">Sign to Claim Benefits</h2>
+              <p className="text-text-secondary mb-6">Verify your wallet to unlock referral earnings and rewards</p>
               {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
-              <button onClick={handleSignIn} disabled={authLoading || isSigning} className="px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors">
-                {authLoading || isSigning ? 'Signing...' : 'Sign to Continue'}
+              <button
+                onClick={handleSignIn}
+                disabled={authLoading || isSigning}
+                className="px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors"
+              >
+                {authLoading || isSigning ? (
+                  <span className="flex items-center gap-2">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Signing...
+                  </span>
+                ) : (
+                  'Sign to Claim Benefits'
+                )}
               </button>
             </div>
           ) : !eligible ? (
@@ -157,7 +184,10 @@ export default function ReferralPage() {
               </div>
               <h2 className="text-xl font-bold mb-2 text-white">Complete Your First Spin</h2>
               <p className="text-text-secondary mb-6">Spin the wheel once to unlock your referral link!</p>
-              <Link href="/wheel" className="inline-flex px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover transition-colors">
+              <Link
+                href="/wheel"
+                className="inline-flex px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover transition-colors"
+              >
                 Go to Wheel
               </Link>
             </div>
@@ -197,6 +227,26 @@ export default function ReferralPage() {
       </main>
       
       <Footer />
+
+      {/* Connect button CTA styling */}
+      <style jsx global>{`
+        .connect-button-cta button {
+          padding: 0.75rem 2rem !important;
+          font-size: 1rem !important;
+          font-weight: 600 !important;
+          border-radius: 0.75rem !important;
+          background: #22c55e !important;
+          border: none !important;
+          color: black !important;
+          transition: all 0.15s ease !important;
+          box-shadow: 0 4px 14px rgba(34, 197, 94, 0.3) !important;
+        }
+        .connect-button-cta button:hover {
+          background: #16a34a !important;
+          box-shadow: 0 6px 20px rgba(34, 197, 94, 0.4) !important;
+          transform: translateY(-1px) !important;
+        }
+      `}</style>
     </div>
   )
 }
