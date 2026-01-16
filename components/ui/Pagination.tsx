@@ -26,7 +26,7 @@ export function Pagination({
 }: PaginationProps) {
   if (totalPages <= 1) return null
 
-  // Calculate visible page numbers
+  // Calculate visible page numbers for desktop
   const getVisiblePages = () => {
     const pages: (number | 'ellipsis')[] = []
     const showPages = 5 // Max visible page buttons
@@ -75,6 +75,9 @@ export function Pagination({
 
   const visiblePages = getVisiblePages()
 
+  // Generate all page options for mobile dropdown
+  const allPages = Array.from({ length: totalPages }, (_, i) => i + 1)
+
   return (
     <div className={`flex items-center justify-center gap-1 ${className}`}>
       {/* First page button */}
@@ -99,8 +102,21 @@ export function Pagination({
         <ChevronLeft className="w-4 h-4" />
       </button>
 
-      {/* Page numbers */}
-      <div className="flex items-center gap-1">
+      {/* Mobile: Dropdown select */}
+      <select
+        value={page}
+        onChange={(e) => onPageChange(Number(e.target.value))}
+        className="sm:hidden px-2 py-1.5 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm font-medium text-[var(--text-primary)] min-w-[70px] text-center"
+      >
+        {allPages.map((p) => (
+          <option key={p} value={p}>
+            {p} / {totalPages}
+          </option>
+        ))}
+      </select>
+
+      {/* Desktop: Page number buttons */}
+      <div className="hidden sm:flex items-center gap-1">
         {visiblePages.map((p, index) =>
           p === 'ellipsis' ? (
             <span

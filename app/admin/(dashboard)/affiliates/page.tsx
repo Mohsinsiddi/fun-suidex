@@ -115,13 +115,13 @@ export default function AdminAffiliatesPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h2 className="text-2xl font-bold">Affiliate Rewards</h2>
-          <p className="text-text-secondary">Manage referral commissions</p>
+          <h2 className="text-xl sm:text-2xl font-bold">Affiliate Rewards</h2>
+          <p className="text-text-secondary text-sm sm:text-base">Manage referral commissions</p>
         </div>
-        <button onClick={fetchData} disabled={loading} className="btn btn-ghost">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        <button onClick={fetchData} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
@@ -129,54 +129,56 @@ export default function AdminAffiliatesPage() {
       {loading && !stats ? (
         <SkeletonCardGrid count={5} />
       ) : stats && (
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
-          <div className="card p-4">
-            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending Tweet</p>
-            <p className="text-2xl font-bold text-yellow-400">{stats.pendingTweet}</p>
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3 md:gap-4 mb-4 sm:mb-6">
+          <div className="card p-3 sm:p-4">
+            <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs mb-1">Pending Tweet</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-yellow-400">{stats.pendingTweet}</p>
           </div>
-          <div className="card p-4">
-            <p className="text-[var(--text-secondary)] text-xs mb-1">Ready to Pay</p>
-            <p className="text-2xl font-bold text-blue-400">{stats.ready}</p>
+          <div className="card p-3 sm:p-4">
+            <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs mb-1">Ready to Pay</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-blue-400">{stats.ready}</p>
           </div>
-          <div className="card p-4">
-            <p className="text-[var(--text-secondary)] text-xs mb-1">Paid</p>
-            <p className="text-2xl font-bold text-green-400">{stats.paid}</p>
+          <div className="card p-3 sm:p-4">
+            <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs mb-1">Paid</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-green-400">{stats.paid}</p>
           </div>
-          <div className="card p-4">
-            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending VICT</p>
-            <p className="text-2xl font-bold text-white">{(stats.pendingVICT || 0).toLocaleString()}</p>
+          <div className="card p-3 sm:p-4">
+            <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs mb-1">Pending VICT</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-white truncate">{(stats.pendingVICT || 0).toLocaleString()}</p>
           </div>
-          <div className="card p-4">
-            <p className="text-[var(--text-secondary)] text-xs mb-1">Pending USD</p>
-            <p className="text-2xl font-bold text-[var(--accent)]">${(stats.pendingUSD || 0).toFixed(2)}</p>
+          <div className="card p-3 sm:p-4 col-span-2 sm:col-span-1">
+            <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs mb-1">Pending USD</p>
+            <p className="text-lg sm:text-xl md:text-2xl font-bold text-[var(--accent)]">${(stats.pendingUSD || 0).toFixed(2)}</p>
           </div>
         </div>
       )}
 
       {/* Filters */}
-      <div className="flex flex-wrap items-center gap-3 mb-4">
+      <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 md:gap-3 mb-3 sm:mb-4">
         {['all', 'pending_tweet', 'ready', 'paid'].map(f => (
-          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-accent text-black' : 'bg-card text-text-secondary border border-border hover:border-white/20'}`}>
-            {f === 'all' ? 'All' : f === 'pending_tweet' ? 'Pending Tweet' : f.charAt(0).toUpperCase() + f.slice(1)}
+          <button key={f} onClick={() => setFilter(f)} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 rounded-lg text-xs sm:text-sm font-medium transition-colors ${filter === f ? 'bg-accent text-black' : 'bg-card text-text-secondary border border-border hover:border-white/20'}`}>
+            {f === 'all' ? 'All' : f === 'pending_tweet' ? 'Pending' : f.charAt(0).toUpperCase() + f.slice(1)}
           </button>
         ))}
       </div>
 
       {/* Bulk Actions */}
       {rewards.some(r => r.payoutStatus === 'ready') && (
-        <div className="card p-4 mb-4 flex flex-wrap items-center gap-3">
-          <button onClick={handleSelectAll} className="btn btn-ghost btn-sm">
-            {selectedIds.length ? 'Deselect All' : 'Select Ready'}
-          </button>
-          <span className="text-text-secondary text-sm">{selectedIds.length} selected</span>
+        <div className="card p-3 sm:p-4 mb-3 sm:mb-4 flex flex-col sm:flex-row flex-wrap items-stretch sm:items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button onClick={handleSelectAll} className="btn btn-ghost btn-sm text-xs sm:text-sm">
+              {selectedIds.length ? 'Deselect' : 'Select Ready'}
+            </button>
+            <span className="text-text-secondary text-xs sm:text-sm">{selectedIds.length} selected</span>
+          </div>
           <input
             type="text"
             placeholder="TX Hash (optional)"
             value={txHash}
             onChange={e => setTxHash(e.target.value)}
-            className="px-4 py-2 bg-background border border-border rounded-lg flex-1 min-w-[200px]"
+            className="px-3 sm:px-4 py-2 bg-background border border-border rounded-lg flex-1 min-w-0 sm:min-w-[200px] text-sm"
           />
-          <button onClick={handlePay} disabled={!selectedIds.length || paying} className="btn btn-primary">
+          <button onClick={handlePay} disabled={!selectedIds.length || paying} className="btn btn-primary text-sm sm:text-base">
             {paying ? 'Processing...' : 'Mark as Paid'}
           </button>
         </div>
@@ -195,37 +197,37 @@ export default function AdminAffiliatesPage() {
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full">
+              <table className="w-full min-w-[750px]">
                 <thead>
                   <tr className="border-b border-[var(--border)]">
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">SELECT</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">REFERRER</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">REFEREE</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">PRIZE</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">COMMISSION</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">TWEET</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">STATUS</th>
-                    <th className="text-left py-3 px-4 text-xs text-[var(--text-secondary)]">DATE</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">SEL</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">REFERRER</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">REFEREE</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">PRIZE</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">COMMISSION</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">TWEET</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">STATUS</th>
+                    <th className="text-left py-2.5 sm:py-3 px-3 sm:px-4 text-[10px] sm:text-xs text-[var(--text-secondary)]">DATE</th>
                   </tr>
                 </thead>
                 <tbody>
                   {rewards.map(r => (
                     <tr key={r._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
-                      <td className="py-3 px-4">
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4">
                         {r.payoutStatus === 'ready' && (
-                          <input type="checkbox" checked={selectedIds.includes(r._id)} onChange={() => handleToggle(r._id)} className="w-4 h-4" />
+                          <input type="checkbox" checked={selectedIds.includes(r._id)} onChange={() => handleToggle(r._id)} className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         )}
                       </td>
-                      <td className="py-3 px-4 font-mono text-sm">{formatWallet(r.referrerWallet)}</td>
-                      <td className="py-3 px-4 font-mono text-sm text-[var(--text-secondary)]">{formatWallet(r.refereeWallet)}</td>
-                      <td className="py-3 px-4">${(r.originalPrizeUSD || 0).toFixed(2)}</td>
-                      <td className="py-3 px-4">
-                        <span className="text-green-400">${(r.rewardValueUSD || 0).toFixed(2)}</span>
-                        <span className="text-[var(--text-muted)] text-xs ml-1">({(r.rewardAmountVICT || 0).toLocaleString()})</span>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-mono text-xs sm:text-sm">{formatWallet(r.referrerWallet)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 font-mono text-xs sm:text-sm text-[var(--text-secondary)]">{formatWallet(r.refereeWallet)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-xs sm:text-sm">${(r.originalPrizeUSD || 0).toFixed(2)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4">
+                        <span className="text-green-400 text-xs sm:text-sm">${(r.rewardValueUSD || 0).toFixed(2)}</span>
+                        <span className="text-[var(--text-muted)] text-[10px] sm:text-xs ml-1 hidden sm:inline">({(r.rewardAmountVICT || 0).toLocaleString()})</span>
                       </td>
-                      <td className="py-3 px-4">{getTweetIcon(r.tweetStatus)}</td>
-                      <td className="py-3 px-4">{getStatusBadge(r.payoutStatus)}</td>
-                      <td className="py-3 px-4 text-[var(--text-secondary)] text-sm">{formatDate(r.createdAt)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4">{getTweetIcon(r.tweetStatus)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4">{getStatusBadge(r.payoutStatus)}</td>
+                      <td className="py-2.5 sm:py-3 px-3 sm:px-4 text-[var(--text-secondary)] text-xs sm:text-sm whitespace-nowrap">{formatDate(r.createdAt)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -233,7 +235,7 @@ export default function AdminAffiliatesPage() {
             </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between p-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>

@@ -182,43 +182,43 @@ export default function AdminUsersPage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h2 className="text-2xl font-bold">Users</h2>
-          <p className="text-text-secondary">Manage users and credit spins</p>
+          <h2 className="text-xl sm:text-2xl font-bold">Users</h2>
+          <p className="text-text-secondary text-sm sm:text-base">Manage users and credit spins</p>
         </div>
-        <div className="flex gap-3">
-          <button onClick={() => setShowCreditModal(true)} className="btn btn-primary">
-            <Plus className="w-4 h-4" />Credit Spins
+        <div className="flex gap-2 sm:gap-3">
+          <button onClick={() => setShowCreditModal(true)} className="btn btn-primary text-sm sm:text-base">
+            <Plus className="w-4 h-4" /><span className="hidden sm:inline">Credit Spins</span><span className="sm:hidden">Credit</span>
           </button>
-          <button onClick={fetchUsers} disabled={loading} className="btn btn-ghost">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+          <button onClick={fetchUsers} disabled={loading} className="btn btn-ghost text-sm sm:text-base">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
 
       {/* Messages */}
       {error && !loading && (
-        <div className="mb-6 flex items-center gap-2 p-4 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg text-[var(--error)]">
-          <AlertCircle className="w-5 h-5" />{error}
+        <div className="mb-4 sm:mb-6 flex items-start gap-2 p-3 sm:p-4 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg text-[var(--error)] text-sm sm:text-base">
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" /><span>{error}</span>
         </div>
       )}
       {success && (
-        <div className="mb-6 flex items-center gap-2 p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-[var(--success)]">
-          <CheckCircle className="w-5 h-5" />{success}
+        <div className="mb-4 sm:mb-6 flex items-start gap-2 p-3 sm:p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-[var(--success)] text-sm sm:text-base">
+          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" /><span>{success}</span>
         </div>
       )}
 
       {/* Search */}
-      <div className="mb-6">
+      <div className="mb-4 sm:mb-6">
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-[var(--text-secondary)]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 sm:w-5 sm:h-5 text-[var(--text-secondary)]" />
           <input
             type="text"
             placeholder="Search by wallet address..."
             value={searchInput}
             onChange={(e) => setSearchInput(e.target.value)}
-            className="w-full pl-10 pr-4 py-3 bg-[var(--card)] border border-[var(--border)] rounded-lg placeholder-[var(--text-secondary)]"
+            className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 bg-[var(--card)] border border-[var(--border)] rounded-lg placeholder-[var(--text-secondary)] text-sm sm:text-base"
           />
         </div>
       </div>
@@ -235,68 +235,72 @@ export default function AdminUsersPage() {
           />
         ) : (
           <>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wallet</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Spins</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wins (USD)</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Badges</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Streak</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Last Active</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {users.map((user) => (
-                  <tr key={user._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
-                    <td className="px-6 py-4 font-mono text-sm">{user.wallet.slice(0, 10)}...{user.wallet.slice(-6)}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex flex-col">
-                        <span className="text-[var(--text-secondary)]">{user.totalSpins} total</span>
-                        <span className="text-xs text-[var(--text-secondary)]/60">{user.purchasedSpins}p / {user.bonusSpins}b</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--success)]">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Trophy className="w-4 h-4 text-yellow-400" />
-                        <span className="text-[var(--text-secondary)]">{user.badgeCount || 0}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-1.5">
-                        <Flame className="w-4 h-4 text-orange-400" />
-                        <span className="text-[var(--text-secondary)]">{user.currentStreak || 0}</span>
-                        <span className="text-xs text-[var(--text-secondary)]/50">/ {user.longestStreak || 0}</span>
-                      </div>
-                    </td>
-                    <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
-                      {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
-                    </td>
-                    <td className="px-6 py-4">
-                      <div className="flex items-center gap-2">
-                        <button
-                          onClick={() => openBadgeModal(user.wallet)}
-                          className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
-                        >
-                          <Award className="w-4 h-4" />Badges
-                        </button>
-                        <button
-                          onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
-                          className="text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
-                        >
-                          Credit
-                        </button>
-                      </div>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[800px]">
+                <thead>
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Wallet</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Spins</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Wins</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Badges</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Streak</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Active</th>
+                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {users.map((user) => (
+                    <tr key={user._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-mono text-xs sm:text-sm">{user.wallet.slice(0, 8)}...{user.wallet.slice(-4)}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex flex-col">
+                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.totalSpins}</span>
+                          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/60">{user.purchasedSpins}p/{user.bonusSpins}b</span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--success)] text-xs sm:text-sm">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-1">
+                          <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400" />
+                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.badgeCount || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-1">
+                          <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
+                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.currentStreak || 0}</span>
+                          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/50">/{user.longestStreak || 0}</span>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--text-secondary)] text-xs sm:text-sm whitespace-nowrap">
+                        {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
+                      </td>
+                      <td className="px-3 sm:px-6 py-3 sm:py-4">
+                        <div className="flex items-center gap-2 sm:gap-3">
+                          <button
+                            onClick={() => openBadgeModal(user.wallet)}
+                            className="text-xs sm:text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                            title="Badges"
+                          >
+                            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                            <span>Badges</span>
+                          </button>
+                          <button
+                            onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
+                            className="text-xs sm:text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
+                          >
+                            Credit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between p-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
@@ -306,39 +310,39 @@ export default function AdminUsersPage() {
 
       {/* Credit Modal */}
       {showCreditModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="card p-6 w-full max-w-md">
-            <h3 className="text-xl font-bold mb-4">Credit Spins</h3>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="card p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <h3 className="text-lg sm:text-xl font-bold mb-4">Credit Spins</h3>
 
-            <div className="space-y-4">
+            <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-sm text-text-secondary mb-2">Wallet Address</label>
+                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Wallet Address</label>
                 <input
                   type="text"
                   value={creditWallet}
                   onChange={(e) => setCreditWallet(e.target.value)}
                   placeholder="0x..."
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg font-mono text-sm"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg font-mono text-xs sm:text-sm"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-text-secondary mb-2">Amount</label>
+                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Amount</label>
                 <input
                   type="number"
                   value={creditAmount}
                   onChange={(e) => setCreditAmount(parseInt(e.target.value) || 1)}
                   min="1"
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
                 />
               </div>
 
               <div>
-                <label className="block text-sm text-text-secondary mb-2">Type</label>
+                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Type</label>
                 <select
                   value={creditType}
                   onChange={(e) => setCreditType(e.target.value as 'purchased' | 'bonus')}
-                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
                 >
                   <option value="purchased">Purchased Spins</option>
                   <option value="bonus">Bonus Spins</option>
@@ -346,12 +350,12 @@ export default function AdminUsersPage() {
               </div>
             </div>
 
-            <div className="flex gap-3 mt-6">
-              <button onClick={() => setShowCreditModal(false)} className="btn btn-ghost flex-1">Cancel</button>
+            <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
+              <button onClick={() => setShowCreditModal(false)} className="btn btn-ghost flex-1 text-sm sm:text-base">Cancel</button>
               <button
                 onClick={handleCredit}
                 disabled={crediting || !creditWallet}
-                className="btn btn-primary flex-1 disabled:opacity-50"
+                className="btn btn-primary flex-1 disabled:opacity-50 text-sm sm:text-base"
               >
                 {crediting ? 'Crediting...' : 'Credit Spins'}
               </button>
@@ -362,15 +366,15 @@ export default function AdminUsersPage() {
 
       {/* Badge Modal */}
       {showBadgeModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
-          <div className="card p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="text-xl font-bold">User Badges</h3>
-                <p className="text-sm text-[var(--text-secondary)] font-mono">{badgeModalWallet.slice(0, 16)}...{badgeModalWallet.slice(-8)}</p>
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 sm:p-4">
+          <div className="card p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
+            <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
+              <div className="min-w-0 flex-1">
+                <h3 className="text-lg sm:text-xl font-bold">User Badges</h3>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-mono truncate">{badgeModalWallet.slice(0, 12)}...{badgeModalWallet.slice(-6)}</p>
               </div>
-              <button onClick={() => setShowBadgeModal(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
-                <X className="w-5 h-5" />
+              <button onClick={() => setShowBadgeModal(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0">
+                <X className="w-4 h-4 sm:w-5 sm:h-5" />
               </button>
             </div>
 
@@ -379,27 +383,27 @@ export default function AdminUsersPage() {
                 <RefreshCw className="w-6 h-6 animate-spin text-[var(--accent)]" />
               </div>
             ) : (
-              <div className="flex-1 overflow-y-auto space-y-6">
+              <div className="flex-1 overflow-y-auto space-y-4 sm:space-y-6">
                 {/* Earned Badges */}
                 <div>
-                  <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                  <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] uppercase mb-2 sm:mb-3">
                     Earned Badges ({userBadges.length})
                   </h4>
                   {userBadges.length === 0 ? (
-                    <p className="text-sm text-[var(--text-secondary)]/60 py-4 text-center">No badges earned yet</p>
+                    <p className="text-xs sm:text-sm text-[var(--text-secondary)]/60 py-4 text-center">No badges earned yet</p>
                   ) : (
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
                       {userBadges.map((ub) => (
                         <div
                           key={ub._id}
-                          className={`p-3 rounded-xl border ${getTierColor(ub.badge?.tier || 'bronze')}`}
+                          className={`p-2 sm:p-3 rounded-lg sm:rounded-xl border ${getTierColor(ub.badge?.tier || 'bronze')}`}
                         >
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xl">{ub.badge?.icon || '🏆'}</span>
-                            <span className="text-sm font-medium truncate">{ub.badge?.name || 'Badge'}</span>
+                          <div className="flex items-center gap-1.5 sm:gap-2 mb-1">
+                            <span className="text-base sm:text-xl">{ub.badge?.icon || '🏆'}</span>
+                            <span className="text-xs sm:text-sm font-medium truncate">{ub.badge?.name || 'Badge'}</span>
                           </div>
-                          <p className="text-xs opacity-60 capitalize">{ub.badge?.tier}</p>
-                          <p className="text-xs opacity-40 mt-1">
+                          <p className="text-[10px] sm:text-xs opacity-60 capitalize">{ub.badge?.tier}</p>
+                          <p className="text-[10px] sm:text-xs opacity-40 mt-0.5 sm:mt-1">
                             {new Date(ub.unlockedAt).toLocaleDateString()}
                           </p>
                         </div>
@@ -410,15 +414,15 @@ export default function AdminUsersPage() {
 
                 {/* Award Special Badge */}
                 {specialBadges.length > 0 && (
-                  <div className="border-t border-[var(--border)] pt-4">
-                    <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                  <div className="border-t border-[var(--border)] pt-3 sm:pt-4">
+                    <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] uppercase mb-2 sm:mb-3">
                       Award Special Badge
                     </h4>
-                    <div className="flex gap-3">
+                    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
                       <select
                         value={selectedBadge}
                         onChange={(e) => setSelectedBadge(e.target.value)}
-                        className="flex-1 px-4 py-2 bg-background border border-border rounded-lg"
+                        className="flex-1 px-3 sm:px-4 py-2 bg-background border border-border rounded-lg text-sm"
                       >
                         <option value="">Select a special badge...</option>
                         {specialBadges.map((badge) => {
@@ -433,7 +437,7 @@ export default function AdminUsersPage() {
                       <button
                         onClick={handleAwardBadge}
                         disabled={awardingBadge || !selectedBadge}
-                        className="btn btn-primary disabled:opacity-50"
+                        className="btn btn-primary disabled:opacity-50 text-sm sm:text-base"
                       >
                         {awardingBadge ? 'Awarding...' : 'Award'}
                       </button>
@@ -442,24 +446,24 @@ export default function AdminUsersPage() {
                 )}
 
                 {/* All Badges Overview */}
-                <div className="border-t border-[var(--border)] pt-4">
-                  <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                <div className="border-t border-[var(--border)] pt-3 sm:pt-4">
+                  <h4 className="text-xs sm:text-sm font-semibold text-[var(--text-secondary)] uppercase mb-2 sm:mb-3">
                     All Available Badges ({allBadges.length})
                   </h4>
-                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                  <div className="grid grid-cols-5 sm:grid-cols-6 gap-1.5 sm:gap-2">
                     {allBadges.map((badge) => {
                       const earned = userBadges.some((ub) => ub.badge?._id === badge._id)
                       return (
                         <div
                           key={badge._id}
-                          className={`p-2 rounded-lg border text-center ${
+                          className={`p-1.5 sm:p-2 rounded-lg border text-center ${
                             earned
                               ? getTierColor(badge.tier)
                               : 'border-[var(--border)] opacity-30 grayscale'
                           }`}
                           title={`${badge.name} - ${badge.description}`}
                         >
-                          <span className="text-lg">{badge.icon}</span>
+                          <span className="text-sm sm:text-lg">{badge.icon}</span>
                         </div>
                       )
                     })}

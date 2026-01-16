@@ -73,48 +73,48 @@ export default function AdminDistributePage() {
   return (
     <>
       {/* Header */}
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-6 sm:mb-8">
         <div>
-          <h2 className="text-2xl font-bold">Prize Distribution</h2>
-          <p className="text-text-secondary">Distribute pending prizes to winners</p>
+          <h2 className="text-xl sm:text-2xl font-bold">Prize Distribution</h2>
+          <p className="text-text-secondary text-sm sm:text-base">Distribute pending prizes to winners</p>
         </div>
-        <button onClick={fetchPrizes} disabled={loading} className="btn btn-ghost">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        <button onClick={fetchPrizes} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
       {/* Summary */}
       {loading && prizes.length === 0 ? (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
           <SkeletonCardGrid count={3} />
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="card p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[var(--text-secondary)] text-sm">Pending Prizes</p>
-                <p className="text-2xl font-bold mt-1 text-[var(--warning)]">{total}</p>
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+          <div className="card p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Pending Prizes</p>
+                <p className="text-xl sm:text-2xl font-bold mt-1 text-[var(--warning)]">{total}</p>
               </div>
-              <div className="p-3 rounded-lg bg-[var(--warning)]/10 text-[var(--warning)]"><Gift className="w-5 h-5" /></div>
+              <div className="p-2 sm:p-3 rounded-lg bg-[var(--warning)]/10 text-[var(--warning)] flex-shrink-0"><Gift className="w-4 h-4 sm:w-5 sm:h-5" /></div>
             </div>
           </div>
-          <div className="card p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[var(--text-secondary)] text-sm">Total Value (USD)</p>
-                <p className="text-2xl font-bold mt-1 text-[var(--success)]">${prizes.reduce((s, p) => s + p.prizeValueUSD, 0).toFixed(0)}</p>
+          <div className="card p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Total Value (USD)</p>
+                <p className="text-xl sm:text-2xl font-bold mt-1 text-[var(--success)]">${prizes.reduce((s, p) => s + p.prizeValueUSD, 0).toFixed(0)}</p>
               </div>
-              <div className="p-3 rounded-lg bg-[var(--success)]/10 text-[var(--success)]"><DollarSign className="w-5 h-5" /></div>
+              <div className="p-2 sm:p-3 rounded-lg bg-[var(--success)]/10 text-[var(--success)] flex-shrink-0"><DollarSign className="w-4 h-4 sm:w-5 sm:h-5" /></div>
             </div>
           </div>
-          <div className="card p-6">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-[var(--text-secondary)] text-sm">Total VICT</p>
-                <p className="text-2xl font-bold mt-1 text-[var(--accent)]">{prizes.filter(p => p.prizeType !== 'suitrump').reduce((s, p) => s + p.prizeAmount, 0).toLocaleString()}</p>
+          <div className="card p-4 sm:p-6">
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Total VICT</p>
+                <p className="text-xl sm:text-2xl font-bold mt-1 text-[var(--accent)] truncate">{prizes.filter(p => p.prizeType !== 'suitrump').reduce((s, p) => s + p.prizeAmount, 0).toLocaleString()}</p>
               </div>
-              <div className="p-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]"><Gift className="w-5 h-5" /></div>
+              <div className="p-2 sm:p-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] flex-shrink-0"><Gift className="w-4 h-4 sm:w-5 sm:h-5" /></div>
             </div>
           </div>
         </div>
@@ -122,8 +122,8 @@ export default function AdminDistributePage() {
 
       {/* Pending Prizes Table */}
       <div className="card">
-        <div className="p-4 border-b border-[var(--border)]">
-          <h3 className="text-lg font-semibold">Pending Prizes</h3>
+        <div className="p-3 sm:p-4 border-b border-[var(--border)]">
+          <h3 className="text-base sm:text-lg font-semibold">Pending Prizes</h3>
         </div>
         {loading ? (
           <SkeletonTable rows={10} columns={7} />
@@ -135,62 +135,64 @@ export default function AdminDistributePage() {
           />
         ) : (
           <>
-            <table className="w-full">
-              <thead>
-                <tr className="border-b border-[var(--border)]">
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Wallet</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Type</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Amount</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Value</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Lock</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Date</th>
-                  <th className="px-4 py-3 text-left text-xs text-[var(--text-secondary)]">Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {prizes.map((prize) => (
-                  <tr key={prize._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
-                    <td className="px-4 py-3">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-sm">{prize.wallet.slice(0, 8)}...{prize.wallet.slice(-4)}</span>
-                        <a href={`https://suiscan.xyz/mainnet/account/${prize.wallet}`} target="_blank" rel="noopener noreferrer" className="text-[var(--text-secondary)] hover:text-[var(--accent)]">
-                          <ExternalLink className="w-3 h-3" />
-                        </a>
-                      </div>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span className={`px-2 py-1 rounded text-xs ${
-                        prize.prizeType === 'liquid_victory' ? 'bg-[var(--warning)]/20 text-[var(--warning)]' :
-                        prize.prizeType === 'locked_victory' ? 'bg-purple-500/20 text-purple-400' :
-                        'bg-cyan-500/20 text-cyan-400'
-                      }`}>
-                        {getPrizeTypeLabel(prize.prizeType)}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3 font-medium">{prize.prizeAmount.toLocaleString()}</td>
-                    <td className="px-4 py-3 text-[var(--success)]">${prize.prizeValueUSD}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)] text-sm">{prize.lockDuration || '-'}</td>
-                    <td className="px-4 py-3 text-[var(--text-secondary)] text-sm">{new Date(prize.createdAt).toLocaleDateString()}</td>
-                    <td className="px-4 py-3">
-                      <button
-                        onClick={() => {
-                          const txHash = prompt('Enter transaction hash:')
-                          if (txHash) handleDistribute(prize._id, txHash)
-                        }}
-                        disabled={processing === prize._id}
-                        className="flex items-center gap-1 px-3 py-1 bg-[var(--success)] hover:bg-[var(--success)]/80 rounded text-white text-xs disabled:opacity-50"
-                      >
-                        <Check className="w-3 h-3" />
-                        {processing === prize._id ? 'Processing...' : 'Mark Sent'}
-                      </button>
-                    </td>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[700px]">
+                <thead>
+                  <tr className="border-b border-[var(--border)]">
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Wallet</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Type</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Amount</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Value</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Lock</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Date</th>
+                    <th className="px-3 sm:px-4 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {prizes.map((prize) => (
+                    <tr key={prize._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <span className="font-mono text-xs sm:text-sm">{prize.wallet.slice(0, 6)}...{prize.wallet.slice(-4)}</span>
+                          <a href={`https://suiscan.xyz/mainnet/account/${prize.wallet}`} target="_blank" rel="noopener noreferrer" className="text-[var(--text-secondary)] hover:text-[var(--accent)]">
+                            <ExternalLink className="w-3 h-3" />
+                          </a>
+                        </div>
+                      </td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                        <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${
+                          prize.prizeType === 'liquid_victory' ? 'bg-[var(--warning)]/20 text-[var(--warning)]' :
+                          prize.prizeType === 'locked_victory' ? 'bg-purple-500/20 text-purple-400' :
+                          'bg-cyan-500/20 text-cyan-400'
+                        }`}>
+                          {getPrizeTypeLabel(prize.prizeType)}
+                        </span>
+                      </td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3 font-medium text-xs sm:text-sm">{prize.prizeAmount.toLocaleString()}</td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[var(--success)] text-xs sm:text-sm">${prize.prizeValueUSD}</td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[var(--text-secondary)] text-xs sm:text-sm">{prize.lockDuration || '-'}</td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3 text-[var(--text-secondary)] text-xs sm:text-sm whitespace-nowrap">{new Date(prize.createdAt).toLocaleDateString()}</td>
+                      <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                        <button
+                          onClick={() => {
+                            const txHash = prompt('Enter transaction hash:')
+                            if (txHash) handleDistribute(prize._id, txHash)
+                          }}
+                          disabled={processing === prize._id}
+                          className="flex items-center gap-1 px-2 sm:px-3 py-1 sm:py-1.5 bg-[var(--success)] hover:bg-[var(--success)]/80 rounded text-white text-[10px] sm:text-xs disabled:opacity-50 whitespace-nowrap"
+                        >
+                          <Check className="w-2.5 h-2.5 sm:w-3 sm:h-3" />
+                          {processing === prize._id ? 'Processing...' : 'Mark Sent'}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
 
             {/* Pagination */}
-            <div className="flex items-center justify-between p-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>

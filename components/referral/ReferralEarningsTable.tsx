@@ -114,7 +114,7 @@ export default function ReferralEarningsTable() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 sm:gap-0 pt-3 sm:pt-4 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
