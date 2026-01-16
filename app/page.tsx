@@ -9,6 +9,7 @@ import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { GameCard } from '@/components/ui/GameCard'
 import { ReferralBanner } from '@/components/referral'
+import { LiveActivityFeed } from '@/components/activity'
 import {
   Users,
   ArrowRight,
@@ -208,6 +209,18 @@ function HomePageContent() {
                 <span><strong className="text-white">10%</strong> Referral Rewards</span>
               </div>
             </div>
+          </div>
+        </section>
+
+        {/* Live Activity Feed */}
+        <section className="py-8 sm:py-12 px-4 border-y border-border/50 bg-surface/30">
+          <div className="max-w-6xl mx-auto">
+            <LiveActivityFeed
+              limit={8}
+              compact={true}
+              showHeader={true}
+              showViewAll={true}
+            />
           </div>
         </section>
 

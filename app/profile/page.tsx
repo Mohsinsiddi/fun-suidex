@@ -7,6 +7,7 @@ import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { ProfileShareButton } from '@/components/profile'
 import { BadgeShowcase } from '@/components/badges'
+import { UserSpinHistory } from '@/components/activity'
 import {
   User,
   Lock,
@@ -20,6 +21,7 @@ import {
   Calendar,
   Target,
   Sparkles,
+  History,
   Save,
   AlertCircle,
   CheckCircle,
@@ -507,6 +509,23 @@ export default function ProfileSettingsPage() {
                   maxShow={8}
                   showViewAll={false}
                 />
+              </div>
+
+              {/* Spin History Section */}
+              <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                <div className="flex items-center gap-3 mb-4">
+                  <div className="p-2 sm:p-2.5 rounded-xl bg-accent/10 border border-accent/30">
+                    <History className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+                  </div>
+                  <div>
+                    <h2 className="text-base sm:text-lg font-bold text-white">Spin History</h2>
+                    <p className="text-xs sm:text-sm text-text-secondary">
+                      Your complete spin record
+                    </p>
+                  </div>
+                </div>
+
+                <UserSpinHistory />
               </div>
             </div>
           )}
