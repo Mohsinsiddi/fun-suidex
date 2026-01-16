@@ -22,6 +22,7 @@ const PermissionsSchema = new Schema<AdminPermissions>(
     canInviteAdmins: { type: Boolean, default: false },
     canManualCreditSpins: { type: Boolean, default: true },
     canViewRevenue: { type: Boolean, default: true },
+    canManageBadges: { type: Boolean, default: false },  // Award special badges
   },
   { _id: false }
 )
@@ -76,6 +77,7 @@ const AdminSchema = new Schema<AdminDocument>(
         canInviteAdmins: false,
         canManualCreditSpins: true,
         canViewRevenue: true,
+        canManageBadges: false,
       }),
     },
     

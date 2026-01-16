@@ -3,6 +3,7 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, ReferralModel } from '@/lib/db/models'
 import { verifyAccessToken } from '@/lib/auth/jwt'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function POST(request: NextRequest) {
   try {
@@ -30,6 +31,9 @@ export async function POST(request: NextRequest) {
     await ReferralModel.create({ referrerWallet: referrerWallet.toLowerCase(), referredWallet: payload.wallet })
     await UserModel.updateOne({ wallet: payload.wallet }, { $set: { referredBy: referrerWallet.toLowerCase() } })
     await UserModel.updateOne({ wallet: referrerWallet.toLowerCase() }, { $inc: { totalReferred: 1 } })
+
+    // Check referral badges for the referrer
+    checkAndAwardBadges(referrerWallet.toLowerCase()).catch(err => console.error('Badge check error:', err))
 
     return NextResponse.json({ success: true, message: 'Referral linked' })
   } catch (error) {

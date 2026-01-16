@@ -60,6 +60,12 @@ export const DEFAULT_ADMIN_CONFIG: Omit<AdminConfig, 'updatedAt' | 'updatedBy'> 
   
   // Victory Token
   victoryPriceUSD: 0.003,
+
+  // Badge System
+  badgesEnabled: true,
+  profileSharingEnabled: true,
+  profileShareMinSpins: 10,
+  earlyBirdCutoffDate: null,
 }
 
 // ----------------------------------------
@@ -72,6 +78,7 @@ export const SUPER_ADMIN_PERMISSIONS: AdminPermissions = {
   canInviteAdmins: true,
   canManualCreditSpins: true,
   canViewRevenue: true,
+  canManageBadges: true,
 }
 
 export const DEFAULT_ADMIN_PERMISSIONS: AdminPermissions = {
@@ -80,6 +87,7 @@ export const DEFAULT_ADMIN_PERMISSIONS: AdminPermissions = {
   canInviteAdmins: false,
   canManualCreditSpins: true,
   canViewRevenue: true,
+  canManageBadges: false,
 }
 
 // ----------------------------------------
@@ -230,3 +238,9 @@ export const SUCCESS = {
   CONFIG_UPDATED: 'Configuration updated successfully.',
   PRIZE_DISTRIBUTED: 'Prize marked as distributed.',
 }
+
+// ----------------------------------------
+// Badge Constants (re-export)
+// ----------------------------------------
+
+export * from './badges'

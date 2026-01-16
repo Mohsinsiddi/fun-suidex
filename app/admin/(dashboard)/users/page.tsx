@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Search, Plus, AlertCircle, CheckCircle } from 'lucide-react'
+import { RefreshCw, Search, Plus, AlertCircle, CheckCircle, Award, X, Trophy, Flame } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, ErrorState } from '@/components/ui'
+import type { Badge, UserBadge } from '@/types/badge'
 
 interface User {
   _id: string
@@ -14,6 +15,9 @@ interface User {
   totalWinsUSD: number
   createdAt: string
   lastActiveAt: string
+  currentStreak?: number
+  longestStreak?: number
+  badgeCount?: number
 }
 
 export default function AdminUsersPage() {
@@ -36,6 +40,16 @@ export default function AdminUsersPage() {
   const [creditAmount, setCreditAmount] = useState(1)
   const [creditType, setCreditType] = useState<'purchased' | 'bonus'>('purchased')
   const [crediting, setCrediting] = useState(false)
+
+  // Badge modal state
+  const [showBadgeModal, setShowBadgeModal] = useState(false)
+  const [badgeModalWallet, setBadgeModalWallet] = useState('')
+  const [userBadges, setUserBadges] = useState<UserBadge[]>([])
+  const [allBadges, setAllBadges] = useState<Badge[]>([])
+  const [specialBadges, setSpecialBadges] = useState<Badge[]>([])
+  const [loadingBadges, setLoadingBadges] = useState(false)
+  const [selectedBadge, setSelectedBadge] = useState<string>('')
+  const [awardingBadge, setAwardingBadge] = useState(false)
 
   const fetchUsers = useCallback(async () => {
     setLoading(true)
@@ -89,6 +103,80 @@ export default function AdminUsersPage() {
       } else setError(data.error)
     } catch (err) { setError('Failed to credit spins') }
     setCrediting(false)
+  }
+
+  // Fetch user badges for modal
+  const fetchUserBadges = async (wallet: string) => {
+    setLoadingBadges(true)
+    try {
+      const [userBadgesRes, allBadgesRes] = await Promise.all([
+        fetch(`/api/admin/users/${encodeURIComponent(wallet)}/badges`),
+        fetch('/api/admin/badges'),
+      ])
+      const userBadgesData = await userBadgesRes.json()
+      const allBadgesData = await allBadgesRes.json()
+
+      if (userBadgesData.success) {
+        // API returns { user, earned, progress, stats }
+        setUserBadges(userBadgesData.data?.earned || [])
+      }
+      if (allBadgesData.success) {
+        // API returns { badges, byCategory, summary }
+        const badges = allBadgesData.data?.badges || []
+        setAllBadges(badges)
+        // Filter for special badges that can be awarded
+        const special = badges.filter((b: Badge) => b.category === 'special')
+        setSpecialBadges(special)
+      }
+    } catch (err) {
+      console.error('Failed to fetch badges:', err)
+    }
+    setLoadingBadges(false)
+  }
+
+  const openBadgeModal = (wallet: string) => {
+    setBadgeModalWallet(wallet)
+    setShowBadgeModal(true)
+    setSelectedBadge('')
+    fetchUserBadges(wallet)
+  }
+
+  const handleAwardBadge = async () => {
+    if (!selectedBadge || !badgeModalWallet) return
+    setAwardingBadge(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/badges/award', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: badgeModalWallet, badgeId: selectedBadge }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess(`Badge awarded to ${badgeModalWallet.slice(0, 10)}...`)
+        setSelectedBadge('')
+        fetchUserBadges(badgeModalWallet)
+        setTimeout(() => setSuccess(null), 3000)
+      } else {
+        setError(data.error || 'Failed to award badge')
+      }
+    } catch (err) {
+      setError('Failed to award badge')
+    }
+    setAwardingBadge(false)
+  }
+
+  // Get tier color for badge display
+  const getTierColor = (tier: string) => {
+    switch (tier) {
+      case 'bronze': return 'text-orange-400 bg-orange-400/10 border-orange-400/30'
+      case 'silver': return 'text-gray-300 bg-gray-300/10 border-gray-300/30'
+      case 'gold': return 'text-yellow-400 bg-yellow-400/10 border-yellow-400/30'
+      case 'diamond': return 'text-cyan-400 bg-cyan-400/10 border-cyan-400/30'
+      case 'legendary': return 'text-purple-400 bg-purple-400/10 border-purple-400/30'
+      case 'special': return 'text-pink-400 bg-pink-400/10 border-pink-400/30'
+      default: return 'text-gray-400 bg-gray-400/10 border-gray-400/30'
+    }
   }
 
   return (
@@ -151,10 +239,10 @@ export default function AdminUsersPage() {
               <thead>
                 <tr className="border-b border-[var(--border)]">
                   <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wallet</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Purchased</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Bonus</th>
-                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Total Spins</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Spins</th>
                   <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Wins (USD)</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Badges</th>
+                  <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Streak</th>
                   <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Last Active</th>
                   <th className="px-6 py-4 text-left text-xs text-[var(--text-secondary)] uppercase">Actions</th>
                 </tr>
@@ -163,20 +251,44 @@ export default function AdminUsersPage() {
                 {users.map((user) => (
                   <tr key={user._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
                     <td className="px-6 py-4 font-mono text-sm">{user.wallet.slice(0, 10)}...{user.wallet.slice(-6)}</td>
-                    <td className="px-6 py-4 text-[var(--warning)] font-medium">{user.purchasedSpins}</td>
-                    <td className="px-6 py-4 text-purple-400 font-medium">{user.bonusSpins}</td>
-                    <td className="px-6 py-4 text-[var(--text-secondary)]">{user.totalSpins}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex flex-col">
+                        <span className="text-[var(--text-secondary)]">{user.totalSpins} total</span>
+                        <span className="text-xs text-[var(--text-secondary)]/60">{user.purchasedSpins}p / {user.bonusSpins}b</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-[var(--success)]">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <Trophy className="w-4 h-4 text-yellow-400" />
+                        <span className="text-[var(--text-secondary)]">{user.badgeCount || 0}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-1.5">
+                        <Flame className="w-4 h-4 text-orange-400" />
+                        <span className="text-[var(--text-secondary)]">{user.currentStreak || 0}</span>
+                        <span className="text-xs text-[var(--text-secondary)]/50">/ {user.longestStreak || 0}</span>
+                      </div>
+                    </td>
                     <td className="px-6 py-4 text-[var(--text-secondary)] text-sm">
                       {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
                     </td>
                     <td className="px-6 py-4">
-                      <button
-                        onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
-                        className="text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
-                      >
-                        Credit
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={() => openBadgeModal(user.wallet)}
+                          className="text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
+                        >
+                          <Award className="w-4 h-4" />Badges
+                        </button>
+                        <button
+                          onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
+                          className="text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
+                        >
+                          Credit
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -197,7 +309,7 @@ export default function AdminUsersPage() {
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
           <div className="card p-6 w-full max-w-md">
             <h3 className="text-xl font-bold mb-4">Credit Spins</h3>
-            
+
             <div className="space-y-4">
               <div>
                 <label className="block text-sm text-text-secondary mb-2">Wallet Address</label>
@@ -209,7 +321,7 @@ export default function AdminUsersPage() {
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg font-mono text-sm"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm text-text-secondary mb-2">Amount</label>
                 <input
@@ -220,7 +332,7 @@ export default function AdminUsersPage() {
                   className="w-full px-4 py-2 bg-background border border-border rounded-lg"
                 />
               </div>
-              
+
               <div>
                 <label className="block text-sm text-text-secondary mb-2">Type</label>
                 <select
@@ -244,6 +356,117 @@ export default function AdminUsersPage() {
                 {crediting ? 'Crediting...' : 'Credit Spins'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Badge Modal */}
+      {showBadgeModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-2xl max-h-[80vh] overflow-hidden flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-xl font-bold">User Badges</h3>
+                <p className="text-sm text-[var(--text-secondary)] font-mono">{badgeModalWallet.slice(0, 16)}...{badgeModalWallet.slice(-8)}</p>
+              </div>
+              <button onClick={() => setShowBadgeModal(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {loadingBadges ? (
+              <div className="flex items-center justify-center py-12">
+                <RefreshCw className="w-6 h-6 animate-spin text-[var(--accent)]" />
+              </div>
+            ) : (
+              <div className="flex-1 overflow-y-auto space-y-6">
+                {/* Earned Badges */}
+                <div>
+                  <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                    Earned Badges ({userBadges.length})
+                  </h4>
+                  {userBadges.length === 0 ? (
+                    <p className="text-sm text-[var(--text-secondary)]/60 py-4 text-center">No badges earned yet</p>
+                  ) : (
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                      {userBadges.map((ub) => (
+                        <div
+                          key={ub._id}
+                          className={`p-3 rounded-xl border ${getTierColor(ub.badge?.tier || 'bronze')}`}
+                        >
+                          <div className="flex items-center gap-2 mb-1">
+                            <span className="text-xl">{ub.badge?.icon || '🏆'}</span>
+                            <span className="text-sm font-medium truncate">{ub.badge?.name || 'Badge'}</span>
+                          </div>
+                          <p className="text-xs opacity-60 capitalize">{ub.badge?.tier}</p>
+                          <p className="text-xs opacity-40 mt-1">
+                            {new Date(ub.unlockedAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+
+                {/* Award Special Badge */}
+                {specialBadges.length > 0 && (
+                  <div className="border-t border-[var(--border)] pt-4">
+                    <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                      Award Special Badge
+                    </h4>
+                    <div className="flex gap-3">
+                      <select
+                        value={selectedBadge}
+                        onChange={(e) => setSelectedBadge(e.target.value)}
+                        className="flex-1 px-4 py-2 bg-background border border-border rounded-lg"
+                      >
+                        <option value="">Select a special badge...</option>
+                        {specialBadges.map((badge) => {
+                          const alreadyHas = userBadges.some((ub) => ub.badge?._id === badge._id)
+                          return (
+                            <option key={badge._id} value={badge._id} disabled={alreadyHas}>
+                              {badge.icon} {badge.name} {alreadyHas ? '(Already earned)' : ''}
+                            </option>
+                          )
+                        })}
+                      </select>
+                      <button
+                        onClick={handleAwardBadge}
+                        disabled={awardingBadge || !selectedBadge}
+                        className="btn btn-primary disabled:opacity-50"
+                      >
+                        {awardingBadge ? 'Awarding...' : 'Award'}
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* All Badges Overview */}
+                <div className="border-t border-[var(--border)] pt-4">
+                  <h4 className="text-sm font-semibold text-[var(--text-secondary)] uppercase mb-3">
+                    All Available Badges ({allBadges.length})
+                  </h4>
+                  <div className="grid grid-cols-4 sm:grid-cols-6 gap-2">
+                    {allBadges.map((badge) => {
+                      const earned = userBadges.some((ub) => ub.badge?._id === badge._id)
+                      return (
+                        <div
+                          key={badge._id}
+                          className={`p-2 rounded-lg border text-center ${
+                            earned
+                              ? getTierColor(badge.tier)
+                              : 'border-[var(--border)] opacity-30 grayscale'
+                          }`}
+                          title={`${badge.name} - ${badge.description}`}
+                        >
+                          <span className="text-lg">{badge.icon}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}

@@ -6,6 +6,7 @@ import { verifyAccessToken } from '@/lib/auth/jwt'
 import { selectPrizeSlot, getWeekEndingDate, calculateReferralCommission } from '@/lib/utils/prizes'
 import { generateReferralLink } from '@/lib/referral'
 import { generateTweetIntentUrl } from '@/lib/twitter'
+import { updateStreak, checkAndAwardBadges } from '@/lib/badges'
 import { ERRORS } from '@/constants'
 
 export async function POST(request: NextRequest) {
@@ -70,6 +71,12 @@ export async function POST(request: NextRequest) {
     if (!user.hasCompletedFirstSpin) user.hasCompletedFirstSpin = true
     user.lastActiveAt = new Date()
     await user.save()
+
+    // Update streak and check badges (non-blocking)
+    Promise.all([
+      updateStreak(payload.wallet),
+      checkAndAwardBadges(payload.wallet),
+    ]).catch(err => console.error('Badge/streak update error:', err))
 
     if (referredBy && referralCommission && referralCommission > 0) {
       const referralLink = generateReferralLink(referredBy)

@@ -12,7 +12,7 @@ export interface AdminLog {
   _id: string
   action: string
   adminUsername: string
-  targetType: 'spin' | 'user' | 'config' | 'payment' | 'admin' | 'invite'
+  targetType: 'spin' | 'user' | 'config' | 'payment' | 'admin' | 'invite' | 'user_badge' | 'badge'
   targetId: string
   before?: Record<string, unknown>
   after?: Record<string, unknown>
@@ -40,7 +40,7 @@ const AdminLogSchema = new Schema<AdminLogDocument>(
     },
     targetType: {
       type: String,
-      enum: ['spin', 'user', 'config', 'payment', 'admin', 'invite'],
+      enum: ['spin', 'user', 'config', 'payment', 'admin', 'invite', 'user_badge', 'badge'],
       required: true,
     },
     targetId: {

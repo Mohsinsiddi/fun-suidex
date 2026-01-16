@@ -128,7 +128,30 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
       default: 0.003,
       min: 0,
     },
-    
+
+    // Badge System
+    badgesEnabled: {
+      type: Boolean,
+      default: true,
+    },
+
+    // Profile Sharing
+    profileSharingEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    profileShareMinSpins: {
+      type: Number,
+      default: 10,
+      min: 1,
+    },
+
+    // Early Bird Badge Cutoff Date
+    earlyBirdCutoffDate: {
+      type: Date,
+      default: null,  // Set by admin when launching
+    },
+
     // Metadata
     updatedBy: {
       type: String,

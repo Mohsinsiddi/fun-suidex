@@ -45,6 +45,7 @@ export default function ReferralPage() {
             setEligible(true)
           }
         }
+
       } else {
         setIsAuthenticated(false)
       }

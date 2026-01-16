@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from '@mysten/dapp-kit'
-import { Menu, X, Gamepad2, Users, ChevronDown, Play, Clock } from 'lucide-react'
+import { Menu, X, Gamepad2, Users, ChevronDown, Play, Clock, User } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 const GAMES = [
@@ -144,6 +144,15 @@ export function Header() {
                 <Users className="w-4 h-4" />
                 <span>Earn</span>
               </Link>
+
+              {/* Profile */}
+              <Link
+                href="/profile"
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/profile') ? 'bg-accent text-black shadow-md shadow-accent/30' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+              >
+                <User className="w-4 h-4" />
+                <span>Profile</span>
+              </Link>
             </nav>
 
             {/* Right Side */}
@@ -237,6 +246,16 @@ export function Header() {
               >
                 <Users className="w-5 h-5" />
                 <span className="font-medium">Earn</span>
+              </Link>
+
+              {/* Profile */}
+              <Link
+                href="/profile"
+                onClick={() => setMobileMenuOpen(false)}
+                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/profile') ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
+              >
+                <User className="w-5 h-5" />
+                <span className="font-medium">Profile</span>
               </Link>
             </nav>
           )}

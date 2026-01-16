@@ -17,6 +17,8 @@ import {
   PaymentModel,
   ReferralModel,
   AffiliateRewardModel,
+  UserBadgeModel,
+  BadgeModel,
 } from '../lib/db/models'
 
 // ----------------------------------------
@@ -29,6 +31,7 @@ const MOCK_CONFIG = {
   PAYMENTS_COUNT: 500,
   REFERRALS_PERCENT: 30,
   AFFILIATE_REWARDS_COUNT: 1000,
+  USER_BADGES_PERCENT: 40, // 40% of users will have some badges
 }
 
 // ----------------------------------------
@@ -104,6 +107,7 @@ async function main() {
   console.log(`  - ${MOCK_CONFIG.PAYMENTS_COUNT.toLocaleString()} Payments`)
   console.log(`  - ~${Math.floor(MOCK_CONFIG.USERS_COUNT * MOCK_CONFIG.REFERRALS_PERCENT / 100).toLocaleString()} Referrals`)
   console.log(`  - ${MOCK_CONFIG.AFFILIATE_REWARDS_COUNT.toLocaleString()} Affiliate Rewards`)
+  console.log(`  - ~${Math.floor(MOCK_CONFIG.USERS_COUNT * MOCK_CONFIG.USER_BADGES_PERCENT / 100).toLocaleString()} Users with Badges`)
   console.log(`\n  Total: ~${(MOCK_CONFIG.USERS_COUNT + MOCK_CONFIG.SPINS_COUNT + MOCK_CONFIG.PAYMENTS_COUNT + MOCK_CONFIG.AFFILIATE_REWARDS_COUNT + Math.floor(MOCK_CONFIG.USERS_COUNT * MOCK_CONFIG.REFERRALS_PERCENT / 100)).toLocaleString()} records\n`)
 
   const proceed = await question('Do you want to continue? (y/N): ')
@@ -136,6 +140,7 @@ async function main() {
           PaymentModel.deleteMany({}),
           ReferralModel.deleteMany({}),
           AffiliateRewardModel.deleteMany({}),
+          UserBadgeModel.deleteMany({}),
         ])
         console.log('✓ Existing data cleared\n')
       }
@@ -160,6 +165,8 @@ async function main() {
       const createdAt = randomDate(threeMonthsAgo, now)
       const totalSpins = randomInt(0, 100)
       const totalWinsUSD = randomInt(0, 500)
+      const currentStreak = randomInt(0, 30)
+      const longestStreak = Math.max(currentStreak, randomInt(0, 60))
 
       userDocs.push({
         wallet,
@@ -173,6 +180,18 @@ async function main() {
         totalReferred: 0,
         hasCompletedFirstSpin: totalSpins > 0,
         lastActiveAt: randomDate(createdAt, now),
+        // New streak fields
+        currentStreak,
+        longestStreak,
+        lastSpinDate: totalSpins > 0 ? randomDate(createdAt, now) : null,
+        // Commission tracking
+        totalCommissionUSD: randomInt(0, 100),
+        // Social tracking
+        totalTweets: randomInt(0, 20),
+        // Profile (some users have profiles)
+        profileSlug: i < 100 ? `user${i.toString().padStart(4, '0')}` : null,
+        isProfilePublic: i < 50,
+        profileUnlockedAt: i < 100 ? createdAt : null,
         createdAt,
         updatedAt: now,
       })
@@ -390,6 +409,43 @@ async function main() {
     console.log(' ✓')
 
     // ========================================
+    // Step 6: Generate Mock User Badges
+    // ========================================
+    const allBadges = await BadgeModel.find({ isActive: true }).lean()
+
+    if (allBadges.length === 0) {
+      console.log('\n  ⚠ No badges found in database. Run seed:defaults first to create badges.')
+    } else {
+      const userBadgeDocs = []
+      const usersWithBadgesCount = Math.floor(MOCK_CONFIG.USERS_COUNT * (MOCK_CONFIG.USER_BADGES_PERCENT / 100))
+
+      for (let i = 0; i < usersWithBadgesCount; i++) {
+        const wallet = userWallets[i]
+        // Each user gets 1-10 random badges
+        const badgeCount = randomInt(1, Math.min(10, allBadges.length))
+        const shuffledBadges = [...allBadges].sort(() => Math.random() - 0.5).slice(0, badgeCount)
+
+        for (const badge of shuffledBadges) {
+          userBadgeDocs.push({
+            wallet,
+            badgeId: badge._id,
+            unlockedAt: randomDate(threeMonthsAgo, now),
+          })
+        }
+
+        if (i % 100 === 0) progressBar(i, usersWithBadgesCount, 'Badges')
+      }
+
+      // Insert in batches
+      for (let i = 0; i < userBadgeDocs.length; i += BATCH_SIZE) {
+        const batch = userBadgeDocs.slice(i, i + BATCH_SIZE)
+        await UserBadgeModel.insertMany(batch, { ordered: false }).catch(() => {})
+      }
+      progressBar(usersWithBadgesCount, usersWithBadgesCount, 'Badges')
+      console.log(' ✓')
+    }
+
+    // ========================================
     // Summary
     // ========================================
     console.log('\n╔══════════════════════════════════════════════╗')
@@ -402,6 +458,7 @@ async function main() {
       PaymentModel.countDocuments(),
       ReferralModel.countDocuments(),
       AffiliateRewardModel.countDocuments(),
+      UserBadgeModel.countDocuments(),
     ])
 
     console.log('\nFinal counts:')
@@ -410,6 +467,7 @@ async function main() {
     console.log(`  - Payments:         ${finalCounts[2].toLocaleString()}`)
     console.log(`  - Referrals:        ${finalCounts[3].toLocaleString()}`)
     console.log(`  - Affiliate Rewards: ${finalCounts[4].toLocaleString()}`)
+    console.log(`  - User Badges:      ${finalCounts[5].toLocaleString()}`)
     console.log(`\n  Total: ${finalCounts.reduce((a, b) => a + b, 0).toLocaleString()} records`)
     console.log('\n✓ You can now test the admin dashboard!\n')
 

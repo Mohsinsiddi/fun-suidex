@@ -11,7 +11,8 @@
     "admin:list": "tsx scripts/admin-list.ts",
     "admin:delete": "tsx scripts/admin-delete.ts",
     "seed:defaults": "tsx scripts/seed-defaults.ts",
-    "seed:mock": "tsx scripts/seed-mock-data.ts"
+    "seed:mock": "tsx scripts/seed-mock-data.ts",
+    "migrate:admin-badges": "tsx scripts/migrate-admin-badges.ts"
   },
   "dependencies": {
     "@mysten/dapp-kit": "0.14.37",

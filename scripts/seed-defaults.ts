@@ -10,8 +10,8 @@ config({ path: '.env.local' })
 
 import * as readline from 'readline'
 import { connectDB, disconnectDB } from '../lib/db/mongodb'
-import { AdminConfigModel } from '../lib/db/models'
-import { DEFAULT_ADMIN_CONFIG } from '../constants'
+import { AdminConfigModel, BadgeModel } from '../lib/db/models'
+import { DEFAULT_ADMIN_CONFIG, BADGE_DEFINITIONS } from '../constants'
 
 // ----------------------------------------
 // Readline Interface
@@ -92,6 +92,30 @@ async function main() {
     
     await config.save()
 
+    // Seed badges
+    console.log('\nSeeding badges...')
+    const existingBadges = await BadgeModel.countDocuments()
+
+    if (existingBadges > 0) {
+      console.log(`  ⚠ ${existingBadges} badges already exist, skipping...`)
+    } else {
+      const badgeDocs = BADGE_DEFINITIONS.map((badge) => ({
+        _id: badge._id,
+        name: badge.name,
+        description: badge.description,
+        icon: badge.icon,
+        tier: badge.tier,
+        category: badge.category,
+        criteria: badge.criteria,
+        isActive: true,
+        sortOrder: badge.sortOrder,
+        createdAt: new Date(),
+      }))
+
+      await BadgeModel.insertMany(badgeDocs)
+      console.log(`  ✓ ${badgeDocs.length} badges created`)
+    }
+
     console.log('\n╔══════════════════════════════════════════════╗')
     console.log('║          ✓ Configuration Seeded!              ║')
     console.log('╚══════════════════════════════════════════════╝')
@@ -103,6 +127,9 @@ async function main() {
     console.log(`  - Min Stake for Free Spin: $${DEFAULT_ADMIN_CONFIG.freeSpinMinStakeUSD}`)
     console.log(`  - Free Spin Cooldown: ${DEFAULT_ADMIN_CONFIG.freeSpinCooldownHours} hours`)
     console.log(`  - Prize Table: ${DEFAULT_ADMIN_CONFIG.prizeTable.length} slots configured`)
+    console.log(`  - Badges Enabled: ${DEFAULT_ADMIN_CONFIG.badgesEnabled}`)
+    console.log(`  - Profile Sharing: ${DEFAULT_ADMIN_CONFIG.profileSharingEnabled}`)
+    console.log(`  - Profile Min Spins: ${DEFAULT_ADMIN_CONFIG.profileShareMinSpins}`)
     console.log('\nPrize Distribution:')
     
     // Show prize summary

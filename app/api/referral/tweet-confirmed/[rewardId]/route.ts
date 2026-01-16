@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { AffiliateRewardModel } from '@/lib/db/models'
+import { AffiliateRewardModel, UserModel } from '@/lib/db/models'
 import { verifyAccessToken } from '@/lib/auth/jwt'
+import { checkAndAwardBadges } from '@/lib/badges'
 
 export async function POST(request: NextRequest, { params }: { params: Promise<{ rewardId: string }> }) {
   try {
@@ -22,6 +23,10 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
     if (reward.tweetStatus === 'completed') return NextResponse.json({ success: true, alreadyConfirmed: true })
 
     await AffiliateRewardModel.updateOne({ _id: rewardId }, { $set: { tweetStatus: 'completed', tweetReturnedAt: new Date(), payoutStatus: 'ready' } })
+
+    // Increment tweet count and check for social badges
+    await UserModel.updateOne({ wallet: payload.wallet }, { $inc: { totalTweets: 1 } })
+    checkAndAwardBadges(payload.wallet).catch(err => console.error('Badge check error:', err))
 
     return NextResponse.json({ success: true, message: 'Tweet confirmed! Ready for payout.' })
   } catch (error) {

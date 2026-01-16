@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { UserModel } from '@/lib/db/models'
+import { UserModel, UserBadgeModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { parsePaginationParams, createPaginatedResponse } from '@/lib/utils/pagination'
 
@@ -47,7 +47,7 @@ export async function GET(request: NextRequest) {
     // Get users with pagination
     const [users, total] = await Promise.all([
       UserModel.find(query)
-        .select('wallet purchasedSpins bonusSpins totalSpins totalWinsUSD createdAt lastActiveAt referralCode totalReferred')
+        .select('wallet purchasedSpins bonusSpins totalSpins totalWinsUSD createdAt lastActiveAt referralCode totalReferred currentStreak longestStreak')
         .sort({ [safeSortBy]: sortOrder })
         .skip(skip)
         .limit(limit)
@@ -55,9 +55,23 @@ export async function GET(request: NextRequest) {
       UserModel.countDocuments(query),
     ])
 
+    // Get badge counts for users
+    const wallets = users.map((u: { wallet: string }) => u.wallet)
+    const badgeCounts = await UserBadgeModel.aggregate([
+      { $match: { wallet: { $in: wallets } } },
+      { $group: { _id: '$wallet', count: { $sum: 1 } } },
+    ])
+    const badgeCountMap = new Map(badgeCounts.map((b: { _id: string; count: number }) => [b._id, b.count]))
+
+    // Add badge count to users
+    const usersWithBadges = users.map((user: { wallet: string }) => ({
+      ...user,
+      badgeCount: badgeCountMap.get(user.wallet) || 0,
+    }))
+
     return NextResponse.json({
       success: true,
-      ...createPaginatedResponse(users, page, limit, total),
+      ...createPaginatedResponse(usersWithBadges, page, limit, total),
     })
   } catch (error) {
     console.error('Admin users GET error:', error)

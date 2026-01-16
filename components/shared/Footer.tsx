@@ -125,6 +125,15 @@ export function Footer() {
                   </Link>
                 </li>
                 <li>
+                  <Link
+                    href="/profile"
+                    className="group flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
+                  >
+                    <span>My Profile</span>
+                    <ChevronRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-accent" />
+                  </Link>
+                </li>
+                <li>
                   <a
                     href="https://twitter.com/SuiDex"
                     target="_blank"

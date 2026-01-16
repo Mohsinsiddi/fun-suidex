@@ -31,6 +31,22 @@ const UserSchema = new Schema<UserDocument>({
   totalReferred: { type: Number, default: 0 },
   hasCompletedFirstSpin: { type: Boolean, default: false },
   lastActiveAt: { type: Date, default: Date.now },
+
+  // Streak tracking (spin-based)
+  currentStreak: { type: Number, default: 0 },
+  longestStreak: { type: Number, default: 0 },
+  lastSpinDate: { type: Date, default: null },
+
+  // Commission tracking (for badges)
+  totalCommissionUSD: { type: Number, default: 0 },
+
+  // Social tracking (for badges)
+  totalTweets: { type: Number, default: 0 },
+
+  // Profile
+  profileSlug: { type: String, unique: true, sparse: true },
+  isProfilePublic: { type: Boolean, default: false },
+  profileUnlockedAt: { type: Date, default: null },
 }, { timestamps: true })
 
 // Primary indexes (wallet and referralCode already indexed via unique: true)
@@ -45,6 +61,7 @@ UserSchema.index({ hasCompletedFirstSpin: 1, createdAt: -1 }) // For referral el
 UserSchema.index({ lastActiveAt: -1 }) // For admin user list sorting
 UserSchema.index({ createdAt: -1 }) // For pagination
 UserSchema.index({ totalSpins: -1 }) // For leaderboard queries
+UserSchema.index({ longestStreak: -1 }) // For streak leaderboards
 
 UserSchema.pre('save', function(next) {
   if (!this.referralCode) this.referralCode = nanoid(8).toUpperCase()

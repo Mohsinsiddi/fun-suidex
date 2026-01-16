@@ -9,23 +9,40 @@
 export interface User {
   _id: string
   wallet: string
-  
+
   // Session info (stored separately)
   sessions: UserSession[]
-  
+
   // Spin balance
   purchasedSpins: number
   bonusSpins: number
-  
+
   // Stats
   totalSpins: number
   totalWinsUSD: number
   biggestWinUSD: number
-  
+
   // Referral
   referralCode: string
   referredBy: string | null
-  
+  totalReferred: number
+
+  // Streak tracking (spin-based)
+  currentStreak: number
+  longestStreak: number
+  lastSpinDate: Date | null
+
+  // Commission tracking (for badges)
+  totalCommissionUSD: number
+
+  // Social tracking (for badges)
+  totalTweets: number
+
+  // Profile
+  profileSlug: string | null
+  isProfilePublic: boolean
+  profileUnlockedAt: Date | null
+
   // Timestamps
   createdAt: Date
   updatedAt: Date
@@ -70,6 +87,7 @@ export interface AdminPermissions {
   canInviteAdmins: boolean
   canManualCreditSpins: boolean
   canViewRevenue: boolean
+  canManageBadges: boolean
 }
 
 export interface AdminSession {
@@ -223,34 +241,40 @@ export interface PrizeSlot {
 
 export interface AdminConfig {
   _id: 'main'
-  
+
   // Spin Purchase
   spinRateSUI: number
   spinPurchaseEnabled: boolean
   maxSpinsPerPurchase: number
   autoApprovalLimitSUI: number // Above this requires admin approval
-  
+
   // Admin Wallet
   adminWalletAddress: string
-  
+
   // Payment Verification
   paymentLookbackHours: number
   minPaymentSUI: number
-  
+
   // Prize Table
   prizeTable: PrizeSlot[]
-  
+
   // Referral
   referralEnabled: boolean
   referralCommissionPercent: number
-  
+
   // Free Spin
   freeSpinMinStakeUSD: number
   freeSpinCooldownHours: number
-  
+
   // Victory Token
   victoryPriceUSD: number
-  
+
+  // Badge System
+  badgesEnabled: boolean
+  profileSharingEnabled: boolean
+  profileShareMinSpins: number
+  earlyBirdCutoffDate: Date | null
+
   // Metadata
   updatedAt: Date
   updatedBy: string
@@ -381,10 +405,17 @@ export interface GameStore {
   eligibility: SpinEligibility | null
   currentSpin: SpinResult | null
   isSpinning: boolean
-  
+
   // Actions
   setConfig: (config: AdminConfig | null) => void
   setEligibility: (eligibility: SpinEligibility | null) => void
   setCurrentSpin: (spin: SpinResult | null) => void
   setSpinning: (spinning: boolean) => void
 }
+
+// ----------------------------------------
+// Badge & Profile Types (re-export)
+// ----------------------------------------
+
+export * from './badge'
+export * from './profile'
