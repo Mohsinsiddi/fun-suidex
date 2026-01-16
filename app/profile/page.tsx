@@ -253,7 +253,7 @@ export default function ProfileSettingsPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
 
-      <main className="flex-1 p-4 py-6 sm:py-8">
+      <main className="flex-1 px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         <div className="max-w-4xl mx-auto">
           <Link
             href="/"
@@ -337,21 +337,21 @@ export default function ProfileSettingsPage() {
 
               {/* Profile URL & Share */}
               {profile?.profileSlug && (
-                <div className="p-6 rounded-2xl bg-gradient-to-br from-accent/10 to-purple-500/10 border border-accent/30">
-                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-accent/10 to-purple-500/10 border border-accent/30">
+                  <div className="flex flex-col gap-3 sm:gap-4">
                     <div>
-                      <h3 className="font-bold text-white mb-1">Your Profile URL</h3>
-                      <p className="text-sm text-text-secondary font-mono">
+                      <h3 className="font-bold text-white mb-1 text-sm sm:text-base">Your Profile URL</h3>
+                      <p className="text-xs sm:text-sm text-text-secondary font-mono break-all">
                         {typeof window !== 'undefined' ? window.location.origin : ''}/u/{profile.profileSlug}
                       </p>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 sm:gap-3">
                       <Link
                         href={`/u/${profile.profileSlug}`}
                         target="_blank"
-                        className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-white/[0.05] text-white border border-white/[0.1] hover:bg-white/[0.1] transition-colors"
+                        className="flex items-center justify-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-white/[0.05] text-white border border-white/[0.1] hover:bg-white/[0.1] transition-colors flex-1 sm:flex-none"
                       >
-                        <ExternalLink className="w-4 h-4" />
+                        <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                         Preview
                       </Link>
                       <ProfileShareButton slug={profile.profileSlug} displayName={displayName} />
@@ -366,29 +366,29 @@ export default function ProfileSettingsPage() {
 
                 <div className="space-y-5">
                   {/* Visibility Toggle */}
-                  <div className="flex items-center justify-between p-4 rounded-xl bg-background border border-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 p-3 sm:p-4 rounded-xl bg-background border border-border">
                     <div className="flex items-center gap-3">
                       {isPublic ? (
-                        <Eye className="w-5 h-5 text-green-400" />
+                        <Eye className="w-5 h-5 text-green-400 flex-shrink-0" />
                       ) : (
-                        <EyeOff className="w-5 h-5 text-text-muted" />
+                        <EyeOff className="w-5 h-5 text-text-muted flex-shrink-0" />
                       )}
                       <div>
-                        <p className="font-medium text-white">Public Profile</p>
-                        <p className="text-sm text-text-secondary">
+                        <p className="font-medium text-white text-sm sm:text-base">Public Profile</p>
+                        <p className="text-xs sm:text-sm text-text-secondary">
                           {isPublic ? 'Anyone can view your profile' : 'Only you can see your profile'}
                         </p>
                       </div>
                     </div>
                     <button
                       onClick={() => setIsPublic(!isPublic)}
-                      className={`relative w-14 h-8 rounded-full transition-colors ${
+                      className={`relative w-12 h-7 sm:w-14 sm:h-8 rounded-full transition-colors flex-shrink-0 self-end sm:self-auto ${
                         isPublic ? 'bg-accent' : 'bg-white/10'
                       }`}
                     >
                       <div
-                        className={`absolute top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
-                          isPublic ? 'translate-x-7' : 'translate-x-1'
+                        className={`absolute top-0.5 sm:top-1 w-6 h-6 rounded-full bg-white shadow-md transition-transform ${
+                          isPublic ? 'translate-x-5 sm:translate-x-7' : 'translate-x-0.5 sm:translate-x-1'
                         }`}
                       />
                     </button>
@@ -444,33 +444,33 @@ export default function ProfileSettingsPage() {
 
               {/* Stats Preview */}
               {profile && (
-                <div className="p-6 rounded-2xl bg-surface border border-border">
-                  <h2 className="text-lg font-bold mb-4 text-white">Your Stats</h2>
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                    <div className="p-4 rounded-xl bg-background border border-border text-center">
-                      <Target className="w-6 h-6 text-accent mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-white">{profile.totalSpins || 0}</p>
-                      <p className="text-xs text-text-muted">Total Spins</p>
+                <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                  <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Your Stats</h2>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-4">
+                    <div className="p-3 sm:p-4 rounded-xl bg-background border border-border text-center">
+                      <Target className="w-5 h-5 sm:w-6 sm:h-6 text-accent mx-auto mb-1.5 sm:mb-2" />
+                      <p className="text-xl sm:text-2xl font-bold text-white">{profile.totalSpins || 0}</p>
+                      <p className="text-[10px] sm:text-xs text-text-muted">Total Spins</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-background border border-border text-center">
-                      <Sparkles className="w-6 h-6 text-green-400 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-white">${(profile.totalWinsUSD || 0).toFixed(0)}</p>
-                      <p className="text-xs text-text-muted">Total Won</p>
+                    <div className="p-3 sm:p-4 rounded-xl bg-background border border-border text-center">
+                      <Sparkles className="w-5 h-5 sm:w-6 sm:h-6 text-green-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="text-xl sm:text-2xl font-bold text-white">${(profile.totalWinsUSD || 0).toFixed(0)}</p>
+                      <p className="text-[10px] sm:text-xs text-text-muted">Total Won</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-background border border-border text-center">
-                      <Flame className="w-6 h-6 text-orange-400 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-white">{profile.longestStreak || 0}</p>
-                      <p className="text-xs text-text-muted">Best Streak</p>
+                    <div className="p-3 sm:p-4 rounded-xl bg-background border border-border text-center">
+                      <Flame className="w-5 h-5 sm:w-6 sm:h-6 text-orange-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="text-xl sm:text-2xl font-bold text-white">{profile.longestStreak || 0}</p>
+                      <p className="text-[10px] sm:text-xs text-text-muted">Best Streak</p>
                     </div>
-                    <div className="p-4 rounded-xl bg-background border border-border text-center">
-                      <Trophy className="w-6 h-6 text-yellow-400 mx-auto mb-2" />
-                      <p className="text-2xl font-bold text-white">{badgeCount}</p>
-                      <p className="text-xs text-text-muted">Badges</p>
+                    <div className="p-3 sm:p-4 rounded-xl bg-background border border-border text-center">
+                      <Trophy className="w-5 h-5 sm:w-6 sm:h-6 text-yellow-400 mx-auto mb-1.5 sm:mb-2" />
+                      <p className="text-xl sm:text-2xl font-bold text-white">{badgeCount}</p>
+                      <p className="text-[10px] sm:text-xs text-text-muted">Badges</p>
                     </div>
                   </div>
-                  <div className="flex items-center gap-4 mt-4 text-sm text-text-muted">
+                  <div className="flex items-center gap-4 mt-3 sm:mt-4 text-xs sm:text-sm text-text-muted">
                     <span className="flex items-center gap-1.5">
-                      <Calendar className="w-4 h-4" />
+                      <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       Member since {formatDate(profile.memberSince)}
                     </span>
                   </div>
@@ -478,25 +478,25 @@ export default function ProfileSettingsPage() {
               )}
 
               {/* Badges Section */}
-              <div className="p-6 rounded-2xl bg-surface border border-border">
-                <div className="flex items-center justify-between mb-4">
+              <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-4">
                   <div className="flex items-center gap-3">
-                    <div className="p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
-                      <Trophy className="w-5 h-5 text-yellow-400" />
+                    <div className="p-2 sm:p-2.5 rounded-xl bg-yellow-500/10 border border-yellow-500/30">
+                      <Trophy className="w-4 h-4 sm:w-5 sm:h-5 text-yellow-400" />
                     </div>
                     <div>
-                      <h2 className="text-lg font-bold text-white">Your Badges</h2>
-                      <p className="text-sm text-text-secondary">
+                      <h2 className="text-base sm:text-lg font-bold text-white">Your Badges</h2>
+                      <p className="text-xs sm:text-sm text-text-secondary">
                         {badgeCount > 0 ? `${badgeCount} badges earned` : 'Start earning badges!'}
                       </p>
                     </div>
                   </div>
                   <Link
                     href="/badges"
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl text-sm font-medium bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors"
+                    className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors"
                   >
                     View All Badges
-                    <ExternalLink className="w-4 h-4" />
+                    <ExternalLink className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                   </Link>
                 </div>
 

@@ -24,21 +24,21 @@ export default function ReferralStats() {
   ]
 
   return (
-    <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+    <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 sm:gap-3">
       {items.map((item, i) => (
-        <div key={i} className="p-4 rounded-xl bg-surface border border-[var(--border)]">
-          <div className={`w-10 h-10 rounded-lg ${item.bg} flex items-center justify-center mb-3`}>
-            <item.icon size={20} className={item.color} />
+        <div key={i} className="p-3 sm:p-4 rounded-xl bg-surface border border-[var(--border)]">
+          <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-lg ${item.bg} flex items-center justify-center mb-2 sm:mb-3`}>
+            <item.icon className={`w-4 h-4 sm:w-5 sm:h-5 ${item.color}`} />
           </div>
           {loading ? (
             <>
-              <Skeleton className="h-8 w-16 mb-1" />
-              <Skeleton className="h-3 w-24" />
+              <Skeleton className="h-6 sm:h-8 w-14 sm:w-16 mb-1" />
+              <Skeleton className="h-3 w-20 sm:w-24" />
             </>
           ) : (
             <>
-              <p className="text-2xl font-bold text-white">{item.value}</p>
-              <p className="text-xs text-[var(--text-secondary)] mt-1">{item.label}</p>
+              <p className="text-xl sm:text-2xl font-bold text-white truncate">{item.value}</p>
+              <p className="text-[10px] sm:text-xs text-[var(--text-secondary)] mt-1">{item.label}</p>
             </>
           )}
         </div>

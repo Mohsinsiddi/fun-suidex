@@ -79,7 +79,7 @@ export function Header() {
 
                 {/* Dropdown Menu */}
                 {gamesDropdownOpen && (
-                  <div className="absolute top-full left-0 mt-2 w-72 rounded-xl overflow-hidden z-50 border border-white/[0.08] bg-[#0a0c10] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-top-2 duration-200">
+                  <div className="absolute top-full left-0 mt-2 w-64 sm:w-72 max-w-[calc(100vw-2rem)] rounded-xl overflow-hidden z-50 border border-white/[0.08] bg-[#0a0c10] shadow-[0_25px_50px_-12px_rgba(0,0,0,0.9)] animate-in fade-in slide-in-from-top-2 duration-200">
                     {/* Live Games */}
                     <div className="p-2">
                       <div className="flex items-center gap-2 px-3 py-2">
@@ -172,10 +172,10 @@ export function Header() {
               </div>
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-2 text-text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors"
+                className="lg:hidden p-2.5 min-w-[44px] min-h-[44px] flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-colors"
                 aria-label="Toggle menu"
               >
-                {mobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+                {mobileMenuOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
               </button>
             </div>
           </div>

@@ -18,12 +18,12 @@ export default function ShareButtons({ referralLink }: { referralLink: string })
   }
 
   return (
-    <div className="flex gap-3">
-      <button onClick={handleTwitter} className="flex-1 flex items-center justify-center gap-2 py-3 rounded-xl font-semibold bg-[#1DA1F2] text-white hover:bg-[#1a8cd8] transition-colors">
-        <Twitter size={18} /> Share on Twitter
+    <div className="flex flex-col sm:flex-row gap-2 sm:gap-3">
+      <button onClick={handleTwitter} className="flex-1 flex items-center justify-center gap-2 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base bg-[#1DA1F2] text-white hover:bg-[#1a8cd8] transition-colors">
+        <Twitter className="w-4 h-4 sm:w-[18px] sm:h-[18px]" /> Share on Twitter
       </button>
-      <button onClick={handleCopy} className={`flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold transition-all ${copied ? 'bg-green-500 text-white' : 'bg-accent text-black hover:bg-accent-hover'}`}>
-        {copied ? <><Check size={18} /> Copied!</> : <><Copy size={18} /> Copy</>}
+      <button onClick={handleCopy} className={`flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base transition-all ${copied ? 'bg-green-500 text-white' : 'bg-accent text-black hover:bg-accent-hover'}`}>
+        {copied ? <><Check className="w-4 h-4 sm:w-[18px] sm:h-[18px]" /> Copied!</> : <><Copy className="w-4 h-4 sm:w-[18px] sm:h-[18px]" /> Copy</>}
       </button>
     </div>
   )

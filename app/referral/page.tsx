@@ -114,19 +114,19 @@ export default function ReferralPage() {
     <div className="min-h-screen flex flex-col bg-background">
       <Header />
       
-      <main className="flex-1 p-4 py-6 sm:py-8">
+      <main className="flex-1 px-3 sm:px-4 py-4 sm:py-6 md:py-8">
         <div className="max-w-4xl mx-auto">
-          <Link href="/" className="inline-flex items-center gap-2 mb-6 text-text-secondary hover:text-white transition-colors">
-            <ArrowLeft size={20} /> Back to Home
+          <Link href="/" className="inline-flex items-center gap-2 mb-4 sm:mb-6 text-text-secondary hover:text-white transition-colors min-h-[44px]">
+            <ArrowLeft className="w-4 h-4 sm:w-5 sm:h-5" /> <span className="text-sm">Back to Home</span>
           </Link>
 
-          <div className="flex items-center gap-4 mb-8">
-            <div className="p-4 rounded-2xl bg-accent/10 border border-accent/30">
-              <Users size={32} className="text-accent" />
+          <div className="flex items-center gap-3 sm:gap-4 mb-6 sm:mb-8">
+            <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-accent/10 border border-accent/30 flex-shrink-0">
+              <Users className="w-6 h-6 sm:w-8 sm:h-8 text-accent" />
             </div>
-            <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-white">Referral Program</h1>
-              <p className="text-text-secondary">Earn 10% of your friends' winnings forever!</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-white">Referral Program</h1>
+              <p className="text-text-secondary text-xs sm:text-sm md:text-base">Earn 10% of your friends' winnings forever!</p>
             </div>
           </div>
 
@@ -144,31 +144,31 @@ export default function ReferralPage() {
               <Loader2 className="w-8 h-8 animate-spin text-accent" />
             </div>
           ) : !account ? (
-            <div className="p-8 sm:p-12 rounded-2xl text-center bg-surface border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-4">
-                <Wallet size={32} className="text-green-400" />
+            <div className="p-6 sm:p-8 md:p-12 rounded-2xl text-center bg-surface border border-border">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-green-500/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Wallet className="w-6 h-6 sm:w-8 sm:h-8 text-green-400" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-white">Connect Your Wallet</h2>
-              <p className="text-text-secondary mb-6">Connect your wallet to access the referral program and start earning</p>
+              <h2 className="text-lg sm:text-xl font-bold mb-2 text-white">Connect Your Wallet</h2>
+              <p className="text-text-secondary text-sm sm:text-base mb-4 sm:mb-6">Connect your wallet to access the referral program and start earning</p>
               <div className="inline-block connect-button-cta">
                 <ConnectButton connectText="Connect Wallet" />
               </div>
             </div>
           ) : !isAuthenticated ? (
-            <div className="p-8 sm:p-12 rounded-2xl text-center bg-surface border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-4">
-                <Lock size={32} className="text-accent" />
+            <div className="p-6 sm:p-8 md:p-12 rounded-2xl text-center bg-surface border border-border">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-accent/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-accent" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-white">Sign to Claim Benefits</h2>
-              <p className="text-text-secondary mb-6">Verify your wallet to unlock referral earnings and rewards</p>
-              {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
+              <h2 className="text-lg sm:text-xl font-bold mb-2 text-white">Sign to Claim Benefits</h2>
+              <p className="text-text-secondary text-sm sm:text-base mb-4 sm:mb-6">Verify your wallet to unlock referral earnings and rewards</p>
+              {error && <p className="text-red-400 text-xs sm:text-sm mb-3 sm:mb-4">{error}</p>}
               <button
                 onClick={handleSignIn}
                 disabled={authLoading || isSigning}
-                className="px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors"
+                className="px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors min-h-[44px]"
               >
                 {authLoading || isSigning ? (
-                  <span className="flex items-center gap-2">
+                  <span className="flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Signing...
                   </span>
@@ -178,15 +178,15 @@ export default function ReferralPage() {
               </button>
             </div>
           ) : !eligible ? (
-            <div className="p-8 sm:p-12 rounded-2xl text-center bg-surface border border-border">
-              <div className="w-16 h-16 rounded-2xl bg-yellow-500/10 flex items-center justify-center mx-auto mb-4">
-                <Lock size={32} className="text-yellow-400" />
+            <div className="p-6 sm:p-8 md:p-12 rounded-2xl text-center bg-surface border border-border">
+              <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-yellow-500/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
+                <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
               </div>
-              <h2 className="text-xl font-bold mb-2 text-white">Complete Your First Spin</h2>
-              <p className="text-text-secondary mb-6">Spin the wheel once to unlock your referral link!</p>
+              <h2 className="text-lg sm:text-xl font-bold mb-2 text-white">Complete Your First Spin</h2>
+              <p className="text-text-secondary text-sm sm:text-base mb-4 sm:mb-6">Spin the wheel once to unlock your referral link!</p>
               <Link
                 href="/wheel"
-                className="inline-flex px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover transition-colors"
+                className="inline-flex px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base bg-accent text-black hover:bg-accent-hover transition-colors min-h-[44px]"
               >
                 Go to Wheel
               </Link>
@@ -195,30 +195,31 @@ export default function ReferralPage() {
             <div className="space-y-6">
               <ReferralStats />
 
-              <div className="p-6 rounded-2xl bg-surface border border-border">
-                <h2 className="text-lg font-bold mb-4 text-white">Your Referral Link</h2>
-                <div className="flex items-center gap-3 p-4 mb-4 rounded-xl bg-background border border-border">
-                  <input type="text" value={referralLink} readOnly className="flex-1 bg-transparent outline-none text-white font-mono text-sm" />
-                  <button onClick={handleCopy} className={`p-3 rounded-lg transition-all ${copied ? 'bg-green-500' : 'bg-accent'} text-black`}>
-                    {copied ? <Check size={20} /> : <Copy size={20} />}
+              <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Your Referral Link</h2>
+                <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 mb-4 rounded-xl bg-background border border-border">
+                  <input type="text" value={referralLink} readOnly className="flex-1 bg-transparent outline-none text-white font-mono text-xs sm:text-sm min-w-0 truncate" />
+                  <button onClick={handleCopy} className={`p-2.5 sm:p-3 rounded-lg transition-all flex items-center justify-center gap-2 ${copied ? 'bg-green-500' : 'bg-accent'} text-black flex-shrink-0`}>
+                    {copied ? <Check size={18} /> : <Copy size={18} />}
+                    <span className="sm:hidden text-sm font-medium">{copied ? 'Copied!' : 'Copy'}</span>
                   </button>
                 </div>
                 <ShareButtons referralLink={referralLink} />
               </div>
 
-              <div className="p-6 rounded-2xl bg-surface border border-border">
-                <h2 className="text-lg font-bold mb-4 text-white">Your Earnings</h2>
+              <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Your Earnings</h2>
                 <ReferralEarningsTable />
               </div>
 
-              <div className="p-6 rounded-2xl bg-gradient-to-br from-accent/10 to-purple-500/10 border border-accent/30">
-                <h3 className="font-bold mb-3 text-accent">How it works</h3>
-                <ol className="space-y-2 text-sm text-text-secondary">
-                  <li className="flex gap-3"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">1</span>Share your referral link with friends</li>
-                  <li className="flex gap-3"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">2</span>They sign up and spin the wheel</li>
-                  <li className="flex gap-3"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">3</span>You automatically earn 10% of every prize they win!</li>
-                  <li className="flex gap-3"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">4</span>Tweet to claim each reward</li>
-                  <li className="flex gap-3"><span className="flex-shrink-0 w-6 h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-xs">5</span>Get paid weekly in Victory tokens</li>
+              <div className="p-4 sm:p-6 rounded-2xl bg-gradient-to-br from-accent/10 to-purple-500/10 border border-accent/30">
+                <h3 className="font-bold mb-3 text-sm sm:text-base text-accent">How it works</h3>
+                <ol className="space-y-2 sm:space-y-3 text-xs sm:text-sm text-text-secondary">
+                  <li className="flex gap-2 sm:gap-3 items-start"><span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px] sm:text-xs">1</span><span>Share your referral link with friends</span></li>
+                  <li className="flex gap-2 sm:gap-3 items-start"><span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px] sm:text-xs">2</span><span>They sign up and spin the wheel</span></li>
+                  <li className="flex gap-2 sm:gap-3 items-start"><span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px] sm:text-xs">3</span><span>You automatically earn 10% of every prize they win!</span></li>
+                  <li className="flex gap-2 sm:gap-3 items-start"><span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px] sm:text-xs">4</span><span>Tweet to claim each reward</span></li>
+                  <li className="flex gap-2 sm:gap-3 items-start"><span className="flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-accent/20 flex items-center justify-center text-accent font-bold text-[10px] sm:text-xs">5</span><span>Get paid weekly in Victory tokens</span></li>
                 </ol>
               </div>
             </div>
