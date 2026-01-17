@@ -14,13 +14,59 @@ export function isValidSuiAddress(address: string): boolean {
 }
 
 /**
- * Validate transaction hash format
+ * Extract and validate transaction hash
+ * Supports:
+ * - Full URLs: https://suiscan.xyz/mainnet/tx/DIGEST or https://suivision.xyz/txblock/DIGEST
+ * - SUI digest: base58 encoded, 43-44 chars (e.g., 9BjcwwDv6Z6sfodJMYqwBExB8ziUzBwU2ba6fPCGPCwe)
+ * - Hex format: 64+ hex chars with optional 0x prefix
  */
-export function isValidTxHash(hash: string): boolean {
-  if (!hash) return false
-  // TX hashes are typically 64+ hex chars, may or may not have 0x prefix
+export function isValidTxHash(input: string): boolean {
+  if (!input) return false
+
+  // Extract digest from explorer URLs
+  let hash = input.trim()
+
+  // Handle suiscan URLs: https://suiscan.xyz/mainnet/tx/DIGEST
+  const suiscanMatch = hash.match(/suiscan\.xyz\/\w+\/tx\/([A-Za-z0-9]+)/)
+  if (suiscanMatch) {
+    hash = suiscanMatch[1]
+  }
+
+  // Handle suivision URLs: https://suivision.xyz/txblock/DIGEST
+  const suivisionMatch = hash.match(/suivision\.xyz\/txblock\/([A-Za-z0-9]+)/)
+  if (suivisionMatch) {
+    hash = suivisionMatch[1]
+  }
+
+  if (hash.length < 32) return false
+
+  // SUI base58 digest format (43-44 chars, alphanumeric)
+  if (/^[A-HJ-NP-Za-km-z1-9]{43,44}$/.test(hash)) {
+    return true
+  }
+
+  // Hex format (64+ chars, optional 0x prefix)
   const cleanHash = hash.startsWith('0x') ? hash.slice(2) : hash
   return /^[a-fA-F0-9]{64,}$/.test(cleanHash)
+}
+
+/**
+ * Extract transaction hash from input (URL or raw hash)
+ */
+export function extractTxHash(input: string): string {
+  if (!input) return ''
+
+  let hash = input.trim()
+
+  // Handle suiscan URLs
+  const suiscanMatch = hash.match(/suiscan\.xyz\/\w+\/tx\/([A-Za-z0-9]+)/)
+  if (suiscanMatch) return suiscanMatch[1]
+
+  // Handle suivision URLs
+  const suivisionMatch = hash.match(/suivision\.xyz\/txblock\/([A-Za-z0-9]+)/)
+  if (suivisionMatch) return suivisionMatch[1]
+
+  return hash
 }
 
 /**

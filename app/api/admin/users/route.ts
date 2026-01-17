@@ -34,10 +34,13 @@ export async function GET(request: NextRequest) {
     const sortBy = url.searchParams.get('sortBy') || 'lastActiveAt'
     const sortOrder = url.searchParams.get('sortOrder') === 'asc' ? 1 : -1
 
-    // Build query
+    // Build query - search by wallet, profileSlug (username), or display name
     const query: Record<string, unknown> = {}
     if (search) {
-      query.wallet = { $regex: search, $options: 'i' }
+      query.$or = [
+        { wallet: { $regex: search, $options: 'i' } },
+        { profileSlug: { $regex: search, $options: 'i' } },
+      ]
     }
 
     // Validate sort field
@@ -47,7 +50,7 @@ export async function GET(request: NextRequest) {
     // Get users with pagination
     const [users, total] = await Promise.all([
       UserModel.find(query)
-        .select('wallet purchasedSpins bonusSpins totalSpins totalWinsUSD createdAt lastActiveAt referralCode totalReferred currentStreak longestStreak')
+        .select('wallet profileSlug purchasedSpins bonusSpins totalSpins totalWinsUSD createdAt lastActiveAt referralCode totalReferred currentStreak longestStreak')
         .sort({ [safeSortBy]: sortOrder })
         .skip(skip)
         .limit(limit)

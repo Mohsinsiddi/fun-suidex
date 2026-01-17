@@ -8,7 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { SpinModel, AdminModel, AdminLogModel, UserModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { parsePaginationParams } from '@/lib/utils/pagination'
-import { isValidObjectId, isValidTxHash } from '@/lib/utils/validation'
+import { isValidObjectId, isValidTxHash, extractTxHash } from '@/lib/utils/validation'
 import { sendPrizeDistributedPush } from '@/lib/push/webPush'
 
 // GET - Get pending prizes with pagination
@@ -29,6 +29,7 @@ export async function GET(request: NextRequest) {
     // Parse filter params
     const url = new URL(request.url)
     const prizeType = url.searchParams.get('prizeType')
+    const walletSearch = url.searchParams.get('wallet')?.toLowerCase().trim()
 
     // Build query
     const query: Record<string, unknown> = {
@@ -38,12 +39,16 @@ export async function GET(request: NextRequest) {
     if (prizeType && prizeType !== 'all') {
       query.prizeType = prizeType
     }
+    // Filter by wallet address (partial match)
+    if (walletSearch) {
+      query.wallet = { $regex: walletSearch, $options: 'i' }
+    }
 
-    // Get pending prizes with pagination
+    // Get pending prizes with pagination (newest first)
     const [pendingPrizes, total] = await Promise.all([
       SpinModel.find(query)
         .select('wallet prizeType prizeAmount prizeValueUSD lockDuration createdAt')
-        .sort({ createdAt: 1 })
+        .sort({ createdAt: -1 })
         .skip(skip)
         .limit(limit)
         .lean(),
@@ -92,16 +97,19 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json()
-    const { spinId, txHash } = body
+    const { spinId, txHash: rawTxHash } = body
 
     // Validate inputs
     if (!spinId || !isValidObjectId(spinId)) {
       return NextResponse.json({ success: false, error: 'Invalid spinId' }, { status: 400 })
     }
 
-    if (!txHash || !isValidTxHash(txHash)) {
+    if (!rawTxHash || !isValidTxHash(rawTxHash)) {
       return NextResponse.json({ success: false, error: 'Invalid txHash' }, { status: 400 })
     }
+
+    // Extract clean hash from URL if needed
+    const txHash = extractTxHash(rawTxHash)
 
     const spin = await SpinModel.findById(spinId)
     if (!spin) {

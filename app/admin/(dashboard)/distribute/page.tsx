@@ -2,9 +2,10 @@
 
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Gift, DollarSign, Check, ExternalLink } from 'lucide-react'
+import { RefreshCw, Gift, DollarSign, Check, ExternalLink, Search, X } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, SkeletonCardGrid, EmptyState } from '@/components/ui'
 import { useDistributeStore, type PendingPrize } from '@/lib/stores/admin'
+
 
 export default function AdminDistributePage() {
   const router = useRouter()
@@ -18,11 +19,16 @@ export default function AdminDistributePage() {
     fetch: fetchPrizes,
     setPage,
     refresh,
-    removeItem
+    removeItem,
+    setFilters,
+    filters
   } = useDistributeStore()
 
   const [processing, setProcessing] = useState<string | null>(null)
   const limit = 20
+
+  // Search input state
+  const [searchInput, setSearchInput] = useState('')
 
   // Fetch on mount
   useEffect(() => {
@@ -42,6 +48,20 @@ export default function AdminDistributePage() {
 
   const handlePageChange = (newPage: number) => {
     setPage(newPage)
+  }
+
+  // Get active wallet filter from store
+  const activeFilter = filters.wallet || ''
+
+  const handleSearch = () => {
+    if (searchInput.trim()) {
+      setFilters({ wallet: searchInput.trim() })
+    }
+  }
+
+  const handleClearFilter = () => {
+    setSearchInput('')
+    setFilters({})
   }
 
   const handleDistribute = async (spinId: string, txHash: string) => {
@@ -79,6 +99,59 @@ export default function AdminDistributePage() {
         <button onClick={handleRefresh} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
+      </div>
+
+      {/* Wallet Search */}
+      <div className="card p-4 mb-6">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative flex-1">
+            <input
+              type="text"
+              value={searchInput}
+              onChange={(e) => setSearchInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+              placeholder="Enter wallet address to search..."
+              className="w-full bg-[var(--background)] border border-[var(--border)] rounded-lg px-4 py-2 pl-10 text-sm focus:outline-none focus:border-[var(--accent)]"
+            />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-[var(--text-secondary)]" />
+            {searchInput && (
+              <button
+                onClick={() => setSearchInput('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--text-secondary)] hover:text-white"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
+          </div>
+          <button
+            onClick={handleSearch}
+            disabled={!searchInput.trim()}
+            className="btn btn-primary text-sm px-6 disabled:opacity-50"
+          >
+            Search
+          </button>
+          {activeFilter && (
+            <button
+              onClick={handleClearFilter}
+              className="btn btn-ghost text-sm px-4"
+            >
+              Clear
+            </button>
+          )}
+        </div>
+
+        {/* Active Filter Status */}
+        {activeFilter && (
+          <div className="mt-3 flex items-center gap-2 p-3 bg-[var(--accent)]/10 border border-[var(--accent)]/30 rounded-lg">
+            <Search className="w-4 h-4 text-[var(--accent)]" />
+            <span className="text-sm">
+              Showing prizes for: <strong className="text-[var(--accent)] font-mono">{activeFilter}</strong>
+            </span>
+            <span className="text-xs text-[var(--text-secondary)]">
+              ({total} found)
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Summary */}
@@ -127,8 +200,8 @@ export default function AdminDistributePage() {
           <SkeletonTable rows={10} columns={7} />
         ) : prizes.length === 0 ? (
           <EmptyState
-            title="No pending prizes"
-            message="All prizes have been distributed! 🎉"
+            title={activeFilter ? "No matching prizes" : "No pending prizes"}
+            message={activeFilter ? "No pending prizes found for this wallet address." : "All prizes have been distributed! 🎉"}
             icon={Gift}
           />
         ) : (
