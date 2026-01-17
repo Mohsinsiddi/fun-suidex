@@ -10,6 +10,7 @@ import { Footer } from '@/components/shared/Footer'
 import { GameCard } from '@/components/ui/GameCard'
 import { ReferralBanner } from '@/components/referral'
 import { LiveActivityFeed } from '@/components/activity'
+import { useAuthStore } from '@/lib/stores/authStore'
 import {
   Users,
   ArrowRight,
@@ -35,11 +36,14 @@ function HomePageContent() {
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
 
+  // Use auth store instead of local state
+  const { isAuthenticated, isLoading: authLoading, referredBy, fetchUser, login } = useAuthStore()
+
   const [referrer, setReferrer] = useState<string | null>(null)
   const [isLinked, setIsLinked] = useState(false)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authLoading, setAuthLoading] = useState(false)
+  const [signingIn, setSigningIn] = useState(false)
 
+  // Handle referrer from URL or localStorage
   useEffect(() => {
     const ref = searchParams.get('ref')
     if (ref) {
@@ -51,34 +55,29 @@ function HomePageContent() {
     }
   }, [searchParams])
 
+  // Check auth when wallet connects
   useEffect(() => {
     if (account?.address) {
-      checkAuth()
-    } else {
-      setIsAuthenticated(false)
-      setIsLinked(false)
-    }
-  }, [account?.address])
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/me')
-      const data = await res.json()
-      if (data.success) {
-        setIsAuthenticated(true)
-        if (data.data.referredBy) {
+      fetchUser().then((authenticated) => {
+        if (authenticated && referredBy) {
           setIsLinked(true)
           localStorage.removeItem('suidex_referrer')
         }
-      }
-    } catch (err) {
-      console.error(err)
+      })
     }
-  }
+  }, [account?.address])
+
+  // Update isLinked when referredBy changes
+  useEffect(() => {
+    if (referredBy) {
+      setIsLinked(true)
+      localStorage.removeItem('suidex_referrer')
+    }
+  }, [referredBy])
 
   const handleSignIn = async () => {
     if (!account?.address) return
-    setAuthLoading(true)
+    setSigningIn(true)
 
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
@@ -94,32 +93,28 @@ function HomePageContent() {
         {
           onSuccess: async (sig) => {
             const storedRef = localStorage.getItem('suidex_referrer')
-            const verifyRes = await fetch('/api/auth/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                wallet: account.address,
-                signature: sig.signature,
-                nonce: nonceData.data.nonce,
-                referrer: storedRef || undefined,
-              }),
-            })
-            const verifyData = await verifyRes.json()
-            if (verifyData.success) {
-              setIsAuthenticated(true)
-              if (verifyData.data.referredBy) {
+            const success = await login(
+              account.address,
+              sig.signature,
+              nonceData.data.nonce,
+              storedRef || undefined
+            )
+            if (success) {
+              // Fetch full user data after login
+              await fetchUser()
+              if (referredBy) {
                 setIsLinked(true)
-                setReferrer(verifyData.data.referredBy)
+                setReferrer(referredBy)
                 localStorage.removeItem('suidex_referrer')
               }
             }
-            setAuthLoading(false)
+            setSigningIn(false)
           },
-          onError: () => setAuthLoading(false),
+          onError: () => setSigningIn(false),
         }
       )
     } catch (err) {
-      setAuthLoading(false)
+      setSigningIn(false)
     }
   }
 
@@ -139,10 +134,10 @@ function HomePageContent() {
             {!isAuthenticated && account && (
               <button
                 onClick={handleSignIn}
-                disabled={authLoading || isSigning}
+                disabled={signingIn || isSigning}
                 className="w-full mb-4 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors"
               >
-                {authLoading || isSigning ? 'Signing...' : 'Sign in to Link Referral & Get Benefits'}
+                {signingIn || isSigning ? 'Signing...' : 'Sign in to Link Referral & Get Benefits'}
               </button>
             )}
           </div>

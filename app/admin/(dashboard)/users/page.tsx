@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, Search, Plus, AlertCircle, CheckCircle, Award, X, Trophy, Flame } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, ErrorState } from '@/components/ui'
 import type { Badge, UserBadge } from '@/types/badge'
+import { useUsersStore } from '@/lib/stores/admin'
 
 interface User {
   _id: string
@@ -22,18 +23,25 @@ interface User {
 
 export default function AdminUsersPage() {
   const router = useRouter()
-  const [users, setUsers] = useState<User[]>([])
-  const [loading, setLoading] = useState(true)
-  const [search, setSearch] = useState('')
+
+  // Users store
+  const {
+    items: users,
+    page,
+    totalPages,
+    total,
+    limit,
+    isLoading: loading,
+    error: storeError,
+    fetch: fetchUsers,
+    setPage,
+    setFilters,
+    refresh,
+  } = useUsersStore()
+
   const [searchInput, setSearchInput] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-
-  // Pagination state
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
-  const limit = 20
 
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditWallet, setCreditWallet] = useState('')
@@ -51,36 +59,36 @@ export default function AdminUsersPage() {
   const [selectedBadge, setSelectedBadge] = useState<string>('')
   const [awardingBadge, setAwardingBadge] = useState(false)
 
-  const fetchUsers = useCallback(async () => {
-    setLoading(true)
-    setError(null)
-    try {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
-      if (search) params.set('search', search)
-      const res = await fetch(`/api/admin/users?${params}`)
-      if (res.status === 401) { router.push('/admin/login'); return }
-      const data = await res.json()
-      if (data.success) {
-        setUsers(data.items || [])
-        setTotalPages(data.pagination?.totalPages || 1)
-        setTotal(data.pagination?.total || 0)
-      } else {
-        setError(data.error)
-      }
-    } catch (err) { setError('Failed to load users') }
-    setLoading(false)
-  }, [page, search, router])
-
-  useEffect(() => { fetchUsers() }, [fetchUsers])
-
-  // Debounced search
+  // Fetch on mount
   useEffect(() => {
+    fetchUsers()
+  }, [fetchUsers])
+
+  // Handle unauthorized
+  useEffect(() => {
+    if (storeError === 'Unauthorized') {
+      router.push('/admin/login')
+    }
+  }, [storeError, router])
+
+  // Debounced search - only trigger when user actually types
+  // Track if user has interacted with search
+  const hasSearched = useRef(false)
+
+  const handleSearchChange = (value: string) => {
+    hasSearched.current = true
+    setSearchInput(value)
+  }
+
+  useEffect(() => {
+    // Skip if user hasn't interacted with search yet
+    if (!hasSearched.current) return
+
     const timeout = setTimeout(() => {
-      setSearch(searchInput)
-      setPage(1)
+      setFilters({ search: searchInput })
     }, 300)
     return () => clearTimeout(timeout)
-  }, [searchInput])
+  }, [searchInput, setFilters])
 
   const handleCredit = async () => {
     if (!creditWallet || creditAmount <= 0) return
@@ -98,7 +106,7 @@ export default function AdminUsersPage() {
         setShowCreditModal(false)
         setCreditWallet('')
         setCreditAmount(1)
-        fetchUsers()
+        fetchUsers(page) // Refresh current page
         setTimeout(() => setSuccess(null), 3000)
       } else setError(data.error)
     } catch (err) { setError('Failed to credit spins') }
@@ -191,7 +199,7 @@ export default function AdminUsersPage() {
           <button onClick={() => setShowCreditModal(true)} className="btn btn-primary text-sm sm:text-base">
             <Plus className="w-4 h-4" /><span className="hidden sm:inline">Credit Spins</span><span className="sm:hidden">Credit</span>
           </button>
-          <button onClick={fetchUsers} disabled={loading} className="btn btn-ghost text-sm sm:text-base">
+          <button onClick={refresh} disabled={loading} className="btn btn-ghost text-sm sm:text-base">
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
@@ -217,7 +225,7 @@ export default function AdminUsersPage() {
             type="text"
             placeholder="Search by wallet address..."
             value={searchInput}
-            onChange={(e) => setSearchInput(e.target.value)}
+            onChange={(e) => handleSearchChange(e.target.value)}
             className="w-full pl-9 sm:pl-10 pr-4 py-2.5 sm:py-3 bg-[var(--card)] border border-[var(--border)] rounded-lg placeholder-[var(--text-secondary)] text-sm sm:text-base"
           />
         </div>
@@ -230,8 +238,8 @@ export default function AdminUsersPage() {
         ) : users.length === 0 ? (
           <ErrorState
             title="No users found"
-            message={search ? `No users matching "${search}"` : 'No users have signed up yet.'}
-            onRetry={fetchUsers}
+            message={searchInput ? `No users matching "${searchInput}"` : 'No users have signed up yet.'}
+            onRetry={() => fetchUsers()}
           />
         ) : (
           <>

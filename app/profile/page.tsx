@@ -26,7 +26,9 @@ import {
   AlertCircle,
   CheckCircle,
 } from 'lucide-react'
-import type { UserBadge, BadgeTier } from '@/types/badge'
+import type { BadgeTier } from '@/types/badge'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { useBadgesStore } from '@/lib/stores/badgesStore'
 
 interface ProfileData {
   wallet: string
@@ -48,15 +50,36 @@ export default function ProfileSettingsPage() {
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
 
+  // Auth store
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    wallet,
+    profile: authProfile,
+    profileEligible,
+    profileMinSpins,
+    stats,
+    error: authError,
+    fetchUser,
+    login,
+    clearError,
+    updateProfile: updateAuthProfile
+  } = useAuthStore()
+
+  // Badges store
+  const {
+    userBadges: badges,
+    badgeStats,
+    isLoadingUser: loadingBadges,
+    fetchUserBadges
+  } = useBadgesStore()
+
   const [loading, setLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authLoading, setAuthLoading] = useState(false)
+  const [signingIn, setSigningIn] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
   const [profile, setProfile] = useState<ProfileData | null>(null)
-  const [profileEligible, setProfileEligible] = useState(false)
-  const [profileMinSpins, setProfileMinSpins] = useState(10)
 
   // Edit state
   const [displayName, setDisplayName] = useState('')
@@ -64,89 +87,53 @@ export default function ProfileSettingsPage() {
   const [isPublic, setIsPublic] = useState(false)
   const [saving, setSaving] = useState(false)
 
-  // Badge state
-  const [badges, setBadges] = useState<UserBadge[]>([])
-  const [badgeCount, setBadgeCount] = useState(0)
-  const [badgesByTier, setBadgesByTier] = useState<Record<BadgeTier, number> | undefined>()
+  // Badge display
+  const badgeCount = badgeStats.totalBadges
+  const badgesByTier = badgeStats.badgesByTier
 
+  // Fetch auth and badge data on mount/account change
+  // Force refresh on profile page to ensure accurate stats
   useEffect(() => {
     if (account?.address) {
-      checkAuthAndFetchProfile()
+      Promise.all([
+        fetchUser(true), // Force fresh data for profile
+        fetchUserBadges()
+      ]).finally(() => setLoading(false))
     } else {
-      setIsAuthenticated(false)
       setLoading(false)
     }
-  }, [account?.address])
+  }, [account?.address, fetchUser, fetchUserBadges])
 
-  const checkAuthAndFetchProfile = async () => {
-    try {
-      // Single consolidated API call - includes profile and badges
-      const res = await fetch('/api/auth/me?include=profile,badges')
-      const data = await res.json()
-
-      if (data.success) {
-        setIsAuthenticated(true)
-        setProfileEligible(data.data.profileEligible)
-        setProfileMinSpins(data.data.profileMinSpins || 10)
-
-        const profileInfo = data.data.profile
-        if (profileInfo) {
-          // Map the profile data to our expected structure
-          setProfile({
-            wallet: data.data.wallet,
-            profileSlug: profileInfo.slug,
-            isProfilePublic: profileInfo.isPublic,
-            displayName: profileInfo.displayName,
-            bio: profileInfo.bio,
-            totalSpins: profileInfo.stats?.totalSpins || data.data.totalSpins || 0,
-            totalWinsUSD: profileInfo.stats?.totalWinsUSD || data.data.totalWinsUSD || 0,
-            biggestWinUSD: profileInfo.stats?.biggestWinUSD || data.data.biggestWinUSD || 0,
-            totalReferred: profileInfo.stats?.totalReferred || data.data.totalReferred || 0,
-            currentStreak: profileInfo.stats?.currentStreak || data.data.currentStreak || 0,
-            longestStreak: profileInfo.stats?.longestStreak || data.data.longestStreak || 0,
-            memberSince: profileInfo.stats?.memberSince || data.data.memberSince || new Date().toISOString(),
-            lastActiveAt: profileInfo.stats?.lastActive || data.data.lastActiveAt || new Date().toISOString(),
-          })
-          setDisplayName(profileInfo.displayName || '')
-          setBio(profileInfo.bio || '')
-          setIsPublic(profileInfo.isPublic || false)
-        } else {
-          // No profile yet but user is eligible - show empty form with user stats
-          setProfile({
-            wallet: data.data.wallet,
-            profileSlug: null,
-            isProfilePublic: false,
-            totalSpins: data.data.totalSpins || 0,
-            totalWinsUSD: data.data.totalWinsUSD || 0,
-            biggestWinUSD: data.data.biggestWinUSD || 0,
-            totalReferred: data.data.totalReferred || 0,
-            currentStreak: data.data.currentStreak || 0,
-            longestStreak: data.data.longestStreak || 0,
-            memberSince: data.data.memberSince || new Date().toISOString(),
-            lastActiveAt: data.data.lastActiveAt || new Date().toISOString(),
-          })
-        }
-
-        // Set badges from consolidated response
-        if (data.data.badges) {
-          setBadges(data.data.badges.earned || [])
-          setBadgeCount(data.data.badges.stats?.totalBadges || 0)
-          setBadgesByTier(data.data.badges.stats?.badgesByTier)
-        }
-      } else {
-        setIsAuthenticated(false)
+  // Build profile data from auth store
+  useEffect(() => {
+    if (isAuthenticated && wallet) {
+      const profileData: ProfileData = {
+        wallet,
+        profileSlug: authProfile?.slug || null,
+        isProfilePublic: authProfile?.isPublic || false,
+        displayName: authProfile?.displayName || undefined,
+        bio: authProfile?.bio || undefined,
+        totalSpins: stats.totalSpins,
+        totalWinsUSD: stats.totalWinsUSD,
+        biggestWinUSD: stats.biggestWinUSD,
+        totalReferred: stats.totalReferred,
+        currentStreak: stats.currentStreak,
+        longestStreak: stats.longestStreak,
+        memberSince: stats.memberSince || new Date().toISOString(),
+        lastActiveAt: stats.lastActiveAt || new Date().toISOString(),
       }
-    } catch (err) {
-      console.error('Failed to fetch profile:', err)
-    } finally {
-      setLoading(false)
+      setProfile(profileData)
+      setDisplayName(authProfile?.displayName || '')
+      setBio(authProfile?.bio || '')
+      setIsPublic(authProfile?.isPublic || false)
     }
-  }
+  }, [isAuthenticated, wallet, authProfile, stats])
 
   const handleSignIn = async () => {
     if (!account?.address) return
-    setAuthLoading(true)
+    setSigningIn(true)
     setError(null)
+    clearError()
 
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
@@ -161,33 +148,24 @@ export default function ProfileSettingsPage() {
         { message: new TextEncoder().encode(nonceData.data.nonce) },
         {
           onSuccess: async (sig) => {
-            const verifyRes = await fetch('/api/auth/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                wallet: account.address,
-                signature: sig.signature,
-                nonce: nonceData.data.nonce,
-              }),
-            })
-            const verifyData = await verifyRes.json()
-            if (verifyData.success) {
-              setIsAuthenticated(true)
-              checkAuthAndFetchProfile()
+            const success = await login(account.address, sig.signature, nonceData.data.nonce)
+            if (success) {
+              await fetchUser()
+              await fetchUserBadges()
             } else {
-              setError(verifyData.error || 'Verification failed')
+              setError('Verification failed')
             }
-            setAuthLoading(false)
+            setSigningIn(false)
           },
           onError: () => {
             setError('Signature rejected')
-            setAuthLoading(false)
+            setSigningIn(false)
           },
         }
       )
     } catch (err: any) {
       setError(err.message)
-      setAuthLoading(false)
+      setSigningIn(false)
     }
   }
 
@@ -213,6 +191,7 @@ export default function ProfileSettingsPage() {
         // API returns { profile, shareUrl } - map to our expected structure
         const profileInfo = data.data?.profile
         if (profileInfo) {
+          // Update local state
           setProfile({
             wallet: profileInfo.wallet,
             profileSlug: profileInfo.slug,
@@ -231,6 +210,14 @@ export default function ProfileSettingsPage() {
           setDisplayName(profileInfo.displayName || '')
           setBio(profileInfo.bio || '')
           setIsPublic(profileInfo.isPublic || false)
+
+          // Update auth store
+          updateAuthProfile({
+            displayName: profileInfo.displayName || null,
+            bio: profileInfo.bio || null,
+            isPublic: profileInfo.isPublic || false,
+            slug: profileInfo.slug || null,
+          })
         }
         setTimeout(() => setSuccess(null), 3000)
       } else {
@@ -296,10 +283,10 @@ export default function ProfileSettingsPage() {
               {error && <p className="text-red-400 text-sm mb-4">{error}</p>}
               <button
                 onClick={handleSignIn}
-                disabled={authLoading || isSigning}
+                disabled={signingIn || isSigning}
                 className="px-8 py-3 rounded-xl font-semibold bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors"
               >
-                {authLoading || isSigning ? 'Signing...' : 'Sign to Continue'}
+                {signingIn || isSigning ? 'Signing...' : 'Sign to Continue'}
               </button>
             </div>
           ) : !profileEligible ? (

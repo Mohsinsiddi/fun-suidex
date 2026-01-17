@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
-import { ExternalLink, Trophy, Lock, Coins, History, X, TrendingUp, Target, Percent } from 'lucide-react'
-import { Pagination, PaginationInfo, SkeletonListItem, EmptyState } from '@/components/ui'
+import { useState, useEffect, useRef } from 'react'
+import { ExternalLink, Trophy, Lock, Coins, History, X, Clock, CheckCircle2, Loader2, Zap, Gift, Sparkles } from 'lucide-react'
+import { Pagination, PaginationInfo, EmptyState } from '@/components/ui'
 
 interface Spin {
   id: string
@@ -23,41 +23,18 @@ interface Stats {
   totalWinningsUSD: number
 }
 
-const prizeConfig = {
-  liquid_victory: {
-    label: 'Liquid VICT',
-    color: 'text-[var(--prize-liquid)]',
-    bgColor: 'bg-[var(--prize-liquid)]/10',
-    borderColor: 'border-[var(--prize-liquid)]/30',
-    Icon: Coins,
-  },
-  locked_victory: {
-    label: 'Locked VICT',
-    color: 'text-[var(--prize-purple)]',
-    bgColor: 'bg-[var(--prize-purple)]/10',
-    borderColor: 'border-[var(--prize-purple)]/30',
-    Icon: Lock,
-  },
-  suitrump: {
-    label: 'SuiTrump',
-    color: 'text-[var(--prize-cyan)]',
-    bgColor: 'bg-[var(--prize-cyan)]/10',
-    borderColor: 'border-[var(--prize-cyan)]/30',
-    Icon: Trophy,
-  },
-  no_prize: {
-    label: 'No Prize',
-    color: 'text-[var(--text-muted)]',
-    bgColor: 'bg-[var(--card)]',
-    borderColor: 'border-[var(--border)]',
-    Icon: X,
-  },
+const prizeIcons = {
+  liquid_victory: { Icon: Coins, color: 'text-yellow-500' },
+  locked_victory: { Icon: Lock, color: 'text-purple-400' },
+  suitrump: { Icon: Trophy, color: 'text-red-400' },
+  no_prize: { Icon: X, color: 'text-gray-500' },
 }
 
-const spinTypeLabels = {
-  free: { label: 'Free', color: 'text-[var(--success)]', bg: 'bg-[var(--success)]/10' },
-  purchased: { label: 'Purchased', color: 'text-[var(--info)]', bg: 'bg-[var(--info)]/10' },
-  bonus: { label: 'Bonus', color: 'text-[var(--warning)]', bg: 'bg-[var(--warning)]/10' },
+const lockLabels: Record<string, string> = {
+  '1_week': '1W',
+  '3_month': '3M',
+  '1_year': '1Y',
+  '3_year': '3Y',
 }
 
 export default function UserSpinHistory() {
@@ -65,109 +42,118 @@ export default function UserSpinHistory() {
   const [stats, setStats] = useState<Stats | null>(null)
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all')
-
-  // Pagination
   const [page, setPage] = useState(1)
   const [totalPages, setTotalPages] = useState(1)
   const [total, setTotal] = useState(0)
-  const limit = 15
+  const limit = 10
 
-  const fetchHistory = useCallback(async () => {
+  const fetchingRef = useRef(false)
+  const lastFetchRef = useRef<string>('')
+
+  const fetchHistory = async (targetPage: number, targetFilter: string) => {
+    const fetchKey = `${targetPage}-${targetFilter}`
+    if (fetchingRef.current || lastFetchRef.current === fetchKey) return
+
+    fetchingRef.current = true
+    lastFetchRef.current = fetchKey
     setLoading(true)
+
     try {
       const params = new URLSearchParams({
-        page: String(page),
+        page: String(targetPage),
         limit: String(limit),
-        filter,
+        filter: targetFilter,
       })
       const res = await fetch(`/api/spin/history?${params}`)
       const data = await res.json()
+
       if (data.success) {
         setSpins(data.data?.spins || [])
-        if (data.data?.stats) {
-          setStats(data.data.stats)
-        }
+        if (data.data?.stats) setStats(data.data.stats)
         setTotalPages(data.pagination?.totalPages || 1)
         setTotal(data.pagination?.total || 0)
       }
     } catch (err) {
-      console.error(err)
+      console.error('Failed to fetch history:', err)
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
-  }, [page, filter])
+  }
 
   useEffect(() => {
-    fetchHistory()
-  }, [fetchHistory])
+    fetchHistory(1, 'all')
+  }, [])
 
-  // Reset page when filter changes
-  useEffect(() => {
+  const handleFilterChange = (newFilter: string) => {
+    if (newFilter === filter) return
+    setFilter(newFilter)
     setPage(1)
-  }, [filter])
+    lastFetchRef.current = ''
+    fetchHistory(1, newFilter)
+  }
 
-  const formatDate = (dateString: string) => {
+  const handlePageChange = (newPage: number) => {
+    if (newPage === page) return
+    setPage(newPage)
+    lastFetchRef.current = ''
+    fetchHistory(newPage, filter)
+  }
+
+  const formatTime = (dateString: string) => {
     const date = new Date(dateString)
-    return date.toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    })
+    const now = new Date()
+    const diffMs = now.getTime() - date.getTime()
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'now'
+    if (diffMins < 60) return `${diffMins}m`
+    if (diffHours < 24) return `${diffHours}h`
+    if (diffDays < 7) return `${diffDays}d`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
   }
 
   const filters = [
     { value: 'all', label: 'All' },
     { value: 'wins', label: 'Wins' },
-    { value: 'no_prize', label: 'No Prize' },
+    { value: 'no_prize', label: 'No Win' },
   ]
 
   return (
-    <div className="space-y-3 sm:space-y-4">
-      {/* Compact Stats Summary */}
+    <div className="space-y-3">
+      {/* Compact Stats */}
       {stats && (
-        <div className="grid grid-cols-4 gap-1.5 sm:gap-2">
-          <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] border border-[var(--border)]">
-            <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-0.5">
-              <History className="w-3 h-3" />
-              <span className="text-[9px] sm:text-[10px]">Spins</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-white">{stats.totalSpins}</p>
-          </div>
-          <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] border border-[var(--border)]">
-            <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-0.5">
-              <Trophy className="w-3 h-3" />
-              <span className="text-[9px] sm:text-[10px]">Wins</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-[var(--success)]">{stats.totalWins}</p>
-          </div>
-          <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] border border-[var(--border)]">
-            <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-0.5">
-              <Percent className="w-3 h-3" />
-              <span className="text-[9px] sm:text-[10px]">Rate</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-[var(--accent)]">{stats.winRate}%</p>
-          </div>
-          <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] border border-[var(--border)]">
-            <div className="flex items-center gap-1.5 text-[var(--text-muted)] mb-0.5">
-              <TrendingUp className="w-3 h-3" />
-              <span className="text-[9px] sm:text-[10px]">Won</span>
-            </div>
-            <p className="text-sm sm:text-base font-bold text-[var(--prize-liquid)]">${stats.totalWinningsUSD.toFixed(0)}</p>
-          </div>
+        <div className="flex items-center gap-3 text-xs">
+          <span className="text-text-muted">
+            <span className="text-white font-semibold">{stats.totalSpins}</span> spins
+          </span>
+          <span className="text-text-muted">·</span>
+          <span className="text-text-muted">
+            <span className="text-green-400 font-semibold">{stats.totalWins}</span> wins
+          </span>
+          <span className="text-text-muted">·</span>
+          <span className="text-text-muted">
+            <span className="text-yellow-400 font-semibold">${stats.totalWinningsUSD.toFixed(0)}</span> won
+          </span>
+          <span className="text-text-muted">·</span>
+          <span className="text-text-muted">
+            <span className="text-accent font-semibold">{stats.winRate}%</span> rate
+          </span>
         </div>
       )}
 
-      {/* Compact Filter Tabs */}
-      <div className="flex gap-1 sm:gap-1.5">
+      {/* Filter Pills */}
+      <div className="flex gap-1.5">
         {filters.map((f) => (
           <button
             key={f.value}
-            onClick={() => setFilter(f.value)}
-            className={`px-2.5 sm:px-3 py-1 sm:py-1.5 text-[10px] sm:text-xs rounded-md font-medium transition-colors ${
+            onClick={() => handleFilterChange(f.value)}
+            className={`px-2.5 py-1 text-[11px] font-medium rounded-md transition-colors ${
               filter === f.value
-                ? 'bg-[var(--accent)] text-black'
-                : 'bg-[var(--card)] text-[var(--text-secondary)] border border-[var(--border)] hover:border-[var(--border-bright)]'
+                ? 'bg-accent text-black'
+                : 'bg-white/5 text-text-secondary hover:bg-white/10'
             }`}
           >
             {f.label}
@@ -177,82 +163,82 @@ export default function UserSpinHistory() {
 
       {/* Spin List */}
       {loading ? (
-        <div className="space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <SkeletonListItem key={i} />
-          ))}
+        <div className="flex items-center justify-center py-8 text-text-muted">
+          <Loader2 className="w-5 h-5 animate-spin" />
         </div>
       ) : spins.length === 0 ? (
         <EmptyState
-          title="No spins found"
-          message={filter !== 'all' ? `No spins with filter "${filter}"` : "You haven't made any spins yet. Go spin the wheel!"}
+          title="No spins"
+          message={filter !== 'all' ? 'Try another filter' : 'Spin the wheel to start!'}
           icon={History}
         />
       ) : (
         <>
-          <div className="space-y-1.5 sm:space-y-2">
+          <div className="space-y-1">
             {spins.map((spin) => {
-              const config = prizeConfig[spin.prizeType]
-              const spinType = spinTypeLabels[spin.spinType]
-              const Icon = config.Icon
+              const { Icon, color } = prizeIcons[spin.prizeType]
+              const isWin = spin.prizeType !== 'no_prize'
+              const isPending = spin.status === 'pending' && isWin
 
               return (
                 <div
                   key={spin.id}
-                  className={`p-2.5 sm:p-3 rounded-lg ${config.bgColor} border ${config.borderColor} transition-colors`}
+                  className="flex items-center gap-2.5 px-2.5 py-2 rounded-lg bg-white/[0.02] hover:bg-white/[0.04] border border-white/[0.04] transition-colors"
                 >
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
-                      <div className={`p-1.5 rounded-md ${config.bgColor} border ${config.borderColor} flex-shrink-0`}>
-                        <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${config.color}`} />
+                  {/* Icon */}
+                  <div className="flex-shrink-0 w-7 h-7 rounded-md bg-white/[0.05] flex items-center justify-center">
+                    <Icon className={`w-3.5 h-3.5 ${color}`} />
+                  </div>
+
+                  {/* Prize Info */}
+                  <div className="flex-1 min-w-0">
+                    {isWin ? (
+                      <div className="flex items-baseline gap-1.5">
+                        <span className="text-sm font-semibold text-white">
+                          ${spin.prizeValueUSD.toFixed(0)}
+                        </span>
+                        <span className="text-[10px] text-text-muted">
+                          {spin.prizeAmount >= 1000
+                            ? `${(spin.prizeAmount / 1000).toFixed(0)}K`
+                            : spin.prizeAmount} VICT
+                        </span>
+                        {spin.lockDuration && (
+                          <span className="text-[10px] text-purple-400">
+                            {lockLabels[spin.lockDuration]}
+                          </span>
+                        )}
                       </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className={`text-xs sm:text-sm font-semibold ${config.color}`}>
-                            {spin.prizeType === 'no_prize'
-                              ? 'No Prize'
-                              : `${spin.prizeAmount.toLocaleString()} VICT`}
-                          </span>
-                          {spin.prizeType !== 'no_prize' && (
-                            <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">
-                              (${spin.prizeValueUSD.toFixed(2)})
-                            </span>
-                          )}
-                          <span className={`px-1.5 py-0.5 rounded text-[9px] sm:text-[10px] ${spinType.bg} ${spinType.color}`}>
-                            {spinType.label}
-                          </span>
-                        </div>
-                        <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
-                          <span className="text-[10px] sm:text-xs text-[var(--text-muted)]">
-                            {formatDate(spin.createdAt)}
-                          </span>
-                          {spin.lockDuration && (
-                            <span className="text-[10px] sm:text-xs text-[var(--prize-purple)]">
-                              · Locked {spin.lockDuration.replace('_', ' ')}
-                            </span>
-                          )}
-                          {spin.status === 'pending' && spin.prizeType !== 'no_prize' && (
-                            <span className="px-1 py-0.5 rounded text-[9px] bg-[var(--warning)]/10 text-[var(--warning)] border border-[var(--warning)]/30">
-                              Pending
-                            </span>
-                          )}
-                          {spin.status === 'distributed' && (
-                            <span className="px-1 py-0.5 rounded text-[9px] bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30">
-                              Distributed
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    </div>
+                    ) : (
+                      <span className="text-sm text-text-muted">No prize</span>
+                    )}
+                  </div>
+
+                  {/* Status & Time */}
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    {isWin && (
+                      <span className={`flex items-center gap-0.5 text-[10px] font-medium ${
+                        isPending ? 'text-amber-400' : 'text-green-400'
+                      }`}>
+                        {isPending ? (
+                          <><Clock className="w-2.5 h-2.5" /> Pending</>
+                        ) : (
+                          <><CheckCircle2 className="w-2.5 h-2.5" /> Sent</>
+                        )}
+                      </span>
+                    )}
+
+                    <span className="text-[10px] text-text-muted w-8 text-right">
+                      {formatTime(spin.createdAt)}
+                    </span>
+
                     {spin.distributedTxHash && (
                       <a
                         href={`https://suiscan.xyz/mainnet/tx/${spin.distributedTxHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="p-1.5 rounded-md bg-[var(--background)]/50 text-[var(--accent)] hover:bg-[var(--accent)]/10 transition-colors flex-shrink-0"
-                        title="View Transaction"
+                        className="p-1 rounded text-accent/60 hover:text-accent hover:bg-white/5 transition-colors"
                       >
-                        <ExternalLink className="w-3.5 h-3.5" />
+                        <ExternalLink className="w-3 h-3" />
                       </a>
                     )}
                   </div>
@@ -263,9 +249,9 @@ export default function UserSpinHistory() {
 
           {/* Pagination */}
           {totalPages > 1 && (
-            <div className="flex items-center justify-between pt-3 border-t border-[var(--border)]">
+            <div className="flex items-center justify-between pt-2 border-t border-white/5">
               <PaginationInfo page={page} limit={limit} total={total} />
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
           )}
         </>

@@ -16,43 +16,29 @@ import {
   AlertCircle,
 } from 'lucide-react'
 import { Skeleton } from '@/components/ui'
-
-interface DashboardStats {
-  totalUsers: number
-  totalSpins: number
-  totalRevenueSUI: number
-  pendingPrizes: number
-  todaySpins: number
-  todayRevenueSUI: number
-}
+import { useAdminStatsStore } from '@/lib/stores/admin'
 
 export default function AdminDashboardPage() {
   const router = useRouter()
-  const [stats, setStats] = useState<DashboardStats | null>(null)
-  const [loading, setLoading] = useState(true)
+  const { stats, isLoading: loading, error, fetchStats, invalidate } = useAdminStatsStore()
   const [seeding, setSeeding] = useState(false)
   const [seedResult, setSeedResult] = useState<{ success: boolean; message: string } | null>(null)
 
+  // Fetch stats on mount
   useEffect(() => {
     fetchStats()
-  }, [])
+  }, [fetchStats])
 
-  const fetchStats = async () => {
-    try {
-      const res = await fetch('/api/admin/stats')
-      if (res.status === 401) {
-        router.push('/admin/login')
-        return
-      }
-      const data = await res.json()
-      if (data.success) {
-        setStats(data.data)
-      }
-    } catch (err) {
-      console.error('Failed to fetch stats:', err)
-    } finally {
-      setLoading(false)
+  // Handle unauthorized
+  useEffect(() => {
+    if (error === 'Unauthorized') {
+      router.push('/admin/login')
     }
+  }, [error, router])
+
+  const handleRefresh = () => {
+    invalidate()
+    fetchStats()
   }
 
   const handleSeedDefaults = async () => {
@@ -87,7 +73,7 @@ export default function AdminDashboardPage() {
           <h2 className="text-xl sm:text-2xl font-bold">Dashboard</h2>
           <p className="text-text-secondary text-sm sm:text-base">Overview of your games platform</p>
         </div>
-        <button onClick={fetchStats} className="btn btn-ghost self-start sm:self-auto" disabled={loading}>
+        <button onClick={handleRefresh} className="btn btn-ghost self-start sm:self-auto" disabled={loading}>
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
           Refresh
         </button>
@@ -98,7 +84,7 @@ export default function AdminDashboardPage() {
         <StatCard title="Total Users" value={stats?.totalUsers ?? '-'} icon={Users} loading={loading} />
         <StatCard title="Total Spins" value={stats?.totalSpins ?? '-'} icon={Activity} loading={loading} />
         <StatCard title="Revenue (SUI)" value={stats?.totalRevenueSUI?.toFixed(2) ?? '-'} icon={TrendingUp} loading={loading} accent />
-        <StatCard title="Pending Prizes" value={stats?.pendingPrizes ?? '-'} icon={Gift} loading={loading} warning={stats?.pendingPrizes ? stats.pendingPrizes > 0 : false} />
+        <StatCard title="Pending Prizes" value={stats?.pendingDistribution ?? '-'} icon={Gift} loading={loading} warning={stats?.pendingDistribution ? stats.pendingDistribution > 0 : false} />
       </div>
 
       {/* Today's Stats */}
@@ -108,11 +94,11 @@ export default function AdminDashboardPage() {
           <div className="space-y-3 sm:space-y-4">
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm sm:text-base">Spins</span>
-              {loading ? <Skeleton className="h-5 w-12" /> : <span className="font-mono text-sm sm:text-base">{stats?.todaySpins ?? '-'}</span>}
+              {loading ? <Skeleton className="h-5 w-12" /> : <span className="font-mono text-sm sm:text-base">{stats?.spinsToday ?? '-'}</span>}
             </div>
             <div className="flex justify-between items-center">
               <span className="text-[var(--text-secondary)] text-sm sm:text-base">Revenue</span>
-              {loading ? <Skeleton className="h-5 w-20" /> : <span className="font-mono text-sm sm:text-base text-[var(--accent)]">{stats?.todayRevenueSUI?.toFixed(2) ?? '-'} SUI</span>}
+              {loading ? <Skeleton className="h-5 w-20" /> : <span className="font-mono text-sm sm:text-base text-[var(--accent)]">{stats?.revenueTodaySUI?.toFixed(2) ?? '-'} SUI</span>}
             </div>
           </div>
         </div>

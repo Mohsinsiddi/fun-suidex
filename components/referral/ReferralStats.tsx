@@ -1,20 +1,16 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect } from 'react'
 import { Users, DollarSign, Clock, CheckCircle } from 'lucide-react'
 import { Skeleton } from '@/components/ui'
+import { useReferralStore } from '@/lib/stores/referralStore'
 
 export default function ReferralStats() {
-  const [stats, setStats] = useState<any>(null)
-  const [loading, setLoading] = useState(true)
+  const { stats, isLoadingStats: loading, fetchStats } = useReferralStore()
 
   useEffect(() => {
-    fetch('/api/referral/stats')
-      .then(r => r.json())
-      .then(d => { if (d.success) setStats(d.data) })
-      .catch(console.error)
-      .finally(() => setLoading(false))
-  }, [])
+    fetchStats()
+  }, [fetchStats])
 
   const items = [
     { label: 'Total Referred', value: stats?.totalReferred || 0, icon: Users, color: 'text-[var(--accent)]', bg: 'bg-[var(--accent)]/10' },

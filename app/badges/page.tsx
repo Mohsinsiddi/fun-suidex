@@ -1,61 +1,54 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { useCurrentAccount } from '@mysten/dapp-kit'
 import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { BadgeGrid, BadgeProgressList } from '@/components/badges'
 import { Award, TrendingUp, Trophy, Loader2 } from 'lucide-react'
 import type { BadgeProgress, BadgeTier } from '@/types/badge'
-
-interface BadgeStats {
-  totalBadges: number
-  badgesByTier: Record<BadgeTier, number>
-}
+import { useBadgesStore, useNextBadges } from '@/lib/stores/badgesStore'
 
 export default function BadgesPage() {
   const account = useCurrentAccount()
-  const [loading, setLoading] = useState(true)
-  const [progress, setProgress] = useState<BadgeProgress[]>([])
-  const [stats, setStats] = useState<BadgeStats | null>(null)
-  const [nextBadges, setNextBadges] = useState<BadgeProgress[]>([])
 
+  // Badges store
+  const {
+    allBadges,
+    badgeProgress,
+    badgeStats,
+    isLoadingAll,
+    isLoadingUser,
+    fetchAllBadges,
+    fetchUserBadges,
+  } = useBadgesStore()
+
+  // Get next badges to unlock
+  const nextBadges = useNextBadges(3)
+
+  // Fetch badges on mount
   useEffect(() => {
-    fetchBadges()
-  }, [account?.address])
-
-  const fetchBadges = async () => {
-    setLoading(true)
-    try {
-      // Fetch badges with user progress if authenticated
-      const endpoint = account?.address ? '/api/badges/user' : '/api/badges'
-      const res = await fetch(endpoint)
-      const data = await res.json()
-
-      if (data.success) {
-        if (account?.address) {
-          setProgress(data.data.progress || [])
-          setStats(data.data.stats || null)
-          setNextBadges(data.data.nextBadges || [])
-        } else {
-          // No user, show all badges as locked
-          const badges = data.data.badges || []
-          setProgress(badges.map((b: any) => ({
-            badge: b,
-            isUnlocked: false,
-            progressPercent: 0,
-            currentValue: 0,
-            targetValue: b.criteria?.value || 0,
-          })))
-        }
-      }
-    } catch (err) {
-      console.error('Failed to fetch badges:', err)
-    } finally {
-      setLoading(false)
+    if (account?.address) {
+      fetchUserBadges()
+    } else {
+      fetchAllBadges()
     }
-  }
+  }, [account?.address, fetchUserBadges, fetchAllBadges])
 
+  const loading = account?.address ? isLoadingUser : isLoadingAll
+
+  // Build progress array
+  const progress: BadgeProgress[] = account?.address
+    ? badgeProgress
+    : allBadges.map((b) => ({
+        badge: b,
+        isUnlocked: false,
+        progressPercent: 0,
+        currentValue: 0,
+        targetValue: b.criteria?.value || 0,
+      }))
+
+  const stats = account?.address ? badgeStats : null
   const unlockedCount = progress.filter(p => p.isUnlocked).length
   const totalCount = progress.length
 

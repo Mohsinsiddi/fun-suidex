@@ -1,49 +1,43 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import TweetToClaimButton from './TweetToClaimButton'
 import { Pagination, PaginationInfo, SkeletonListItem, EmptyState } from '@/components/ui'
 import { Gift } from 'lucide-react'
+import { useReferralStore } from '@/lib/stores/referralStore'
 
 export default function ReferralEarningsTable() {
-  const [earnings, setEarnings] = useState<any[]>([])
-  const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState('all')
+  const {
+    earnings,
+    earningsPage: page,
+    earningsTotalPages: totalPages,
+    earningsTotal: total,
+    earningsFilter: filter,
+    isLoadingEarnings: loading,
+    fetchEarnings,
+    updateEarning
+  } = useReferralStore()
 
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
   const limit = 10
 
-  const fetchEarnings = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ status: filter, page: String(page), limit: String(limit) })
-      const res = await fetch(`/api/referral/earnings?${params}`)
-      const data = await res.json()
-      if (data.success) {
-        setEarnings(data.data?.items || [])
-        setTotalPages(data.pagination?.totalPages || 1)
-        setTotal(data.pagination?.total || 0)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
-  }, [filter, page])
+  // Fetch on mount
+  useEffect(() => {
+    fetchEarnings(1, 'all')
+  }, [])
 
-  useEffect(() => { fetchEarnings() }, [fetchEarnings])
-
-  // Reset page when filter changes
-  useEffect(() => { setPage(1) }, [filter])
-
-  const handleTweetComplete = (id: string) => {
-    setEarnings(prev => prev.map(e => e._id === id ? { ...e, tweetStatus: 'completed', payoutStatus: 'ready' } : e))
+  const handleFilterChange = (newFilter: string) => {
+    fetchEarnings(1, newFilter)
   }
 
-  const formatWallet = (w: string) => w ? `${w.slice(0, 6)}...${w.slice(-4)}` : '-'
+  const handlePageChange = (newPage: number) => {
+    fetchEarnings(newPage, filter)
+  }
+
+  const handleTweetComplete = (id: string) => {
+    updateEarning(id, { tweetStatus: 'completed', payoutStatus: 'ready' })
+  }
+
+  const formatWallet = (w: string | undefined) => w ? `${w.slice(0, 6)}...${w.slice(-4)}` : '-'
 
   const getStatusBadge = (r: any) => {
     if (r.payoutStatus === 'paid') return <span className="px-2 py-1 text-xs rounded-full bg-green-500/10 text-green-400 border border-green-500/30">Paid</span>
@@ -62,7 +56,7 @@ export default function ReferralEarningsTable() {
     <div className="space-y-3 sm:space-y-4">
       <div className="flex gap-1.5 sm:gap-2 flex-wrap">
         {filters.map(f => (
-          <button key={f.value} onClick={() => setFilter(f.value)} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors ${filter === f.value ? 'bg-[var(--accent)] text-black' : 'bg-surface text-[var(--text-secondary)] border border-[var(--border)] hover:border-white/20'}`}>
+          <button key={f.value} onClick={() => handleFilterChange(f.value)} className={`px-2.5 sm:px-4 py-1.5 sm:py-2 text-xs sm:text-sm rounded-lg font-medium transition-colors ${filter === f.value ? 'bg-[var(--accent)] text-black' : 'bg-surface text-[var(--text-secondary)] border border-[var(--border)] hover:border-white/20'}`}>
             {f.label}
           </button>
         ))}
@@ -116,7 +110,7 @@ export default function ReferralEarningsTable() {
           {totalPages > 1 && (
             <div className="flex items-center justify-between pt-3 sm:pt-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
           )}
         </>

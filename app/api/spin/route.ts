@@ -159,7 +159,30 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({ success: true, data: { spinId: String(spin._id), slotIndex: slot.slotIndex } })
+    // Re-fetch user to get accurate spin counts after all updates
+    const updatedUser = await UserModel.findOne({ wallet: payload.wallet }).lean()
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        spinId: String(spin._id),
+        slotIndex: slot.slotIndex,
+        // Include updated spin counts so client doesn't need to refetch
+        spins: {
+          free: 0, // freeSpins are always 0 (no longer used)
+          purchased: updatedUser?.purchasedSpins ?? 0,
+          bonus: updatedUser?.bonusSpins ?? 0,
+        },
+        // Include updated stats
+        stats: {
+          totalSpins: updatedUser?.totalSpins ?? 0,
+          totalWinsUSD: updatedUser?.totalWinsUSD ?? 0,
+          biggestWinUSD: updatedUser?.biggestWinUSD ?? 0,
+          currentStreak: updatedUser?.currentStreak ?? 0,
+          longestStreak: updatedUser?.longestStreak ?? 0,
+        }
+      }
+    })
   } catch (error) {
     console.error('Spin error:', error)
     return NextResponse.json({ success: false, error: ERRORS.INTERNAL_ERROR }, { status: 500 })

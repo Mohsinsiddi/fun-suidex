@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, DollarSign, TrendingUp, Calendar, CreditCard } from 'lucide-react'
 import { SkeletonCardGrid, SkeletonTable, EmptyState, Pagination, PaginationInfo } from '@/components/ui'
+// Note: Revenue page uses a combined stats+payments API response that doesn't fit the paginated store pattern
 
 interface RevenueStats {
   totalRevenueSUI: number
@@ -40,10 +41,21 @@ export default function AdminRevenuePage() {
   const [total, setTotal] = useState(0)
   const limit = 20
 
-  useEffect(() => { fetchRevenue() }, [page])
+  // Deduplication refs
+  const fetchingRef = useRef(false)
+  const lastFetchRef = useRef('')
 
-  const fetchRevenue = async () => {
+  const fetchRevenue = async (force = false) => {
+    const fetchKey = `${page}`
+
+    // Prevent duplicate fetches
+    if (fetchingRef.current) return
+    if (!force && lastFetchRef.current === fetchKey) return
+
+    fetchingRef.current = true
+    lastFetchRef.current = fetchKey
     setLoading(true)
+
     try {
       const params = new URLSearchParams({ page: String(page), limit: String(limit) })
       const res = await fetch(`/api/admin/revenue?${params}`)
@@ -56,7 +68,10 @@ export default function AdminRevenuePage() {
       }
     } catch (err) { console.error(err) }
     setLoading(false)
+    fetchingRef.current = false
   }
+
+  useEffect(() => { fetchRevenue() }, [page])
 
   return (
     <>
@@ -66,7 +81,7 @@ export default function AdminRevenuePage() {
           <h2 className="text-xl sm:text-2xl font-bold">Revenue</h2>
           <p className="text-text-secondary text-sm sm:text-base">Track payments and spin purchases</p>
         </div>
-        <button onClick={fetchRevenue} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
+        <button onClick={() => { lastFetchRef.current = ''; fetchRevenue() }} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
       </div>

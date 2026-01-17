@@ -8,63 +8,60 @@ import { Footer } from '@/components/shared/Footer'
 import { ReferralStats, ReferralEarningsTable, ShareButtons } from '@/components/referral'
 import { Users, Copy, Check, ArrowLeft, Lock, Loader2, Wallet } from 'lucide-react'
 import { ReferralBanner } from '@/components/referral'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { useReferralStore } from '@/lib/stores/referralStore'
 
 export default function ReferralPage() {
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
 
-  const [referralLink, setReferralLink] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [eligible, setEligible] = useState(false)
-  const [loading, setLoading] = useState(true)
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authLoading, setAuthLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-  const [referredBy, setReferredBy] = useState<string | null>(null)
+  // Auth store
+  const {
+    isAuthenticated,
+    isLoading: authLoading,
+    referredBy,
+    hasCompletedFirstSpin,
+    error: authError,
+    fetchUser,
+    login,
+    clearError
+  } = useAuthStore()
 
+  // Referral store
+  const {
+    referralLink,
+    eligible,
+    isLoadingLink,
+    fetchReferralLink,
+  } = useReferralStore()
+
+  const [copied, setCopied] = useState(false)
+  const [signingIn, setSigningIn] = useState(false)
+  const [signError, setSignError] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  // Fetch auth data on mount/account change
   useEffect(() => {
     if (account?.address) {
-      checkAuthAndEligibility()
+      fetchUser().finally(() => setLoading(false))
     } else {
-      setIsAuthenticated(false)
-      setEligible(false)
-      setReferredBy(null)
       setLoading(false)
     }
-  }, [account?.address])
+  }, [account?.address, fetchUser])
 
-  const checkAuthAndEligibility = async () => {
-    try {
-      const meRes = await fetch('/api/auth/me')
-      const meData = await meRes.json()
-
-      if (meData.success) {
-        setIsAuthenticated(true)
-        setReferredBy(meData.data.referredBy || null)
-
-        if (meData.data.hasCompletedFirstSpin) {
-          const linkRes = await fetch('/api/referral/link')
-          const linkData = await linkRes.json()
-          if (linkData.success) {
-            setReferralLink(linkData.data.link)
-            setEligible(true)
-          }
-        }
-      } else {
-        setIsAuthenticated(false)
-      }
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
+  // Fetch referral link when authenticated and eligible
+  useEffect(() => {
+    if (isAuthenticated && hasCompletedFirstSpin && !referralLink) {
+      fetchReferralLink()
     }
-  }
+  }, [isAuthenticated, hasCompletedFirstSpin, referralLink, fetchReferralLink])
 
   const handleSignIn = async () => {
     if (!account?.address) return
-    setAuthLoading(true)
-    setError(null)
-    
+    setSigningIn(true)
+    setSignError(null)
+    clearError()
+
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
         method: 'POST',
@@ -78,33 +75,34 @@ export default function ReferralPage() {
         { message: new TextEncoder().encode(nonceData.data.nonce) },
         {
           onSuccess: async (sig) => {
-            const verifyRes = await fetch('/api/auth/verify', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ wallet: account.address, signature: sig.signature, nonce: nonceData.data.nonce }),
-            })
-            const verifyData = await verifyRes.json()
-            if (verifyData.success) {
-              setIsAuthenticated(true)
-              checkAuthAndEligibility()
+            const success = await login(account.address, sig.signature, nonceData.data.nonce)
+            if (success) {
+              // Fetch full user data and referral link
+              await fetchUser()
+              if (hasCompletedFirstSpin) {
+                await fetchReferralLink()
+              }
             } else {
-              setError(verifyData.error || 'Verification failed')
+              setSignError('Verification failed')
             }
-            setAuthLoading(false)
+            setSigningIn(false)
           },
           onError: () => {
-            setError('Signature rejected')
-            setAuthLoading(false)
+            setSignError('Signature rejected')
+            setSigningIn(false)
           },
         }
       )
     } catch (err: any) {
-      setError(err.message)
-      setAuthLoading(false)
+      setSignError(err.message)
+      setSigningIn(false)
     }
   }
 
+  const error = signError || authError
+
   const handleCopy = async () => {
+    if (!referralLink) return
     await navigator.clipboard.writeText(referralLink)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
@@ -135,7 +133,7 @@ export default function ReferralPage() {
             <ReferralBanner
               referrerWallet={referredBy}
               isLinked={true}
-              onClose={() => setReferredBy(null)}
+              onClose={() => {}}
             />
           )}
 
@@ -164,10 +162,10 @@ export default function ReferralPage() {
               {error && <p className="text-red-400 text-xs sm:text-sm mb-3 sm:mb-4">{error}</p>}
               <button
                 onClick={handleSignIn}
-                disabled={authLoading || isSigning}
+                disabled={signingIn || isSigning}
                 className="px-6 sm:px-8 py-2.5 sm:py-3 rounded-xl font-semibold text-sm sm:text-base bg-accent text-black hover:bg-accent-hover disabled:opacity-50 transition-colors min-h-[44px]"
               >
-                {authLoading || isSigning ? (
+                {signingIn || isSigning ? (
                   <span className="flex items-center justify-center gap-2">
                     <Loader2 className="w-4 h-4 animate-spin" />
                     Signing...
@@ -177,7 +175,7 @@ export default function ReferralPage() {
                 )}
               </button>
             </div>
-          ) : !eligible ? (
+          ) : !hasCompletedFirstSpin ? (
             <div className="p-6 sm:p-8 md:p-12 rounded-2xl text-center bg-surface border border-border">
               <div className="w-12 h-12 sm:w-16 sm:h-16 rounded-xl sm:rounded-2xl bg-yellow-500/10 flex items-center justify-center mx-auto mb-3 sm:mb-4">
                 <Lock className="w-6 h-6 sm:w-8 sm:h-8 text-yellow-400" />
@@ -198,13 +196,13 @@ export default function ReferralPage() {
               <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
                 <h2 className="text-base sm:text-lg font-bold mb-3 sm:mb-4 text-white">Your Referral Link</h2>
                 <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 p-3 sm:p-4 mb-4 rounded-xl bg-background border border-border">
-                  <input type="text" value={referralLink} readOnly className="flex-1 bg-transparent outline-none text-white font-mono text-xs sm:text-sm min-w-0 truncate" />
+                  <input type="text" value={referralLink || ''} readOnly className="flex-1 bg-transparent outline-none text-white font-mono text-xs sm:text-sm min-w-0 truncate" />
                   <button onClick={handleCopy} className={`p-2.5 sm:p-3 rounded-lg transition-all flex items-center justify-center gap-2 ${copied ? 'bg-green-500' : 'bg-accent'} text-black flex-shrink-0`}>
                     {copied ? <Check size={18} /> : <Copy size={18} />}
                     <span className="sm:hidden text-sm font-medium">{copied ? 'Copied!' : 'Copy'}</span>
                   </button>
                 </div>
-                <ShareButtons referralLink={referralLink} />
+                <ShareButtons referralLink={referralLink || ''} />
               </div>
 
               <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">

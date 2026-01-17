@@ -3,38 +3,24 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Lock, User, AlertCircle, Shield, Gamepad2, Eye, EyeOff } from 'lucide-react'
+import { useAdminAuthStore } from '@/lib/stores/admin'
 
 export default function AdminLoginPage() {
   const router = useRouter()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
-  const [error, setError] = useState('')
-  const [loading, setLoading] = useState(false)
+
+  // Admin auth store
+  const { isLoading: loading, error, login, clearError } = useAdminAuthStore()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    setError('')
-    setLoading(true)
+    clearError()
 
-    try {
-      const res = await fetch('/api/admin/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password }),
-      })
-
-      const data = await res.json()
-
-      if (!res.ok) {
-        throw new Error(data.error || 'Login failed')
-      }
-
+    const success = await login(username, password)
+    if (success) {
       router.push('/admin/dashboard')
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Login failed')
-    } finally {
-      setLoading(false)
     }
   }
 

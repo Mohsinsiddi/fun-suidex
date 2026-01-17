@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, CheckCircle, Clock, XCircle, Users, DollarSign } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, SkeletonCardGrid, EmptyState } from '@/components/ui'
+// Note: Affiliates page uses a combined stats+items API response with bulk selection that doesn't fit the standard paginated store
 
 interface AffiliateReward {
   _id: string
@@ -42,8 +43,21 @@ export default function AdminAffiliatesPage() {
   const [total, setTotal] = useState(0)
   const limit = 20
 
-  const fetchData = useCallback(async () => {
+  // Deduplication refs
+  const fetchingRef = useRef(false)
+  const lastFetchRef = useRef('')
+
+  const fetchData = useCallback(async (force = false) => {
+    const fetchKey = `${filter}-${page}`
+
+    // Prevent duplicate fetches
+    if (fetchingRef.current) return
+    if (!force && lastFetchRef.current === fetchKey) return
+
+    fetchingRef.current = true
+    lastFetchRef.current = fetchKey
     setLoading(true)
+
     try {
       const params = new URLSearchParams({ status: filter, page: String(page), limit: String(limit) })
       const res = await fetch(`/api/admin/affiliates?${params}`)
@@ -57,12 +71,16 @@ export default function AdminAffiliatesPage() {
       }
     } catch (err) { console.error(err) }
     setLoading(false)
+    fetchingRef.current = false
   }, [filter, page, router])
 
   useEffect(() => { fetchData() }, [fetchData])
 
   // Reset page when filter changes
-  useEffect(() => { setPage(1) }, [filter])
+  useEffect(() => {
+    lastFetchRef.current = '' // Reset to allow fetch with new filter
+    setPage(1)
+  }, [filter])
 
   const handleSelectAll = () => {
     const readyIds = rewards.filter(r => r.payoutStatus === 'ready').map(r => r._id)
@@ -89,6 +107,7 @@ export default function AdminAffiliatesPage() {
         alert(`Successfully marked ${data.count} rewards as paid!`)
         setSelectedIds([])
         setTxHash('')
+        lastFetchRef.current = '' // Reset to allow refresh
         fetchData()
       } else {
         alert(data.error || 'Failed')
@@ -120,7 +139,7 @@ export default function AdminAffiliatesPage() {
           <h2 className="text-xl sm:text-2xl font-bold">Affiliate Rewards</h2>
           <p className="text-text-secondary text-sm sm:text-base">Manage referral commissions</p>
         </div>
-        <button onClick={fetchData} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
+        <button onClick={() => { lastFetchRef.current = ''; fetchData() }} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
       </div>

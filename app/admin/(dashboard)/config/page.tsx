@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { Save, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
+import { useAdminConfigStore } from '@/lib/stores/admin'
 
 interface PrizeSlot {
   slotIndex: number
@@ -43,44 +44,54 @@ const LOCK_DURATIONS = [
 
 export default function AdminConfigPage() {
   const router = useRouter()
+
+  // Admin config store
+  const {
+    config: storeConfig,
+    isLoading,
+    isSaving,
+    error: storeError,
+    fetchConfig,
+    updateConfig: saveConfig,
+  } = useAdminConfigStore()
+
+  // Local editing state
   const [config, setConfig] = useState<AdminConfig | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
-  useEffect(() => { fetchConfig() }, [])
+  // Fetch config on mount
+  useEffect(() => {
+    fetchConfig().then((success) => {
+      if (!success && storeError === 'Unauthorized') {
+        router.push('/admin/login')
+      }
+    })
+  }, [fetchConfig, router, storeError])
 
-  const fetchConfig = async () => {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/admin/config')
-      if (res.status === 401) { router.push('/admin/login'); return }
-      const data = await res.json()
-      if (data.success) setConfig(data.data)
-      else setError(data.error)
-    } catch (err) { setError('Failed to load config') }
-    setLoading(false)
-  }
+  // Sync store config to local state when loaded
+  useEffect(() => {
+    if (storeConfig) {
+      // Cast entire store config since it has the same structure at runtime
+      setConfig(storeConfig as unknown as AdminConfig)
+    }
+  }, [storeConfig])
+
+  const loading = isLoading
+  const saving = isSaving
 
   const handleSave = async () => {
     if (!config) return
-    setSaving(true)
     setError(null)
     setSuccess(null)
-    try {
-      const res = await fetch('/api/admin/config', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(config),
-      })
-      const data = await res.json()
-      if (data.success) {
-        setSuccess('Configuration saved successfully!')
-        setTimeout(() => setSuccess(null), 3000)
-      } else setError(data.error)
-    } catch (err) { setError('Failed to save config') }
-    setSaving(false)
+
+    const success = await saveConfig(config as any)
+    if (success) {
+      setSuccess('Configuration saved successfully!')
+      setTimeout(() => setSuccess(null), 3000)
+    } else {
+      setError(storeError || 'Failed to save config')
+    }
   }
 
   const updatePrizeSlot = (index: number, field: string, value: any) => {

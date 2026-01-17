@@ -5,6 +5,8 @@ import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit'
 import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { BuySpinsModal } from '@/components/wheel/BuySpinsModal'
+import { useAuthStore } from '@/lib/stores/authStore'
+import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
 import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp } from 'lucide-react'
 
 const DEFAULT_WHEEL_SLOTS = [
@@ -44,11 +46,27 @@ export default function WheelPage() {
   const account = useCurrentAccount()
   const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage()
 
+  // Use stores instead of local state
+  const {
+    isAuthenticated,
+    freeSpins,
+    purchasedSpins,
+    bonusSpins,
+    fetchUser,
+    login,
+    refreshSpins,
+    setSpins
+  } = useAuthStore()
+
+  const {
+    prizeTable,
+    isLoaded: configLoaded,
+    fetchConfig
+  } = useConfigStore()
+
   const [activeTab, setActiveTab] = useState<TabType>('wheel')
-  const [isAuthenticated, setIsAuthenticated] = useState(false)
-  const [authLoading, setAuthLoading] = useState(false)
+  const [signingIn, setSigningIn] = useState(false)
   const [wheelSlots, setWheelSlots] = useState<WheelSlot[]>(DEFAULT_WHEEL_SLOTS)
-  const [spins, setSpins] = useState({ free: 0, purchased: 0, bonus: 0 })
   const [isSpinning, setIsSpinning] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [result, setResult] = useState<WheelSlot | null>(null)
@@ -58,78 +76,56 @@ export default function WheelPage() {
   const [hoveredSlot, setHoveredSlot] = useState<WheelSlot | null>(null)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
+  // Derived from store
+  const spins = { free: freeSpins, purchased: purchasedSpins, bonus: bonusSpins }
   const slotCount = wheelSlots.length
   const slotAngle = 360 / slotCount
-  const totalSpins = spins.free + spins.purchased + spins.bonus
-  
+  const totalSpins = freeSpins + purchasedSpins + bonusSpins
+
   const cx = 200, cy = 200
   const outerRadius = 175
 
-  useEffect(() => { loadConfig() }, [])
-  
+  // Load config on mount
   useEffect(() => {
-    if (account?.address) checkAuth()
-    else {
-      setIsAuthenticated(false)
-      setSpins({ free: 0, purchased: 0, bonus: 0 })
+    if (!configLoaded) fetchConfig()
+  }, [configLoaded, fetchConfig])
+
+  // Update wheel slots when config loads
+  useEffect(() => {
+    if (prizeTable.length > 0) {
+      setWheelSlots(formatPrizeTableForWheel(prizeTable))
+    }
+  }, [prizeTable])
+
+  // Check auth when wallet connects
+  useEffect(() => {
+    if (account?.address) {
+      fetchUser()
     }
   }, [account?.address])
 
-  const loadConfig = async () => {
-    try {
-      const res = await fetch('/api/config')
-      const data = await res.json()
-      if (data.success && data.data?.prizeTable?.length > 0) {
-        const slots = data.data.prizeTable.map((p: any, i: number) => ({
-          index: i,
-          label: formatLabel(p.valueUSD),
-          sublabel: formatSublabel(p.type, p.lockDuration),
-          color: getSlotColor(p.type, p.valueUSD, i),
-          amount: formatAmount(p.amount, p.type),
-          type: p.type,
-          valueUSD: p.valueUSD,
-          lockType: getLockType(p.type, p.lockDuration),
-          tokenSymbol: getTokenSymbol(p.type),
-        }))
-        setWheelSlots(slots)
-      }
-    } catch (err) { console.error('Failed to load config:', err) }
-  }
-
-  const checkAuth = async () => {
-    try {
-      const res = await fetch('/api/auth/me')
-      const data = await res.json()
-      if (data.success) {
-        setIsAuthenticated(true)
-        setSpins({ free: data.data.freeSpins || 0, purchased: data.data.purchasedSpins || 0, bonus: data.data.bonusSpins || 0 })
-      } else setIsAuthenticated(false)
-    } catch { setIsAuthenticated(false) }
-  }
-
   const handleSignIn = async () => {
     if (!account?.address) { setError('Please connect your wallet first'); return }
-    setAuthLoading(true)
+    setSigningIn(true)
     setError(null)
     try {
       const nonceRes = await fetch('/api/auth/nonce', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: account.address }) })
       const nonceData = await nonceRes.json()
       if (!nonceData.success) throw new Error(nonceData.error || 'Failed to get nonce')
-      
+
       signMessage({ message: new TextEncoder().encode(nonceData.data.nonce) }, {
         onSuccess: async (sig) => {
           try {
-            const verifyRes = await fetch('/api/auth/verify', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ wallet: account.address, signature: sig.signature, nonce: nonceData.data.nonce }) })
-            const verifyData = await verifyRes.json()
-            if (!verifyData.success) throw new Error(verifyData.error || 'Verification failed')
-            setIsAuthenticated(true)
-            setSpins({ free: verifyData.data.freeSpins || 0, purchased: verifyData.data.purchasedSpins || 0, bonus: verifyData.data.bonusSpins || 0 })
+            const success = await login(account.address, sig.signature, nonceData.data.nonce)
+            if (!success) throw new Error('Verification failed')
+            // Fetch full user data after login
+            await fetchUser()
           } catch (err: any) { setError(err.message) }
-          setAuthLoading(false)
+          setSigningIn(false)
         },
-        onError: () => { setError('Signature rejected'); setAuthLoading(false) },
+        onError: () => { setError('Signature rejected'); setSigningIn(false) },
       })
-    } catch (err: any) { setError(err.message); setAuthLoading(false) }
+    } catch (err: any) { setError(err.message); setSigningIn(false) }
   }
 
   const calculateRotationForSlot = (slotIndex: number): number => {
@@ -170,17 +166,17 @@ export default function WheelPage() {
       const res = await fetch('/api/spin', { method: 'POST', headers: { 'Content-Type': 'application/json' } })
       const data = await res.json()
       if (!data.success) { setError(data.error || 'Spin failed'); return }
-      setSpins(prev => {
-        if (prev.bonus > 0) return { ...prev, bonus: prev.bonus - 1 }
-        if (prev.free > 0) return { ...prev, free: prev.free - 1 }
-        return { ...prev, purchased: prev.purchased - 1 }
-      })
+      // Update spins and stats directly from response (no extra API call)
+      if (data.data.spins) {
+        setSpins(data.data.spins, data.data.stats)
+      }
       spinWheel(data.data.slotIndex)
     } catch (err: any) { setError(err.message || 'Network error') }
   }
 
-  const handleBuySpinsSuccess = (spinsAdded: number) => {
-    setSpins(prev => ({ ...prev, purchased: prev.purchased + spinsAdded }))
+  const handleBuySpinsSuccess = () => {
+    // Refresh spins from store after purchase
+    refreshSpins()
   }
 
   // Create slice path
@@ -465,8 +461,8 @@ export default function WheelPage() {
                     <p className="text-text-secondary text-sm">👛 Connect wallet to play</p>
                   </div>
                 ) : !isAuthenticated ? (
-                  <button onClick={handleSignIn} disabled={authLoading || isSigning} className="w-full py-3 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover text-black transition-all disabled:opacity-50">
-                    {authLoading || isSigning ? '⏳ Signing...' : '✍️ Sign to Play'}
+                  <button onClick={handleSignIn} disabled={signingIn || isSigning} className="w-full py-3 rounded-xl font-bold text-sm bg-accent hover:bg-accent-hover text-black transition-all disabled:opacity-50">
+                    {signingIn || isSigning ? '⏳ Signing...' : '✍️ Sign to Play'}
                   </button>
                 ) : (
                   <button 

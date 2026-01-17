@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useCurrentAccount, useDisconnectWallet, useConnectWallet, useWallets } from '@mysten/dapp-kit';
+import { useCurrentAccount, useDisconnectWallet, useConnectWallet, useWallets, useSignPersonalMessage } from '@mysten/dapp-kit';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, LogOut, Copy, Check, ChevronDown } from 'lucide-react';
 import { Button } from '@/components/ui';
@@ -11,13 +11,57 @@ export function ConnectWallet() {
   const currentAccount = useCurrentAccount();
   const { mutate: disconnect } = useDisconnectWallet();
   const { mutate: connect } = useConnectWallet();
+  const { mutate: signMessage, isPending: isSigning } = useSignPersonalMessage();
   const wallets = useWallets();
-  
+
   const [showDropdown, setShowDropdown] = useState(false);
   const [showWalletSelect, setShowWalletSelect] = useState(false);
   const [copied, setCopied] = useState(false);
-  
-  const { isAuthenticated, login, logout, isLoading } = useAuthStore();
+  const [signingIn, setSigningIn] = useState(false);
+
+  const { isAuthenticated, login, logout, isLoading, fetchUser } = useAuthStore();
+
+  const handleSignIn = async () => {
+    if (!currentAccount?.address) return;
+    setSigningIn(true);
+
+    try {
+      // Get nonce
+      const nonceRes = await fetch('/api/auth/nonce', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: currentAccount.address }),
+      });
+      const nonceData = await nonceRes.json();
+      if (!nonceData.success) {
+        setSigningIn(false);
+        return;
+      }
+
+      // Sign message
+      signMessage(
+        { message: new TextEncoder().encode(nonceData.data.nonce) },
+        {
+          onSuccess: async (sig) => {
+            const success = await login(
+              currentAccount.address,
+              sig.signature,
+              nonceData.data.nonce
+            );
+            if (success) {
+              await fetchUser();
+            }
+            setSigningIn(false);
+          },
+          onError: () => {
+            setSigningIn(false);
+          },
+        }
+      );
+    } catch (err) {
+      setSigningIn(false);
+    }
+  };
 
   const handleConnect = async (walletName: string) => {
     const wallet = wallets.find(w => w.name === walletName);
@@ -106,8 +150,8 @@ export function ConnectWallet() {
   if (!isAuthenticated) {
     return (
       <Button
-        onClick={() => login(currentAccount.address)}
-        isLoading={isLoading}
+        onClick={handleSignIn}
+        isLoading={signingIn || isSigning || isLoading}
         leftIcon={<Wallet size={18} />}
       >
         Sign In

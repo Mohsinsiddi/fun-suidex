@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
@@ -108,26 +108,41 @@ export default function LeaderboardPage() {
   const [loading, setLoading] = useState(true)
   const [page, setPage] = useState(1)
 
+  // Track in-flight request to prevent duplicates (React Strict Mode)
+  const fetchingRef = useRef(false)
+  const lastFetchRef = useRef<string>('')
+
   useEffect(() => {
-    fetchLeaderboard()
+    const fetchKey = `${activeTab}-${page}`
+
+    // Skip if same request is in progress or was just made
+    if (fetchingRef.current || lastFetchRef.current === fetchKey) {
+      return
+    }
+
+    fetchLeaderboard(fetchKey)
   }, [activeTab, page])
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (fetchKey: string) => {
+    fetchingRef.current = true
     setLoading(true)
     try {
       const res = await fetch(`/api/leaderboard?type=${activeTab}&page=${page}&limit=25`)
       const result = await res.json()
       if (result.success) {
         setData(result.data)
+        lastFetchRef.current = fetchKey
       }
     } catch (err) {
       console.error('Failed to fetch leaderboard:', err)
     } finally {
       setLoading(false)
+      fetchingRef.current = false
     }
   }
 
   const handleTabChange = (type: LeaderboardType) => {
+    lastFetchRef.current = '' // Reset to allow new fetch
     setActiveTab(type)
     setPage(1)
   }

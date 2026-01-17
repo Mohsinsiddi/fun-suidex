@@ -1,50 +1,48 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, Gift, DollarSign, Check, ExternalLink } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, SkeletonCardGrid, EmptyState } from '@/components/ui'
-
-interface PendingPrize {
-  _id: string
-  wallet: string
-  prizeType: string
-  prizeAmount: number
-  prizeValueUSD: number
-  lockDuration: string | null
-  status: string
-  createdAt: string
-}
+import { useDistributeStore, type PendingPrize } from '@/lib/stores/admin'
 
 export default function AdminDistributePage() {
   const router = useRouter()
-  const [prizes, setPrizes] = useState<PendingPrize[]>([])
-  const [loading, setLoading] = useState(true)
-  const [processing, setProcessing] = useState<string | null>(null)
+  const {
+    items: prizes,
+    page,
+    totalPages,
+    total,
+    isLoading: loading,
+    error,
+    fetch: fetchPrizes,
+    setPage,
+    refresh,
+    removeItem
+  } = useDistributeStore()
 
-  // Pagination
-  const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
-  const [total, setTotal] = useState(0)
+  const [processing, setProcessing] = useState<string | null>(null)
   const limit = 20
 
-  const fetchPrizes = useCallback(async () => {
-    setLoading(true)
-    try {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
-      const res = await fetch(`/api/admin/distribute?${params}`)
-      if (res.status === 401) { router.push('/admin/login'); return }
-      const data = await res.json()
-      if (data.success) {
-        setPrizes(data.data?.items || [])
-        setTotalPages(data.pagination?.totalPages || 1)
-        setTotal(data.pagination?.total || 0)
-      }
-    } catch (err) { console.error(err) }
-    setLoading(false)
-  }, [page, router])
+  // Fetch on mount
+  useEffect(() => {
+    fetchPrizes(1)
+  }, [])
 
-  useEffect(() => { fetchPrizes() }, [fetchPrizes])
+  // Handle unauthorized
+  useEffect(() => {
+    if (error === 'Unauthorized') {
+      router.push('/admin/login')
+    }
+  }, [error, router])
+
+  const handleRefresh = () => {
+    refresh()
+  }
+
+  const handlePageChange = (newPage: number) => {
+    setPage(newPage)
+  }
 
   const handleDistribute = async (spinId: string, txHash: string) => {
     if (!txHash) return
@@ -56,7 +54,7 @@ export default function AdminDistributePage() {
         body: JSON.stringify({ spinId, txHash }),
       })
       const data = await res.json()
-      if (data.success) setPrizes(prev => prev.filter(p => p._id !== spinId))
+      if (data.success) removeItem(spinId)
     } catch (err) { console.error(err) }
     setProcessing(null)
   }
@@ -78,7 +76,7 @@ export default function AdminDistributePage() {
           <h2 className="text-xl sm:text-2xl font-bold">Prize Distribution</h2>
           <p className="text-text-secondary text-sm sm:text-base">Distribute pending prizes to winners</p>
         </div>
-        <button onClick={fetchPrizes} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
+        <button onClick={handleRefresh} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
@@ -194,7 +192,7 @@ export default function AdminDistributePage() {
             {/* Pagination */}
             <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
-              <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
+              <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
             </div>
           </>
         )}
