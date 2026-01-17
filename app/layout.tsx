@@ -3,6 +3,7 @@ import { Inter, Orbitron, JetBrains_Mono } from 'next/font/google'
 import './globals.css'
 import '@mysten/dapp-kit/dist/index.css'
 import { SuiProvider } from '@/components/providers/SuiProvider'
+import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration'
 
 // ----------------------------------------
 // Fonts
@@ -49,6 +50,23 @@ export const metadata: Metadata = {
   creator: 'SuiDex',
   publisher: 'SuiDex',
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  manifest: '/manifest.json',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'black-translucent',
+    title: 'SuiDex Games',
+    startupImage: '/icons/icon-512.png',
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [
+      { url: '/icons/icon-152.png', sizes: '152x152', type: 'image/png' },
+      { url: '/icons/icon-192.png', sizes: '192x192', type: 'image/png' },
+    ],
+  },
   openGraph: {
     title: 'SuiDex Games',
     description: 'Spin to win Victory tokens! Free daily spins for stakers.',
@@ -93,6 +111,7 @@ export default function RootLayout({
         <SuiProvider>
           {children}
         </SuiProvider>
+        <ServiceWorkerRegistration />
       </body>
     </html>
   )

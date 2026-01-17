@@ -40,6 +40,7 @@ const serverErrorResponse = (message = ERRORS.INTERNAL_ERROR) =>
 /**
  * Wrap an API handler with user authentication
  * Automatically handles token verification and DB connection
+ * Supports both cookie-based auth (web) and Bearer token auth (PWA)
  *
  * Usage:
  * export const GET = withAuth(async (request, { wallet }) => {
@@ -50,8 +51,17 @@ const serverErrorResponse = (message = ERRORS.INTERNAL_ERROR) =>
 export function withAuth(handler: AuthenticatedHandler<AuthContext>) {
   return async (request: NextRequest): Promise<NextResponse> => {
     try {
+      // Try cookie first (web app)
       const cookieStore = await cookies()
-      const token = cookieStore.get('access_token')?.value
+      let token = cookieStore.get('access_token')?.value
+
+      // Try Bearer token if no cookie (PWA)
+      if (!token) {
+        const authHeader = request.headers.get('authorization')
+        if (authHeader?.startsWith('Bearer ')) {
+          token = authHeader.slice(7)
+        }
+      }
 
       if (!token) {
         return unauthorizedResponse()
@@ -124,6 +134,7 @@ export function withAdminAuth(handler: AuthenticatedHandler<AdminAuthContext>) {
 /**
  * Optional auth - doesn't fail if not authenticated
  * Useful for public endpoints that behave differently when logged in
+ * Supports both cookie-based auth (web) and Bearer token auth (PWA)
  *
  * Usage:
  * export const GET = withOptionalAuth(async (request, context) => {
@@ -138,8 +149,17 @@ export function withAdminAuth(handler: AuthenticatedHandler<AdminAuthContext>) {
 export function withOptionalAuth(handler: AuthenticatedHandler<AuthContext | null>) {
   return async (request: NextRequest): Promise<NextResponse> => {
     try {
+      // Try cookie first (web app)
       const cookieStore = await cookies()
-      const token = cookieStore.get('access_token')?.value
+      let token = cookieStore.get('access_token')?.value
+
+      // Try Bearer token if no cookie (PWA)
+      if (!token) {
+        const authHeader = request.headers.get('authorization')
+        if (authHeader?.startsWith('Bearer ')) {
+          token = authHeader.slice(7)
+        }
+      }
 
       let context: AuthContext | null = null
 

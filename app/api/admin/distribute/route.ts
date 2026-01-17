@@ -5,10 +5,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { SpinModel, AdminModel, AdminLogModel } from '@/lib/db/models'
+import { SpinModel, AdminModel, AdminLogModel, UserModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { parsePaginationParams } from '@/lib/utils/pagination'
 import { isValidObjectId, isValidTxHash } from '@/lib/utils/validation'
+import { sendPrizeDistributedPush } from '@/lib/push/webPush'
 
 // GET - Get pending prizes with pagination
 export async function GET(request: NextRequest) {
@@ -127,6 +128,30 @@ export async function POST(request: NextRequest) {
       after: { txHash, wallet: spin.wallet, amount: spin.prizeAmount },
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     })
+
+    // Send push notification if user has PWA push enabled (non-blocking)
+    UserModel.findOne({ wallet: spin.wallet.toLowerCase() })
+      .select('pwaPushSubscription')
+      .lean()
+      .then(async (user) => {
+        if (user?.pwaPushSubscription?.endpoint) {
+          const prizeSymbol = spin.prizeType === 'liquid_victory' ? 'VICT' :
+                              spin.prizeType === 'suitrump' ? 'SUITRUMP' : 'VICT'
+          const result = await sendPrizeDistributedPush(
+            user.pwaPushSubscription,
+            spin.prizeValueUSD,
+            prizeSymbol
+          )
+          if (!result.success && result.error === 'subscription_expired') {
+            // Clean up expired subscription
+            await UserModel.updateOne(
+              { wallet: spin.wallet.toLowerCase() },
+              { $set: { pwaPushSubscription: null } }
+            )
+          }
+        }
+      })
+      .catch((err) => console.error('Push notification error:', err))
 
     return NextResponse.json({ success: true, message: 'Prize marked as distributed' })
   } catch (error) {

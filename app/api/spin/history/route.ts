@@ -7,14 +7,25 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { SpinModel } from '@/lib/db/models'
-import { verifyAccessToken } from '@/lib/auth/jwt'
+import { verifyAccessToken, verifyPWAAccessToken } from '@/lib/auth/jwt'
 import { ERRORS } from '@/constants'
 
 export async function GET(request: NextRequest) {
   try {
-    // Auth check
+    // Auth check - try cookie first (web), then Bearer (PWA)
     const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
+    let token = cookieStore.get('access_token')?.value
+    let isPWA = false
+
+    // Try Bearer token if no cookie
+    if (!token) {
+      const authHeader = request.headers.get('authorization')
+      if (authHeader?.startsWith('Bearer ')) {
+        token = authHeader.slice(7)
+        isPWA = true
+      }
+    }
+
     if (!token) {
       return NextResponse.json(
         { success: false, error: ERRORS.UNAUTHORIZED },
@@ -22,13 +33,20 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    const payload = await verifyAccessToken(token)
+    // Verify token (PWA or regular)
+    const payload = isPWA
+      ? await verifyPWAAccessToken(token)
+      : await verifyAccessToken(token)
+
     if (!payload) {
       return NextResponse.json(
         { success: false, error: ERRORS.SESSION_EXPIRED },
         { status: 401 }
       )
     }
+
+    // For PWA, use the main wallet (not pwaWallet) to get spins
+    const wallet = payload.wallet
 
     // Parse query params
     const { searchParams } = new URL(request.url)
@@ -39,7 +57,7 @@ export async function GET(request: NextRequest) {
     await connectDB()
 
     // Build query
-    const query: Record<string, any> = { wallet: payload.wallet }
+    const query: Record<string, any> = { wallet: wallet.toLowerCase() }
 
     if (filter === 'wins') {
       query.prizeType = { $ne: 'no_prize' }
@@ -62,13 +80,14 @@ export async function GET(request: NextRequest) {
     // Calculate summary stats (only for first page)
     let stats = null
     if (page === 1) {
+      const walletLower = wallet.toLowerCase()
       const [totalSpins, totalWins] = await Promise.all([
-        SpinModel.countDocuments({ wallet: payload.wallet }),
-        SpinModel.countDocuments({ wallet: payload.wallet, prizeType: { $ne: 'no_prize' } }),
+        SpinModel.countDocuments({ wallet: walletLower }),
+        SpinModel.countDocuments({ wallet: walletLower, prizeType: { $ne: 'no_prize' } }),
       ])
 
       const totalWinnings = await SpinModel.aggregate([
-        { $match: { wallet: payload.wallet, prizeType: { $ne: 'no_prize' } } },
+        { $match: { wallet: walletLower, prizeType: { $ne: 'no_prize' } } },
         { $group: { _id: null, total: { $sum: '$prizeValueUSD' } } },
       ])
 

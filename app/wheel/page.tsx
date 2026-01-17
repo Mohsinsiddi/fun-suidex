@@ -7,7 +7,7 @@ import { Footer } from '@/components/shared/Footer'
 import { BuySpinsModal } from '@/components/wheel/BuySpinsModal'
 import { useAuthStore } from '@/lib/stores/authStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
-import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp } from 'lucide-react'
+import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp, RefreshCw } from 'lucide-react'
 
 const DEFAULT_WHEEL_SLOTS = [
   { index: 0, label: "$5", sublabel: "Liquid", color: "#FFD700", amount: "1,667 VICT", type: "liquid_victory", valueUSD: 5, lockType: "LIQUID", tokenSymbol: "VICT" },
@@ -74,6 +74,7 @@ export default function WheelPage() {
   const [error, setError] = useState<string | null>(null)
   const [showBuyModal, setShowBuyModal] = useState(false)
   const [hoveredSlot, setHoveredSlot] = useState<WheelSlot | null>(null)
+  const [isRefreshing, setIsRefreshing] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
 
   // Derived from store
@@ -177,6 +178,12 @@ export default function WheelPage() {
   const handleBuySpinsSuccess = () => {
     // Refresh spins from store after purchase
     refreshSpins()
+  }
+
+  const handleRefreshSpins = async () => {
+    setIsRefreshing(true)
+    await refreshSpins()
+    setIsRefreshing(false)
   }
 
   // Create slice path
@@ -501,9 +508,19 @@ export default function WheelPage() {
               ) : (
                 <>
                   <div className="bg-surface rounded-xl border border-border p-3">
-                    <h3 className="text-white font-bold text-sm mb-3 flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-accent" /> Your Spins
-                    </h3>
+                    <div className="flex items-center justify-between mb-3">
+                      <h3 className="text-white font-bold text-sm flex items-center gap-2">
+                        <Sparkles className="w-4 h-4 text-accent" /> Your Spins
+                      </h3>
+                      <button
+                        onClick={handleRefreshSpins}
+                        disabled={isRefreshing}
+                        className="p-1.5 rounded-lg bg-background hover:bg-white/10 text-text-secondary hover:text-accent transition-all disabled:opacity-50"
+                        title="Refresh spins"
+                      >
+                        <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
+                      </button>
+                    </div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between p-2.5 bg-background rounded-lg">
                         <div className="flex items-center gap-2"><Gift className="w-4 h-4 text-accent" /><span className="text-text-secondary text-sm">Free</span></div>

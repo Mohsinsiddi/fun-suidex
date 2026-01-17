@@ -133,6 +133,90 @@ export async function verifyAdminToken(token: string): Promise<AdminJWTPayload |
 }
 
 // ----------------------------------------
+// PWA JWT Functions
+// ----------------------------------------
+
+export interface PWAJWTPayload extends JosePayload {
+  wallet: string      // Main wallet address
+  pwaWallet: string   // Derived PWA wallet address
+  sessionId: string
+  type: 'pwa_access' | 'pwa_refresh'
+}
+
+/**
+ * Create a PWA access token (1 hour expiry - requires PIN re-entry)
+ */
+export async function createPWAAccessToken(
+  wallet: string,
+  pwaWallet: string,
+  sessionId: string
+): Promise<string> {
+  const token = await new SignJWT({
+    wallet,
+    pwaWallet,
+    sessionId,
+    type: 'pwa_access',
+  } as PWAJWTPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('1h')
+    .sign(getJWTSecret())
+
+  return token
+}
+
+/**
+ * Create a PWA refresh token (30 day expiry)
+ */
+export async function createPWARefreshToken(
+  wallet: string,
+  pwaWallet: string,
+  sessionId: string
+): Promise<string> {
+  const token = await new SignJWT({
+    wallet,
+    pwaWallet,
+    sessionId,
+    type: 'pwa_refresh',
+  } as PWAJWTPayload)
+    .setProtectedHeader({ alg: 'HS256' })
+    .setIssuedAt()
+    .setExpirationTime('30d')
+    .sign(getRefreshSecret())
+
+  return token
+}
+
+/**
+ * Verify a PWA access token
+ */
+export async function verifyPWAAccessToken(token: string): Promise<PWAJWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getJWTSecret())
+    const pwaPayload = payload as unknown as PWAJWTPayload
+    // Ensure it's a PWA token
+    if (pwaPayload.type !== 'pwa_access') return null
+    return pwaPayload
+  } catch {
+    return null
+  }
+}
+
+/**
+ * Verify a PWA refresh token
+ */
+export async function verifyPWARefreshToken(token: string): Promise<PWAJWTPayload | null> {
+  try {
+    const { payload } = await jwtVerify(token, getRefreshSecret())
+    const pwaPayload = payload as unknown as PWAJWTPayload
+    if (pwaPayload.type !== 'pwa_refresh') return null
+    return pwaPayload
+  } catch {
+    return null
+  }
+}
+
+// ----------------------------------------
 // Hash Functions (for refresh tokens)
 // ----------------------------------------
 

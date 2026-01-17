@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" style="stop-color:#00e5ff"/>
+      <stop offset="100%" style="stop-color:#00b8d4"/>
+    </linearGradient>
+  </defs>
+  <!-- Background -->
+  <rect width="512" height="512" rx="96" fill="url(#bg)"/>
+  <!-- Gamepad icon -->
+  <g transform="translate(96, 128)" fill="#050609">
+    <!-- Controller body -->
+    <path d="M280 0H40C17.9 0 0 17.9 0 40v176c0 22.1 17.9 40 40 40h56.5c11.4 0 22.3-4.9 29.8-13.5L160 204l33.7 38.5c7.5 8.6 18.4 13.5 29.8 13.5H280c22.1 0 40-17.9 40-40V40c0-22.1-17.9-40-40-40z"/>
+    <!-- D-pad -->
+    <rect x="56" y="72" width="24" height="72" rx="4" fill="#00e5ff"/>
+    <rect x="32" y="96" width="72" height="24" rx="4" fill="#00e5ff"/>
+    <!-- Buttons -->
+    <circle cx="248" cy="84" r="18" fill="#00e5ff"/>
+    <circle cx="288" cy="124" r="18" fill="#00e5ff"/>
+    <circle cx="208" cy="124" r="18" fill="#00e5ff"/>
+    <circle cx="248" cy="164" r="18" fill="#00e5ff"/>
+  </g>
+  <!-- S letter -->
+  <text x="256" y="420" font-family="Arial, sans-serif" font-size="100" font-weight="bold" fill="#050609" text-anchor="middle">SuiDex</text>
+</svg>

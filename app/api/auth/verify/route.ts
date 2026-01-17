@@ -5,6 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
+import { verifyPersonalMessageSignature } from '@mysten/sui/verify'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, ReferralModel } from '@/lib/db/models'
 import { createAccessToken, createRefreshToken, hashToken } from '@/lib/auth/jwt'
@@ -12,6 +13,7 @@ import { generateSessionId } from '@/lib/utils/nanoid'
 import { checkRateLimit } from '@/lib/utils/rateLimit'
 import { validateBody, authVerifySchema } from '@/lib/validations'
 import { errors, success } from '@/lib/utils/apiResponse'
+import { validateAndConsumeNonce } from '@/lib/auth/nonceStore'
 
 export async function POST(request: NextRequest) {
   try {
@@ -32,8 +34,23 @@ export async function POST(request: NextRequest) {
       return errors.badRequest('Invalid nonce format')
     }
 
-    // Validate signature (basic check - actual verification happens on client)
-    if (!signature || signature.length < 10) {
+    // Validate and consume nonce (one-time use, prevents replay attacks)
+    const nonceResult = validateAndConsumeNonce(wallet, nonce)
+    if (!nonceResult.valid) {
+      return errors.badRequest(nonceResult.reason)
+    }
+
+    // Cryptographically verify the signature
+    try {
+      const messageBytes = new TextEncoder().encode(nonce)
+      const publicKey = await verifyPersonalMessageSignature(messageBytes, signature)
+      const signerAddress = publicKey.toSuiAddress().toLowerCase()
+
+      if (signerAddress !== wallet.toLowerCase()) {
+        return errors.unauthorized('Signature does not match wallet address')
+      }
+    } catch (sigError) {
+      console.error('Signature verification failed:', sigError)
       return errors.unauthorized('Invalid signature')
     }
 

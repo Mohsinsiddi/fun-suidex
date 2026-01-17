@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, SpinModel, AdminConfigModel, ReferralModel, AffiliateRewardModel, UserProfileModel } from '@/lib/db/models'
-import { verifyAccessToken } from '@/lib/auth/jwt'
+import { verifyAccessToken, verifyPWAAccessToken } from '@/lib/auth/jwt'
 import { selectPrizeSlot, getWeekEndingDate, calculateReferralCommission } from '@/lib/utils/prizes'
 import { generateReferralLink } from '@/lib/referral'
 import { generateTweetIntentUrl } from '@/lib/twitter'
@@ -10,17 +10,39 @@ import { updateStreak, checkAndAwardBadges } from '@/lib/badges'
 import { checkWalletAndIPRateLimit } from '@/lib/utils/rateLimit'
 import { ERRORS } from '@/constants'
 
+// Helper to get auth from cookie or Bearer token
+async function getAuthPayload(request: NextRequest) {
+  const cookieStore = await cookies()
+  let token = cookieStore.get('access_token')?.value
+  let isPWA = false
+
+  if (!token) {
+    const authHeader = request.headers.get('authorization')
+    if (authHeader?.startsWith('Bearer ')) {
+      token = authHeader.slice(7)
+      isPWA = true
+    }
+  }
+
+  if (!token) return null
+
+  const payload = isPWA
+    ? await verifyPWAAccessToken(token)
+    : await verifyAccessToken(token)
+
+  return payload
+}
+
 export async function POST(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-    if (!token) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
+    const payload = await getAuthPayload(request)
+    if (!payload) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
 
-    const payload = await verifyAccessToken(token)
-    if (!payload) return NextResponse.json({ success: false, error: ERRORS.SESSION_EXPIRED }, { status: 401 })
+    // Use main wallet for spins (PWA wallet is linked to main wallet)
+    const wallet = payload.wallet
 
     // Rate limit by both wallet AND IP
-    const rateCheck = checkWalletAndIPRateLimit(request, payload.wallet, 'spin')
+    const rateCheck = checkWalletAndIPRateLimit(request, wallet, 'spin')
     if (!rateCheck.allowed) {
       return NextResponse.json(
         {
@@ -50,7 +72,7 @@ export async function POST(request: NextRequest) {
     // ATOMIC: Determine spin type and decrement in one operation
     // Try bonus spins first, then purchased spins
     let user = await UserModel.findOneAndUpdate(
-      { wallet: payload.wallet, bonusSpins: { $gt: 0 } },
+      { wallet: wallet, bonusSpins: { $gt: 0 } },
       { $inc: { bonusSpins: -1 } },
       { new: true }
     )
@@ -59,7 +81,7 @@ export async function POST(request: NextRequest) {
     if (!user) {
       // No bonus spins, try purchased spins
       user = await UserModel.findOneAndUpdate(
-        { wallet: payload.wallet, purchasedSpins: { $gt: 0 } },
+        { wallet: wallet, purchasedSpins: { $gt: 0 } },
         { $inc: { purchasedSpins: -1 } },
         { new: true }
       )
@@ -68,7 +90,7 @@ export async function POST(request: NextRequest) {
 
     if (!user) {
       // Check if user exists but has no spins
-      const existingUser = await UserModel.findOne({ wallet: payload.wallet })
+      const existingUser = await UserModel.findOne({ wallet: wallet })
       if (!existingUser) {
         return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
       }
@@ -86,7 +108,7 @@ export async function POST(request: NextRequest) {
     }
 
     const spin = await SpinModel.create({
-      wallet: payload.wallet,
+      wallet: wallet,
       spinType,
       serverSeed,
       randomValue,
@@ -111,19 +133,19 @@ export async function POST(request: NextRequest) {
       statsUpdate.$inc.totalWinsUSD = slot.valueUSD
       // Update biggest win if this is larger
       await UserModel.updateOne(
-        { wallet: payload.wallet, biggestWinUSD: { $lt: slot.valueUSD } },
+        { wallet: wallet, biggestWinUSD: { $lt: slot.valueUSD } },
         { $set: { biggestWinUSD: slot.valueUSD } }
       )
     }
-    await UserModel.updateOne({ wallet: payload.wallet }, statsUpdate)
+    await UserModel.updateOne({ wallet: wallet }, statsUpdate)
 
     // Update streak, badges, and profile stats (non-blocking)
     Promise.all([
-      updateStreak(payload.wallet),
-      checkAndAwardBadges(payload.wallet),
+      updateStreak(wallet),
+      checkAndAwardBadges(wallet),
       // Update profile stats if user has a profile
       UserProfileModel.updateOne(
-        { wallet: payload.wallet },
+        { wallet: wallet },
         {
           $inc: { 'stats.totalSpins': 1, 'stats.totalWinsUSD': slot.valueUSD || 0 },
           $set: { 'stats.lastActive': new Date() },
@@ -138,9 +160,9 @@ export async function POST(request: NextRequest) {
 
       await AffiliateRewardModel.create({
         referrerWallet: referredBy,
-        refereeWallet: payload.wallet,
+        refereeWallet: wallet,
         fromSpinId: spin._id,
-        fromWallet: payload.wallet,
+        fromWallet: wallet,
         originalPrizeVICT: slot.amount,
         originalPrizeUSD: slot.valueUSD,
         commissionRate: config.referralCommissionPercent / 100,
@@ -154,13 +176,13 @@ export async function POST(request: NextRequest) {
       })
 
       await ReferralModel.updateOne(
-        { referredWallet: payload.wallet },
+        { referredWallet: wallet },
         { $inc: { totalSpinsByReferred: 1, totalCommissionVICT: referralCommission }, $set: { lastActivityAt: new Date() } }
       )
     }
 
     // Re-fetch user to get accurate spin counts after all updates
-    const updatedUser = await UserModel.findOne({ wallet: payload.wallet }).lean()
+    const updatedUser = await UserModel.findOne({ wallet: wallet }).lean()
 
     return NextResponse.json({
       success: true,
@@ -191,15 +213,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieStore = await cookies()
-    const token = cookieStore.get('access_token')?.value
-    if (!token) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
+    const payload = await getAuthPayload(request)
+    if (!payload) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
 
-    const payload = await verifyAccessToken(token)
-    if (!payload) return NextResponse.json({ success: false, error: ERRORS.SESSION_EXPIRED }, { status: 401 })
+    const wallet = payload.wallet
 
     await connectDB()
-    const user = await UserModel.findOne({ wallet: payload.wallet })
+    const user = await UserModel.findOne({ wallet })
     if (!user) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
 
     const canSpin = user.purchasedSpins > 0 || user.bonusSpins > 0

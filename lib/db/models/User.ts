@@ -18,6 +18,15 @@ const SessionSchema = new Schema<UserSession>({
   isActive: { type: Boolean, default: true },
 }, { _id: false })
 
+// PWA Push Subscription Schema
+const PushSubscriptionSchema = new Schema({
+  endpoint: { type: String, required: true },
+  keys: {
+    p256dh: { type: String, required: true },
+    auth: { type: String, required: true },
+  },
+}, { _id: false })
+
 const UserSchema = new Schema<UserDocument>({
   wallet: { type: String, required: true, unique: true, lowercase: true },
   sessions: { type: [SessionSchema], default: [] },
@@ -48,11 +57,16 @@ const UserSchema = new Schema<UserDocument>({
   isProfilePublic: { type: Boolean, default: false },
   profileUnlockedAt: { type: Date, default: null },
 
+  // PWA (Progressive Web App)
+  pwaWallet: { type: String, unique: true, sparse: true, lowercase: true },
+  pwaLinkedAt: { type: Date, default: null },
+  pwaPushSubscription: { type: PushSubscriptionSchema, default: null },
+
   // Seed data marker (for testing/development)
   isSeedUser: { type: Boolean, default: false },
 }, { timestamps: true })
 
-// Primary indexes (wallet and referralCode already indexed via unique: true)
+// Primary indexes (wallet, referralCode, pwaWallet already indexed via unique: true)
 UserSchema.index({ referredBy: 1 })
 
 // Session indexes

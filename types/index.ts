@@ -43,6 +43,11 @@ export interface User {
   isProfilePublic: boolean
   profileUnlockedAt: Date | null
 
+  // PWA (Progressive Web App)
+  pwaWallet: string | null
+  pwaLinkedAt: Date | null
+  pwaPushSubscription: PushSubscription | null
+
   // Seed data marker (for testing/development)
   isSeedUser?: boolean
 
@@ -50,6 +55,15 @@ export interface User {
   createdAt: Date
   updatedAt: Date
   lastActiveAt: Date
+}
+
+// Push notification subscription
+export interface PushSubscription {
+  endpoint: string
+  keys: {
+    p256dh: string
+    auth: string
+  }
 }
 
 export interface UserSession {

@@ -29,6 +29,7 @@ import {
 import type { BadgeTier } from '@/types/badge'
 import { useAuthStore } from '@/lib/stores/authStore'
 import { useBadgesStore } from '@/lib/stores/badgesStore'
+import { PWAStatusCard } from '@/components/pwa/PWAStatusCard'
 
 interface ProfileData {
   wallet: string
@@ -430,6 +431,16 @@ export default function ProfileSettingsPage() {
                   </button>
                 </div>
               </div>
+
+              {/* PWA Access */}
+              {wallet && (
+                <div className="space-y-2">
+                  <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                    <span>📱</span> Mobile App (PWA)
+                  </h2>
+                  <PWAStatusCard wallet={wallet} isAuthenticated={isAuthenticated} />
+                </div>
+              )}
 
               {/* Stats Preview */}
               {profile && (
