@@ -12,7 +12,13 @@
     "admin:delete": "tsx scripts/admin-delete.ts",
     "seed:defaults": "tsx scripts/seed-defaults.ts",
     "seed:mock": "tsx scripts/seed-mock-data.ts",
-    "migrate:admin-badges": "tsx scripts/migrate-admin-badges.ts"
+    "migrate:admin-badges": "tsx scripts/migrate-admin-badges.ts",
+    "test": "playwright test",
+    "test:ui": "playwright test --ui",
+    "test:headed": "playwright test --headed",
+    "test:user": "playwright test user-pages",
+    "test:admin": "playwright test admin-pages",
+    "test:report": "playwright show-report"
   },
   "dependencies": {
     "@mysten/dapp-kit": "0.14.37",
@@ -31,6 +37,7 @@
     "zustand": "5.0.2"
   },
   "devDependencies": {
+    "@playwright/test": "^1.57.0",
     "@types/node": "20.17.10",
     "@types/react": "18.3.17",
     "@types/react-dom": "18.3.5",
