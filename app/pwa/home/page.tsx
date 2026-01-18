@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore } from '@/lib/stores/pwaAuthStore'
@@ -22,6 +22,7 @@ import {
   Zap,
   TrendingUp,
   Gift,
+  Radio,
 } from 'lucide-react'
 
 interface Activity {
@@ -98,6 +99,12 @@ export default function PWAHomePage() {
   const [refreshing, setRefreshing] = useState(false)
   const [fetchingFeed, setFetchingFeed] = useState(false)
 
+  // Live feed countdown and animations
+  const [countdown, setCountdown] = useState(10)
+  const [lastUpdatedAt, setLastUpdatedAt] = useState<number>(Date.now())
+  const [newActivityIds, setNewActivityIds] = useState<Set<string>>(new Set())
+  const previousIdsRef = useRef<Set<string>>(new Set())
+
   const totalSpins = purchasedSpins + bonusSpins
 
   useEffect(() => {
@@ -119,6 +126,30 @@ export default function PWAHomePage() {
     }
   }, [mounted, isAuthenticated])
 
+  // Auto-refresh activity feed every 10 seconds (like web)
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return
+
+    const interval = setInterval(() => {
+      fetchActivityFeed(true) // Force refresh, bypass cache
+    }, 10000)
+
+    return () => clearInterval(interval)
+  }, [mounted, isAuthenticated])
+
+  // Countdown timer for next refresh (like web)
+  useEffect(() => {
+    if (!mounted || !isAuthenticated) return
+
+    const interval = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - lastUpdatedAt) / 1000)
+      const remaining = Math.max(0, 10 - elapsed)
+      setCountdown(remaining)
+    }, 1000)
+
+    return () => clearInterval(interval)
+  }, [mounted, isAuthenticated, lastUpdatedAt])
+
   const fetchActivityFeed = async (force = false) => {
     // Use cache if fresh
     if (!force && activityCache && Date.now() - activityCache.timestamp < ACTIVITY_CACHE_DURATION) {
@@ -135,9 +166,28 @@ export default function PWAHomePage() {
       const res = await fetch('/api/activity?limit=10')
       const data = await res.json()
       if (data.success) {
-        setActivities(data.data.activities)
+        const newActivities = data.data.activities || []
+
+        // Track new activities for animations
+        const currentIds = new Set<string>(newActivities.map((a: Activity) => a.id))
+        const newIds = new Set<string>()
+        currentIds.forEach((id: string) => {
+          if (!previousIdsRef.current.has(id)) {
+            newIds.add(id)
+          }
+        })
+
+        // Only animate if we had previous data and found new items
+        if (previousIdsRef.current.size > 0 && newIds.size > 0) {
+          setNewActivityIds(newIds)
+          setTimeout(() => setNewActivityIds(new Set()), 1500)
+        }
+        previousIdsRef.current = currentIds
+
+        setActivities(newActivities)
+        setLastUpdatedAt(Date.now())
         // Update cache
-        activityCache = { data: data.data.activities, timestamp: Date.now() }
+        activityCache = { data: newActivities, timestamp: Date.now() }
       }
     } catch (err) {
       console.error('Activity feed error:', err)
@@ -261,10 +311,46 @@ export default function PWAHomePage() {
       {/* Live Feed Section */}
       <div className="px-4 py-3 flex-1">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-sm font-bold text-white flex items-center gap-2">
-            <TrendingUp className="w-4 h-4 text-green-400" />
-            Live Wins
-          </h2>
+          <div className="flex items-center gap-2">
+            <div className="relative">
+              <TrendingUp className="w-4 h-4 text-green-400" />
+              <span className="absolute -top-0.5 -right-0.5 flex h-1.5 w-1.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-green-400"></span>
+              </span>
+            </div>
+            <h2 className="text-sm font-bold text-white">Live Wins</h2>
+            <span className="px-1.5 py-0.5 rounded bg-green-400/10 border border-green-400/30 text-[8px] font-medium text-green-400 uppercase tracking-wide">
+              Live
+            </span>
+          </div>
+          <div className="text-[9px] text-text-muted">
+            {fetchingFeed ? (
+              <span className="flex items-center gap-1">
+                <span className="w-1 h-1 rounded-full bg-accent animate-pulse"></span>
+                Updating...
+              </span>
+            ) : (
+              <span>in {countdown}s</span>
+            )}
+          </div>
+        </div>
+
+        {/* Live Feed Indicator with progress bar */}
+        <div className="flex items-center justify-between gap-2 mb-3 px-2 py-1.5 rounded-lg bg-green-400/5 border border-green-400/20">
+          <div className="flex items-center gap-1.5">
+            <Radio className="w-3 h-3 text-green-400 animate-pulse" />
+            <span className="text-[9px] text-green-400 font-semibold">LIVE FEED</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[8px] text-text-muted">Auto-refresh</span>
+            <div className="w-6 h-1 rounded-full bg-green-400/20 overflow-hidden">
+              <div
+                className="h-full bg-green-400 rounded-full transition-all duration-1000"
+                style={{ width: `${(countdown / 10) * 100}%` }}
+              />
+            </div>
+          </div>
         </div>
 
         {/* Activity Feed */}
@@ -287,16 +373,22 @@ export default function PWAHomePage() {
               No recent activity
             </div>
           ) : (
-            activities.map((activity) => {
+            activities.map((activity, index) => {
               const config = prizeConfig[activity.prizeType]
               const Icon = config.Icon
               const avatarSvg = generateAvatarSVG(activity.wallet, 28)
               const avatarDataUrl = `data:image/svg+xml;base64,${typeof window !== 'undefined' ? btoa(avatarSvg) : ''}`
+              const isNew = newActivityIds.has(activity.id)
 
               return (
                 <div
                   key={activity.id}
-                  className="bg-surface rounded-xl border border-border p-2.5 flex items-center gap-2.5"
+                  className={`bg-surface rounded-xl border p-2.5 flex items-center gap-2.5 transition-all duration-500 ${
+                    isNew
+                      ? 'border-green-400/50 bg-green-400/5 animate-slideIn'
+                      : 'border-border'
+                  }`}
+                  style={{ animationDelay: `${index * 50}ms` }}
                 >
                   {/* Avatar */}
                   <div className="relative flex-shrink-0">
@@ -360,6 +452,23 @@ export default function PWAHomePage() {
           </Link>
         </div>
       </div>
+
+      {/* Animation Styles for live feed */}
+      <style jsx global>{`
+        @keyframes slideIn {
+          0% {
+            opacity: 0;
+            transform: translateY(-10px);
+          }
+          100% {
+            opacity: 1;
+            transform: translateY(0);
+          }
+        }
+        .animate-slideIn {
+          animation: slideIn 0.4s ease-out;
+        }
+      `}</style>
     </div>
   )
 }
