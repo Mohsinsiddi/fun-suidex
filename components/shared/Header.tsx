@@ -3,7 +3,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from '@mysten/dapp-kit'
-import { Menu, X, Gamepad2, Users, ChevronDown, Play, Clock, User, Trophy } from 'lucide-react'
+import { Menu, X, Gamepad2, Users, ChevronDown, Play, Clock, User, Trophy, FileText } from 'lucide-react'
 import { useState, useRef, useEffect } from 'react'
 
 const GAMES = [
@@ -151,7 +151,7 @@ export function Header() {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-medium transition-all ${isActive('/leaderboard') ? 'bg-accent text-black shadow-md shadow-accent/30' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
               >
                 <Trophy className="w-4 h-4" />
-                <span>Ranks</span>
+                <span>Leaderboard</span>
               </Link>
 
               {/* Profile */}
@@ -180,105 +180,192 @@ export function Header() {
             </div>
           </div>
 
-          {/* Mobile Menu */}
-          {mobileMenuOpen && (
-            <nav className="lg:hidden py-3 border-t border-border/50 space-y-1">
-              {/* Wallet Connect at Top */}
-              <div className="px-4 py-2">
-                <div className="connect-button-wrapper-mobile">
-                  <ConnectButton connectText="Connect Wallet" />
-                </div>
-              </div>
-
-              {/* Divider */}
-              <div className="h-px bg-border mx-4 my-2" />
-
-              {/* Home */}
-              <Link
-                href="/"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/') ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-              >
-                <span className="font-medium">Home</span>
-              </Link>
-
-              {/* Games Section */}
-              <div className="px-4 py-2">
-                <div className="text-[10px] font-semibold text-accent uppercase tracking-wider flex items-center gap-2 mb-2">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
-                  Play Now
-                </div>
-                {GAMES.filter(g => g.status === 'live').map((game) => (
-                  <Link
-                    key={game.href}
-                    href={game.href}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-xl transition-all ${isActive(game.href) ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-                  >
-                    <span className="text-xl">{game.icon}</span>
-                    <div>
-                      <div className="font-medium">{game.label}</div>
-                      <div className="text-xs text-text-muted">{game.description}</div>
-                    </div>
-                  </Link>
-                ))}
-              </div>
-
-              {/* Coming Soon Section */}
-              <div className="px-4 py-2">
-                <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2 mb-2">
-                  <Clock className="w-3 h-3" />
-                  Coming Soon
-                </div>
-                {GAMES.filter(g => g.status === 'soon').map((game) => (
-                  <div
-                    key={game.label}
-                    className="flex items-center gap-3 px-3 py-3 rounded-xl text-text-muted opacity-50"
-                  >
-                    <span className="text-xl grayscale">{game.icon}</span>
-                    <div>
-                      <div className="font-medium">{game.label}</div>
-                      <div className="text-xs">{game.description}</div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Divider */}
-              <div className="h-px bg-border mx-4 my-2" />
-
-              {/* Earn */}
-              <Link
-                href="/referral"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/referral') ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-              >
-                <Users className="w-5 h-5" />
-                <span className="font-medium">Earn</span>
-              </Link>
-
-              {/* Leaderboard */}
-              <Link
-                href="/leaderboard"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/leaderboard') ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-              >
-                <Trophy className="w-5 h-5" />
-                <span className="font-medium">Ranks</span>
-              </Link>
-
-              {/* Profile */}
-              <Link
-                href="/profile"
-                onClick={() => setMobileMenuOpen(false)}
-                className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all ${isActive('/profile') ? 'bg-accent/10 text-accent border border-accent/30' : 'text-text-secondary hover:bg-white/5 hover:text-white'}`}
-              >
-                <User className="w-5 h-5" />
-                <span className="font-medium">Profile</span>
-              </Link>
-            </nav>
-          )}
         </div>
+      </div>
+
+      {/* Mobile Sidebar Overlay */}
+      <div
+        className={`fixed inset-0 z-[60] lg:hidden transition-all duration-300 ${
+          mobileMenuOpen ? 'opacity-100 visible' : 'opacity-0 invisible pointer-events-none'
+        }`}
+      >
+        {/* Backdrop */}
+        <div
+          className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+
+        {/* Sidebar */}
+        <aside
+          className={`absolute top-0 left-0 bottom-0 w-[300px] max-w-[85vw] bg-[#0a0c10] border-r border-border shadow-2xl transition-transform duration-300 ease-out flex flex-col ${
+            mobileMenuOpen ? 'translate-x-0' : '-translate-x-full'
+          }`}
+        >
+          {/* Sidebar Header */}
+          <div className="flex items-center justify-between p-4 border-b border-border">
+            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
+              <div className="w-9 h-9 bg-gradient-to-br from-accent to-secondary rounded-lg flex items-center justify-center">
+                <Gamepad2 className="w-5 h-5 text-black" />
+              </div>
+              <div className="flex flex-col">
+                <span className="font-bold text-lg leading-tight">
+                  <span className="text-accent">Sui</span>
+                  <span className="text-white">Dex</span>
+                </span>
+                <span className="text-[9px] text-text-muted uppercase tracking-widest">Games</span>
+              </div>
+            </Link>
+            <button
+              onClick={() => setMobileMenuOpen(false)}
+              className="p-2 rounded-lg text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
+
+          {/* Navigation */}
+          <nav className="flex-1 overflow-y-auto p-3 space-y-2">
+            {/* Wallet Connect */}
+            <div className="p-1 mb-2">
+              <div className="connect-button-wrapper-mobile">
+                <ConnectButton connectText="Connect Wallet" />
+              </div>
+            </div>
+
+            {/* Home */}
+            <Link
+              href="/"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                isActive('/')
+                  ? 'bg-accent/15 text-accent border-accent/50'
+                  : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive('/') ? 'bg-accent/20' : 'bg-white/5'}`}>
+                <Gamepad2 className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Home</span>
+            </Link>
+
+            {/* Games Section */}
+            <div className="pt-2">
+              <div className="text-[10px] font-semibold text-green-400 uppercase tracking-wider flex items-center gap-2 mb-2 px-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                Play Now
+              </div>
+              {GAMES.filter(g => g.status === 'live').map((game) => (
+                <Link
+                  key={game.href}
+                  href={game.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border mb-2 ${
+                    isActive(game.href)
+                      ? 'bg-accent/15 text-accent border-accent/50'
+                      : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+                  }`}
+                >
+                  <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-lg ${isActive(game.href) ? 'bg-accent/20' : 'bg-white/5'}`}>
+                    {game.icon}
+                  </div>
+                  <div>
+                    <div className="font-medium">{game.label}</div>
+                    <div className="text-xs text-text-muted">{game.description}</div>
+                  </div>
+                </Link>
+              ))}
+            </div>
+
+            {/* Coming Soon */}
+            <div className="pt-2">
+              <div className="text-[10px] font-semibold text-text-muted uppercase tracking-wider flex items-center gap-2 mb-2 px-2">
+                <Clock className="w-3 h-3" />
+                Coming Soon
+              </div>
+              {GAMES.filter(g => g.status === 'soon').map((game) => (
+                <div
+                  key={game.label}
+                  className="flex items-center gap-3 px-4 py-3 rounded-xl border bg-surface/30 border-border/50 opacity-50 mb-2"
+                >
+                  <div className="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-lg bg-white/5 grayscale">
+                    {game.icon}
+                  </div>
+                  <div>
+                    <div className="font-medium text-text-muted">{game.label}</div>
+                    <div className="text-xs text-text-muted">{game.description}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Divider */}
+            <div className="h-px bg-border my-2" />
+
+            {/* Earn */}
+            <Link
+              href="/referral"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                isActive('/referral')
+                  ? 'bg-accent/15 text-accent border-accent/50'
+                  : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive('/referral') ? 'bg-accent/20' : 'bg-white/5'}`}>
+                <Users className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Earn</span>
+            </Link>
+
+            {/* Leaderboard */}
+            <Link
+              href="/leaderboard"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                isActive('/leaderboard')
+                  ? 'bg-accent/15 text-accent border-accent/50'
+                  : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive('/leaderboard') ? 'bg-accent/20' : 'bg-white/5'}`}>
+                <Trophy className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Leaderboard</span>
+            </Link>
+
+            {/* Profile */}
+            <Link
+              href="/profile"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                isActive('/profile')
+                  ? 'bg-accent/15 text-accent border-accent/50'
+                  : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive('/profile') ? 'bg-accent/20' : 'bg-white/5'}`}>
+                <User className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Profile</span>
+            </Link>
+
+            {/* Docs */}
+            <Link
+              href="/docs"
+              onClick={() => setMobileMenuOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl transition-all border ${
+                isActive('/docs')
+                  ? 'bg-accent/15 text-accent border-accent/50'
+                  : 'bg-surface/80 text-text-secondary border-border hover:text-white hover:bg-surface hover:border-white/20'
+              }`}
+            >
+              <div className={`w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0 ${isActive('/docs') ? 'bg-accent/20' : 'bg-white/5'}`}>
+                <FileText className="w-4 h-4" />
+              </div>
+              <span className="font-medium">Docs</span>
+            </Link>
+          </nav>
+        </aside>
       </div>
 
       {/* ConnectButton style overrides */}

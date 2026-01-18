@@ -117,6 +117,15 @@ export function Footer() {
               <ul className="space-y-2.5">
                 <li>
                   <Link
+                    href="/docs"
+                    className="group flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
+                  >
+                    <span>Documentation</span>
+                    <ChevronRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-accent" />
+                  </Link>
+                </li>
+                <li>
+                  <Link
                     href="/referral"
                     className="group flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
                   >
