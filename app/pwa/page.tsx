@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import { usePWAAuthStore } from '@/lib/stores/pwaAuthStore'
+import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import {
   getStoredWallet,
   decryptWithPIN,
@@ -18,7 +18,7 @@ import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 export default function PWALoginPage() {
   const router = useRouter()
-  const { isAuthenticated, setTokens, setUser, logout } = usePWAAuthStore()
+  const { isAuthenticated, setTokens, setUser, logout, isSessionLocked, unlockSession, setSpins } = usePWAAuthStore()
 
   const [mounted, setMounted] = useState(false)
   const [hasStoredWallet, setHasStoredWallet] = useState(false)
@@ -77,7 +77,40 @@ export default function PWALoginPage() {
       // Success - reset attempts
       trackPINAttempt(true)
 
-      // Create keypair from decrypted seed
+      // Check if this is a locked session (returning user) or new login
+      if (isSessionLocked) {
+        // Session was locked due to visibility change
+        // Unlock and fetch fresh data
+        unlockSession()
+
+        // Fetch fresh user data
+        try {
+          const meRes = await pwaFetch('/api/auth/me')
+          const meData = await meRes.json()
+          if (meData.success) {
+            const userData = meData.data
+            setSpins(
+              {
+                free: userData.freeSpins || 0,
+                purchased: userData.purchasedSpins || 0,
+                bonus: userData.bonusSpins || 0,
+              },
+              {
+                totalSpins: userData.totalSpins || 0,
+                totalWinsUSD: userData.totalWinsUSD || 0,
+              }
+            )
+          }
+        } catch (fetchErr) {
+          console.warn('Failed to fetch fresh data after unlock:', fetchErr)
+        }
+
+        // Navigate to home
+        router.replace('/pwa/home')
+        return
+      }
+
+      // New login - authenticate with backend
       const keypair = Ed25519Keypair.deriveKeypairFromSeed(privateKey)
       const pwaWallet = keypair.getPublicKey().toSuiAddress()
 
@@ -128,7 +161,7 @@ export default function PWALoginPage() {
       setError('Login failed. Please try again.')
       setIsLoading(false)
     }
-  }, [router, setTokens, setUser, logout])
+  }, [router, setTokens, setUser, logout, isSessionLocked, unlockSession, setSpins])
 
   const handleClearWallet = () => {
     clearStoredWallet()
@@ -155,6 +188,16 @@ export default function PWALoginPage() {
         setTransferError(data.error || 'Invalid or expired code')
         setTransferLoading(false)
         return
+      }
+
+      // Clear any existing wallet data before storing new one
+      // This ensures clean slate for new transfer
+      clearStoredWallet()
+      logout()
+
+      // Clear Zustand persisted storage
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('suidex-pwa-auth')
       }
 
       // Store the encrypted wallet data
@@ -285,9 +328,9 @@ export default function PWALoginPage() {
 
         <p className="text-text-muted text-xs mb-6">or</p>
 
-        {/* Setup Instructions */}
-        <div className="bg-surface/60 rounded-xl border border-border p-4 mb-6 max-w-xs w-full">
-          <h3 className="text-white font-medium text-sm mb-3">How to get a code:</h3>
+        {/* Setup Instructions - Simplified */}
+        <div className="bg-surface/60 rounded-xl border border-border p-4 mb-4 max-w-xs w-full">
+          <h3 className="text-white font-medium text-sm mb-3">How to set up PWA:</h3>
           <ol className="space-y-2 text-xs text-text-secondary">
             <li className="flex gap-2">
               <span className="text-accent font-bold flex-shrink-0">1.</span>
@@ -303,13 +346,19 @@ export default function PWALoginPage() {
             </li>
             <li className="flex gap-2">
               <span className="text-accent font-bold flex-shrink-0">4.</span>
-              <span>Copy the <strong className="text-white">8-character code</strong></span>
+              <span>Copy the <strong className="text-white">transfer link</strong> or <strong className="text-white">8-char code</strong></span>
             </li>
             <li className="flex gap-2">
               <span className="text-accent font-bold flex-shrink-0">5.</span>
-              <span>Enter it here (within 10 min)</span>
+              <span>Open link in Safari, add to Home Screen, then open</span>
             </li>
           </ol>
+        </div>
+
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 max-w-xs w-full mb-4">
+          <p className="text-amber-400 text-xs text-center">
+            <strong>Tip:</strong> Use the transfer link for easiest setup!
+          </p>
         </div>
 
         <p className="text-text-muted text-[10px] text-center max-w-xs">
@@ -326,8 +375,14 @@ export default function PWALoginPage() {
         <Gamepad2 className="w-8 h-8 text-black" />
       </div>
 
-      <h1 className="text-xl font-bold text-white mb-2">Welcome Back</h1>
-      <p className="text-text-secondary text-sm mb-8">Enter your PIN to continue</p>
+      <h1 className="text-xl font-bold text-white mb-2">
+        {isSessionLocked ? 'Session Locked' : 'Welcome Back'}
+      </h1>
+      <p className="text-text-secondary text-sm mb-8">
+        {isSessionLocked
+          ? 'Enter your PIN to unlock'
+          : 'Enter your PIN to continue'}
+      </p>
 
       <PINInput
         length={6}

@@ -1,8 +1,12 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useRef } from 'react'
+import { useRouter, usePathname } from 'next/navigation'
 import { usePWAAuthStore } from '@/lib/stores/pwaAuthStore'
 import { Gamepad2, Download, Share, Check, Smartphone, ArrowDown, ExternalLink, Copy } from 'lucide-react'
+
+// Minimum time in background before requiring PIN re-auth (30 seconds)
+const LOCK_AFTER_MS = 30 * 1000
 
 // Type for beforeinstallprompt event
 interface BeforeInstallPromptEvent extends Event {
@@ -17,8 +21,13 @@ export default function PWALayout({
 }: {
   children: React.ReactNode
 }) {
+  const router = useRouter()
+  const pathname = usePathname()
   const [mounted, setMounted] = useState(false)
-  const { isAuthenticated } = usePWAAuthStore()
+  const { isAuthenticated, lockSession, updateLastActive, isSessionLocked } = usePWAAuthStore()
+
+  // Track when user went to background
+  const hiddenAtRef = useRef<number | null>(null)
 
   // Install state
   const [installStep, setInstallStep] = useState<InstallStep>('detect')
@@ -27,6 +36,44 @@ export default function PWALayout({
   const [isAndroid, setIsAndroid] = useState(false)
   const [isInAppBrowser, setIsInAppBrowser] = useState(false)
   const [currentUrl, setCurrentUrl] = useState('')
+
+  // Visibility change detection - lock session when app goes to background
+  useEffect(() => {
+    if (!mounted) return
+
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // User switched away from app - record time
+        hiddenAtRef.current = Date.now()
+      } else {
+        // User came back to app
+        const hiddenAt = hiddenAtRef.current
+        hiddenAtRef.current = null
+
+        // If was authenticated and hidden for more than LOCK_AFTER_MS, lock session
+        if (hiddenAt && isAuthenticated && Date.now() - hiddenAt > LOCK_AFTER_MS) {
+          console.log('Session locked due to inactivity')
+          lockSession()
+          // Don't redirect here - let the pages handle it
+        } else if (isAuthenticated) {
+          // Update last active time
+          updateLastActive()
+        }
+      }
+    }
+
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
+    }
+  }, [mounted, isAuthenticated, lockSession, updateLastActive])
+
+  // Redirect to login when session is locked
+  useEffect(() => {
+    if (mounted && isSessionLocked && pathname !== '/pwa') {
+      router.replace('/pwa')
+    }
+  }, [mounted, isSessionLocked, pathname, router])
 
   useEffect(() => {
     setMounted(true)

@@ -26,6 +26,10 @@ interface PWAAuthState {
   totalWinsUSD: number
   referralCode: string | null
 
+  // Session lock state (for visibility change)
+  isSessionLocked: boolean
+  lastActiveAt: number | null
+
   // Actions
   setTokens: (accessToken: string, refreshToken: string) => void
   setUser: (data: {
@@ -45,6 +49,9 @@ interface PWAAuthState {
   ) => void
   logout: () => void
   clearError: () => void
+  lockSession: () => void
+  unlockSession: () => void
+  updateLastActive: () => void
 }
 
 const initialState = {
@@ -61,6 +68,8 @@ const initialState = {
   totalSpins: 0,
   totalWinsUSD: 0,
   referralCode: null,
+  isSessionLocked: false,
+  lastActiveAt: null,
 }
 
 export const usePWAAuthStore = create<PWAAuthState>()(
@@ -169,6 +178,29 @@ export const usePWAAuthStore = create<PWAAuthState>()(
 
       clearError: () => {
         set({ error: null })
+      },
+
+      // Lock session (keeps tokens but requires PIN re-entry)
+      lockSession: () => {
+        set({
+          isSessionLocked: true,
+          isAuthenticated: false,
+          lastActiveAt: Date.now(),
+        })
+      },
+
+      // Unlock session after PIN re-entry
+      unlockSession: () => {
+        set({
+          isSessionLocked: false,
+          isAuthenticated: true,
+          lastActiveAt: Date.now(),
+        })
+      },
+
+      // Update last active timestamp
+      updateLastActive: () => {
+        set({ lastActiveAt: Date.now() })
       },
     }),
     {

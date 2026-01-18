@@ -32,6 +32,7 @@ export default function PWASettingsPage() {
   const [mounted, setMounted] = useState(false)
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
+  const [pushChecking, setPushChecking] = useState(true)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -42,19 +43,58 @@ export default function PWASettingsPage() {
     setMounted(true)
   }, [])
 
-  // Check push status from server (more reliable than just browser permission)
+  // Check push status - verify BOTH server and browser subscriptions match
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      pwaFetch('/api/pwa/push/status')
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success) {
-            setPushEnabled(data.data.enabled)
-          }
-        })
-        .catch((err) => console.error('Push status check error:', err))
+      checkPushStatus()
     }
   }, [mounted, isAuthenticated])
+
+  const checkPushStatus = async () => {
+    setPushChecking(true)
+    try {
+      // First check server status
+      const serverRes = await pwaFetch('/api/pwa/push/status')
+      const serverData = await serverRes.json()
+
+      if (!serverData.success) {
+        setPushEnabled(false)
+        setPushChecking(false)
+        return
+      }
+
+      // If server says enabled, verify browser subscription matches
+      if (serverData.data.enabled) {
+        // Check if service worker is ready and has a subscription
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready
+          const browserSub = await registration.pushManager.getSubscription()
+
+          if (!browserSub) {
+            // Server has subscription but browser doesn't - needs re-sync
+            // Auto-clear server subscription since it's stale
+            console.log('Push subscription mismatch - clearing stale server subscription')
+            await pwaFetch('/api/pwa/push/subscribe', { method: 'DELETE' })
+            setPushEnabled(false)
+            setPushChecking(false)
+            return
+          }
+
+          // Both exist - subscription is valid
+          setPushEnabled(true)
+        } else {
+          // Push not supported on this browser
+          setPushEnabled(false)
+        }
+      } else {
+        setPushEnabled(false)
+      }
+    } catch (err) {
+      console.error('Push status check error:', err)
+      setPushEnabled(false)
+    }
+    setPushChecking(false)
+  }
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -264,22 +304,26 @@ export default function PWASettingsPage() {
       <div className="bg-surface rounded-xl border border-border p-4 mb-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            {pushEnabled ? (
+            {pushChecking ? (
+              <Loader2 className="w-5 h-5 text-text-muted animate-spin" />
+            ) : pushEnabled ? (
               <Bell className="w-5 h-5 text-accent" />
             ) : (
               <BellOff className="w-5 h-5 text-text-muted" />
             )}
             <div>
               <h2 className="text-white font-medium text-sm">Push Notifications</h2>
-              <p className="text-text-muted text-xs">Get notified when prizes are sent</p>
+              <p className="text-text-muted text-xs">
+                {pushChecking ? 'Checking status...' : 'Get notified when prizes are sent'}
+              </p>
             </div>
           </div>
           <button
             onClick={handleTogglePush}
-            disabled={pushLoading}
+            disabled={pushLoading || pushChecking}
             className={`relative w-12 h-7 rounded-full transition-colors ${
               pushEnabled ? 'bg-accent' : 'bg-border'
-            } ${pushLoading ? 'opacity-50' : ''}`}
+            } ${(pushLoading || pushChecking) ? 'opacity-50' : ''}`}
           >
             <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${
               pushEnabled ? 'left-6' : 'left-1'
