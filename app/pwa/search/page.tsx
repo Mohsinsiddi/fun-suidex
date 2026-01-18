@@ -40,6 +40,10 @@ interface LeaderboardEntry {
   hasProfile: boolean
 }
 
+// Simple cache for leaderboard data (60 seconds)
+let leaderboardCache: { data: LeaderboardEntry[]; timestamp: number } | null = null
+const CACHE_DURATION = 60 * 1000
+
 export default function PWASearchPage() {
   const router = useRouter()
   const { isAuthenticated } = usePWAAuthStore()
@@ -66,19 +70,29 @@ export default function PWASearchPage() {
     }
   }, [mounted, isAuthenticated, router])
 
-  // Fetch leaderboard on mount
+  // Fetch leaderboard on mount (with cache)
   useEffect(() => {
     if (mounted && isAuthenticated) {
       fetchLeaderboard()
     }
   }, [mounted, isAuthenticated])
 
-  const fetchLeaderboard = async () => {
+  const fetchLeaderboard = async (force = false) => {
+    // Use cache if fresh
+    if (!force && leaderboardCache && Date.now() - leaderboardCache.timestamp < CACHE_DURATION) {
+      setLeaderboard(leaderboardCache.data)
+      setLoadingLeaderboard(false)
+      return
+    }
+
     try {
       const res = await pwaFetch('/api/leaderboard?type=spins&limit=20')
       const data = await res.json()
       if (data.success) {
-        setLeaderboard(data.data.entries || [])
+        const entries = data.data.entries || []
+        setLeaderboard(entries)
+        // Update cache
+        leaderboardCache = { data: entries, timestamp: Date.now() }
       }
     } catch (err) {
       console.error('Leaderboard error:', err)

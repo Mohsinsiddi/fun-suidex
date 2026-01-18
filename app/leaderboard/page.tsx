@@ -26,8 +26,10 @@ interface LeaderboardEntry {
   rank: number
   wallet: string
   displayWallet: string
+  displayName?: string | null
   value: number
   totalSpins?: number
+  totalWinsUSD?: number
   profileSlug?: string | null
   hasProfile: boolean
 }
@@ -60,6 +62,13 @@ const formatValue = (type: LeaderboardType, value: number): string => {
     return `$${value.toFixed(2)}`
   }
   return value.toLocaleString()
+}
+
+// Get display name: prefer displayName > profileSlug > displayWallet
+const getDisplayName = (entry: LeaderboardEntry): string => {
+  if (entry.displayName) return entry.displayName
+  if (entry.profileSlug) return `@${entry.profileSlug}`
+  return entry.displayWallet
 }
 
 // Enhanced rank styling
@@ -241,17 +250,17 @@ export default function LeaderboardPage() {
                               <span className="text-lg sm:text-xl font-bold text-yellow-900">1</span>
                             </div>
 
-                            {/* Wallet */}
+                            {/* Name */}
                             {data.topThree[0].hasProfile ? (
                               <Link
                                 href={`/u/${data.topThree[0].profileSlug}`}
                                 className="text-xs sm:text-sm text-text-secondary hover:text-yellow-400 truncate block mb-1 sm:mb-2 hover:underline"
                               >
-                                {data.topThree[0].displayWallet}
+                                {getDisplayName(data.topThree[0])}
                               </Link>
                             ) : (
                               <p className="text-xs sm:text-sm text-text-secondary truncate mb-1 sm:mb-2">
-                                {data.topThree[0].displayWallet}
+                                {getDisplayName(data.topThree[0])}
                               </p>
                             )}
 
@@ -295,17 +304,17 @@ export default function LeaderboardPage() {
                               <span className="text-base sm:text-lg font-bold text-gray-700">2</span>
                             </div>
 
-                            {/* Wallet */}
+                            {/* Name */}
                             {data.topThree[1].hasProfile ? (
                               <Link
                                 href={`/u/${data.topThree[1].profileSlug}`}
                                 className="text-xs text-text-secondary hover:text-white truncate block mb-1 sm:mb-2 hover:underline"
                               >
-                                {data.topThree[1].displayWallet}
+                                {getDisplayName(data.topThree[1])}
                               </Link>
                             ) : (
                               <p className="text-xs text-text-secondary truncate mb-1 sm:mb-2">
-                                {data.topThree[1].displayWallet}
+                                {getDisplayName(data.topThree[1])}
                               </p>
                             )}
 
@@ -349,17 +358,17 @@ export default function LeaderboardPage() {
                               <span className="text-base sm:text-lg font-bold text-amber-900">3</span>
                             </div>
 
-                            {/* Wallet */}
+                            {/* Name */}
                             {data.topThree[2].hasProfile ? (
                               <Link
                                 href={`/u/${data.topThree[2].profileSlug}`}
                                 className="text-xs text-text-secondary hover:text-white truncate block mb-1 sm:mb-2 hover:underline"
                               >
-                                {data.topThree[2].displayWallet}
+                                {getDisplayName(data.topThree[2])}
                               </Link>
                             ) : (
                               <p className="text-xs text-text-secondary truncate mb-1 sm:mb-2">
-                                {data.topThree[2].displayWallet}
+                                {getDisplayName(data.topThree[2])}
                               </p>
                             )}
 
@@ -411,11 +420,11 @@ export default function LeaderboardPage() {
                               href={`/u/${entry.profileSlug}`}
                               className="font-medium text-sm sm:text-base text-white hover:text-accent transition-colors flex items-center gap-1 truncate"
                             >
-                              <span className="truncate">{entry.displayWallet}</span>
+                              <span className="truncate">{getDisplayName(entry)}</span>
                               <ExternalLink className="w-3 h-3 text-text-muted flex-shrink-0" />
                             </Link>
                           ) : (
-                            <p className="font-medium text-sm sm:text-base text-white truncate">{entry.displayWallet}</p>
+                            <p className="font-medium text-sm sm:text-base text-white truncate">{getDisplayName(entry)}</p>
                           )}
                           {entry.totalSpins !== undefined && activeTab !== 'spins' && (
                             <p className="text-[10px] sm:text-xs text-text-muted">
