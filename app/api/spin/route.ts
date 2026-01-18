@@ -107,22 +107,35 @@ export async function POST(request: NextRequest) {
       referralCommission = calculateReferralCommission(slot.amount, config.referralCommissionPercent)
     }
 
-    const spin = await SpinModel.create({
-      wallet: wallet,
-      spinType,
-      serverSeed,
-      randomValue,
-      slotIndex: slot.slotIndex,
-      prizeType: slot.type,
-      prizeAmount: slot.amount,
-      prizeValueUSD: slot.valueUSD,
-      lockDuration: slot.lockDuration || null,
-      status: slot.type === 'no_prize' ? 'distributed' : 'pending',
-      referredBy,
-      referralCommission,
-      ip: request.headers.get('x-forwarded-for') || 'unknown',
-      userAgent: request.headers.get('user-agent') || 'unknown',
-    })
+    // Create spin record - with rollback if it fails
+    let spin
+    try {
+      spin = await SpinModel.create({
+        wallet: wallet,
+        spinType,
+        serverSeed,
+        randomValue,
+        slotIndex: slot.slotIndex,
+        prizeType: slot.type,
+        prizeAmount: slot.amount,
+        prizeValueUSD: slot.valueUSD,
+        lockDuration: slot.lockDuration || null,
+        status: slot.type === 'no_prize' ? 'distributed' : 'pending',
+        referredBy,
+        referralCommission,
+        ip: request.headers.get('x-forwarded-for') || 'unknown',
+        userAgent: request.headers.get('user-agent') || 'unknown',
+      })
+    } catch (spinCreateError) {
+      // Rollback: Restore the spin that was deducted
+      console.error('Spin creation failed, rolling back spin deduction:', spinCreateError)
+      const rollbackField = spinType === 'bonus' ? 'bonusSpins' : 'purchasedSpins'
+      await UserModel.updateOne(
+        { wallet: wallet },
+        { $inc: { [rollbackField]: 1 } }
+      )
+      return NextResponse.json({ success: false, error: 'Failed to create spin record. Your spin has been restored.' }, { status: 500 })
+    }
 
     // Update user stats (separate from spin deduction - these are non-critical)
     const statsUpdate: Record<string, any> = {

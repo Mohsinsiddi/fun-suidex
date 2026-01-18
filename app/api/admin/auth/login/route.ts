@@ -7,13 +7,32 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { AdminModel } from '@/lib/db/models'
-import { verifyPassword } from '@/lib/auth/password'
+import { verifyPassword, hashPassword } from '@/lib/auth/password'
 import { createAdminToken } from '@/lib/auth/jwt'
 import { generateAdminSessionId } from '@/lib/utils/nanoid'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
 import { ERRORS } from '@/constants'
+
+// Dummy hash for timing attack prevention - computed once at startup
+// This ensures consistent timing whether user exists or not
+const DUMMY_HASH = '$argon2id$v=19$m=65536,t=3,p=4$dummysaltvalue1234$dummyhashvalue567890abcdef'
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limit admin login attempts - 5 per minute per IP
+    const rateLimit = checkRateLimit(request, 'adminLogin')
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many login attempts. Please try again later.' },
+        {
+          status: 429,
+          headers: {
+            'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)),
+          }
+        }
+      )
+    }
+
     const body = await request.json()
     const { username, password } = body
 
@@ -33,16 +52,13 @@ export async function POST(request: NextRequest) {
       username: username.toLowerCase().trim(),
     })
 
-    if (!admin) {
-      return NextResponse.json(
-        { success: false, error: ERRORS.INVALID_CREDENTIALS },
-        { status: 401 }
-      )
-    }
+    // SECURITY: Always perform password verification to prevent timing attacks
+    // This ensures consistent response time whether user exists or not
+    const hashToVerify = admin?.passwordHash || DUMMY_HASH
+    const isValid = await verifyPassword(password, hashToVerify)
 
-    // Verify password
-    const isValid = await verifyPassword(password, admin.passwordHash)
-    if (!isValid) {
+    // Check both conditions: admin must exist AND password must be valid
+    if (!admin || !isValid) {
       return NextResponse.json(
         { success: false, error: ERRORS.INVALID_CREDENTIALS },
         { status: 401 }

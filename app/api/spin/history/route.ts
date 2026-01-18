@@ -52,7 +52,13 @@ export async function GET(request: NextRequest) {
     const { searchParams } = new URL(request.url)
     const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
     const limit = Math.min(50, Math.max(1, parseInt(searchParams.get('limit') || '20')))
-    const filter = searchParams.get('filter') || 'all'
+    const filterParam = searchParams.get('filter') || 'all'
+
+    // Validate filter parameter to prevent injection
+    const validFilters = ['all', 'wins', 'no_prize'] as const
+    const filter = validFilters.includes(filterParam as typeof validFilters[number])
+      ? filterParam
+      : 'all'
 
     await connectDB()
 

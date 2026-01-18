@@ -8,7 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { SpinModel, AdminModel, AdminLogModel, UserModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { parsePaginationParams } from '@/lib/utils/pagination'
-import { isValidObjectId, isValidTxHash, extractTxHash } from '@/lib/utils/validation'
+import { isValidObjectId, isValidTxHash, extractTxHash, escapeRegex } from '@/lib/utils/validation'
 import { sendPrizeDistributedPush } from '@/lib/push/webPush'
 
 // GET - Get pending prizes with pagination
@@ -39,9 +39,9 @@ export async function GET(request: NextRequest) {
     if (prizeType && prizeType !== 'all') {
       query.prizeType = prizeType
     }
-    // Filter by wallet address (partial match)
+    // Filter by wallet address (partial match) - escape regex to prevent injection
     if (walletSearch) {
-      query.wallet = { $regex: walletSearch, $options: 'i' }
+      query.wallet = { $regex: escapeRegex(walletSearch), $options: 'i' }
     }
 
     // Get pending prizes with pagination (newest first)

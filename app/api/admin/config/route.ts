@@ -85,8 +85,68 @@ export async function PUT(request: NextRequest) {
     const body = await request.json()
 
     // Validate prize table
-    if (body.prizeTable && body.prizeTable.length !== 16) {
-      return NextResponse.json({ success: false, error: 'Prize table must have exactly 16 slots' }, { status: 400 })
+    if (body.prizeTable) {
+      if (body.prizeTable.length !== 16) {
+        return NextResponse.json({ success: false, error: 'Prize table must have exactly 16 slots' }, { status: 400 })
+      }
+
+      // Validate each slot
+      for (let i = 0; i < body.prizeTable.length; i++) {
+        const slot = body.prizeTable[i]
+
+        // Validate amount (must be non-negative finite number)
+        if (slot.amount !== undefined) {
+          if (typeof slot.amount !== 'number' || !Number.isFinite(slot.amount) || slot.amount < 0) {
+            return NextResponse.json({ success: false, error: `Invalid amount at slot ${i}: must be a non-negative number` }, { status: 400 })
+          }
+        }
+
+        // Validate valueUSD (must be non-negative finite number)
+        if (slot.valueUSD !== undefined) {
+          if (typeof slot.valueUSD !== 'number' || !Number.isFinite(slot.valueUSD) || slot.valueUSD < 0) {
+            return NextResponse.json({ success: false, error: `Invalid valueUSD at slot ${i}: must be a non-negative number` }, { status: 400 })
+          }
+        }
+
+        // Validate weight (must be positive finite number)
+        if (slot.weight !== undefined) {
+          if (typeof slot.weight !== 'number' || !Number.isFinite(slot.weight) || slot.weight <= 0) {
+            return NextResponse.json({ success: false, error: `Invalid weight at slot ${i}: must be a positive number` }, { status: 400 })
+          }
+        }
+
+        // Validate lockDuration (must be null or positive integer)
+        if (slot.lockDuration !== undefined && slot.lockDuration !== null) {
+          if (typeof slot.lockDuration !== 'number' || !Number.isInteger(slot.lockDuration) || slot.lockDuration <= 0) {
+            return NextResponse.json({ success: false, error: `Invalid lockDuration at slot ${i}: must be a positive integer or null` }, { status: 400 })
+          }
+        }
+
+        // Validate type
+        const validTypes = ['no_prize', 'liquid_victory', 'locked_victory', 'suitrump']
+        if (slot.type && !validTypes.includes(slot.type)) {
+          return NextResponse.json({ success: false, error: `Invalid type at slot ${i}: must be one of ${validTypes.join(', ')}` }, { status: 400 })
+        }
+      }
+    }
+
+    // Validate other numeric fields
+    if (body.spinRateSUI !== undefined) {
+      if (typeof body.spinRateSUI !== 'number' || !Number.isFinite(body.spinRateSUI) || body.spinRateSUI <= 0) {
+        return NextResponse.json({ success: false, error: 'spinRateSUI must be a positive number' }, { status: 400 })
+      }
+    }
+
+    if (body.autoApprovalLimitSUI !== undefined) {
+      if (typeof body.autoApprovalLimitSUI !== 'number' || !Number.isFinite(body.autoApprovalLimitSUI) || body.autoApprovalLimitSUI < 0) {
+        return NextResponse.json({ success: false, error: 'autoApprovalLimitSUI must be a non-negative number' }, { status: 400 })
+      }
+    }
+
+    if (body.referralCommissionPercent !== undefined) {
+      if (typeof body.referralCommissionPercent !== 'number' || !Number.isFinite(body.referralCommissionPercent) || body.referralCommissionPercent < 0 || body.referralCommissionPercent > 100) {
+        return NextResponse.json({ success: false, error: 'referralCommissionPercent must be between 0 and 100' }, { status: 400 })
+      }
     }
 
     // Get existing config or create new

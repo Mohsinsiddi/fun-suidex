@@ -168,3 +168,30 @@ export function sanitizeString(value: string, maxLength: number = 1000): string 
 export function normalizeAddress(address: string): string {
   return address.toLowerCase().trim()
 }
+
+/**
+ * Escape special regex characters for safe use in MongoDB $regex queries
+ * Prevents NoSQL injection via regex patterns
+ */
+export function escapeRegex(str: string): string {
+  return str.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+/**
+ * Create a safe regex pattern for MongoDB queries
+ * @param pattern - User input to search for
+ * @param anchor - Optional anchor: 'start' for ^, 'end' for $, 'both' for ^...$
+ */
+export function safeRegexPattern(pattern: string, anchor?: 'start' | 'end' | 'both'): string {
+  const escaped = escapeRegex(pattern)
+  switch (anchor) {
+    case 'start':
+      return `^${escaped}`
+    case 'end':
+      return `${escaped}$`
+    case 'both':
+      return `^${escaped}$`
+    default:
+      return escaped
+  }
+}

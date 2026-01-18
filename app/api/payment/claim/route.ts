@@ -129,16 +129,29 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
       })
     }
 
-    // Credit spins to user
-    user.purchasedSpins += spinsCredited
-    await user.save()
+    // Credit spins to user - atomic update with verification
+    // Use findOneAndUpdate to ensure atomicity and get updated document
+    const updatedUser = await UserModel.findOneAndUpdate(
+      { wallet },
+      { $inc: { purchasedSpins: spinsCredited } },
+      { new: true }
+    )
+
+    if (!updatedUser) {
+      // Rollback: Mark payment as unclaimed if user update fails
+      await PaymentModel.findOneAndUpdate(
+        { txHash },
+        { $set: { claimStatus: 'unclaimed', spinsCredited: 0 } }
+      )
+      return errors.internal('Failed to credit spins. Payment has been reset - please try again.')
+    }
 
     return success({
       status: 'claimed',
       message: `Successfully claimed ${spinsCredited} spins!`,
       amountSUI: tx.amountSUI,
       spinsCredited,
-      newBalance: user.purchasedSpins,
+      newBalance: updatedUser.purchasedSpins,
       txHash,
     })
   } catch (error) {

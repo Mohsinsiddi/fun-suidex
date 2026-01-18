@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { AffiliateRewardModel } from '@/lib/db/models'
+import { AffiliateRewardModel, AdminModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 
 export async function POST(request: NextRequest) {
@@ -13,10 +13,19 @@ export async function POST(request: NextRequest) {
     const payload = await verifyAdminToken(token)
     if (!payload) return NextResponse.json({ success: false, error: 'Session expired' }, { status: 401 })
 
+    await connectDB()
+
+    // Check permission - must have canPayAffiliates or be super_admin
+    const admin = await AdminModel.findOne({ username: payload.username })
+      .select('permissions role')
+      .lean()
+
+    if (!admin?.permissions?.canDistributePrizes && admin?.role !== 'super_admin') {
+      return NextResponse.json({ success: false, error: 'Permission denied: requires canDistributePrizes permission' }, { status: 403 })
+    }
+
     const { rewardIds, txHash } = await request.json()
     if (!rewardIds?.length) return NextResponse.json({ success: false, error: 'Reward IDs required' }, { status: 400 })
-
-    await connectDB()
 
     const result = await AffiliateRewardModel.updateMany(
       { _id: { $in: rewardIds }, payoutStatus: 'ready' },

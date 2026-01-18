@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, UserBadgeModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { parsePaginationParams, createPaginatedResponse } from '@/lib/utils/pagination'
+import { escapeRegex } from '@/lib/utils/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -35,11 +36,13 @@ export async function GET(request: NextRequest) {
     const sortOrder = url.searchParams.get('sortOrder') === 'asc' ? 1 : -1
 
     // Build query - search by wallet, profileSlug (username), or display name
+    // Escape regex to prevent NoSQL injection
     const query: Record<string, unknown> = {}
     if (search) {
+      const safeSearch = escapeRegex(search)
       query.$or = [
-        { wallet: { $regex: search, $options: 'i' } },
-        { profileSlug: { $regex: search, $options: 'i' } },
+        { wallet: { $regex: safeSearch, $options: 'i' } },
+        { profileSlug: { $regex: safeSearch, $options: 'i' } },
       ]
     }
 

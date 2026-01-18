@@ -31,7 +31,7 @@ const MIN_SPINS_FOR_PWA = 25
 export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContext): Promise<NextResponse> => {
   try {
     // Rate limit - 5 per minute (creating transfer tokens is sensitive)
-    if (!rateLimit(request, 'adminLogin', wallet)) {
+    if (!rateLimit(request, 'transfer', wallet)) {
       return errors.rateLimited(60)
     }
 

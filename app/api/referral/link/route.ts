@@ -4,9 +4,19 @@ import { connectDB } from '@/lib/db/mongodb'
 import { UserModel } from '@/lib/db/models'
 import { verifyAccessToken } from '@/lib/auth/jwt'
 import { generateReferralLink } from '@/lib/referral'
+import { checkRateLimit } from '@/lib/utils/rateLimit'
 
 export async function GET(request: NextRequest) {
   try {
+    // Rate limit - 60 per minute
+    const rateLimit = checkRateLimit(request, 'read')
+    if (!rateLimit.allowed) {
+      return NextResponse.json(
+        { success: false, error: 'Too many requests' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil(rateLimit.resetIn / 1000)) } }
+      )
+    }
+
     const cookieStore = await cookies()
     const token = cookieStore.get('access_token')?.value
     if (!token) return NextResponse.json({ success: false, error: 'Unauthorized' }, { status: 401 })

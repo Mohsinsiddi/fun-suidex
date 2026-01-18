@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { UserModel } from '@/lib/db/models'
 import { errors, success } from '@/lib/utils/apiResponse'
 import { checkRateLimit } from '@/lib/utils/rateLimit'
+import { escapeRegex } from '@/lib/utils/validation'
 
 export async function GET(request: NextRequest) {
   try {
@@ -41,9 +42,9 @@ export async function GET(request: NextRequest) {
         .limit(1)
         .lean()
     } else {
-      // Slug search (prefix match, case-insensitive)
+      // Slug search (prefix match, case-insensitive) - escape regex to prevent injection
       users = await UserModel.find({
-        profileSlug: { $regex: `^${query}`, $options: 'i' },
+        profileSlug: { $regex: `^${escapeRegex(query)}`, $options: 'i' },
         isProfilePublic: true,
       })
         .select('wallet profileSlug totalSpins totalWinsUSD')
