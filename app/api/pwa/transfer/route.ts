@@ -2,11 +2,15 @@
 // PWA Transfer API - Create Transfer Token
 // ============================================
 // POST /api/pwa/transfer - Create one-time transfer token for PWA wallet data
+// REQUIRES AUTHENTICATION - only logged in users can create transfer tokens
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { TransferToken } from '@/lib/db/models/TransferToken'
+import { UserModel } from '@/lib/db/models'
 import { success, errors } from '@/lib/utils/apiResponse'
+import { withAuth, AuthContext } from '@/lib/auth/withAuth'
+import { rateLimit } from '@/lib/utils/rateLimit'
 import { z } from 'zod'
 import crypto from 'crypto'
 
@@ -21,8 +25,16 @@ const transferSchema = z.object({
   mainWallet: z.string(),
 })
 
-export async function POST(request: NextRequest) {
+// Minimum spins required to unlock PWA
+const MIN_SPINS_FOR_PWA = 25
+
+export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContext): Promise<NextResponse> => {
   try {
+    // Rate limit - 5 per minute (creating transfer tokens is sensitive)
+    if (!rateLimit(request, 'adminLogin', wallet)) {
+      return errors.rateLimited(60)
+    }
+
     const body = await request.json()
     const parsed = transferSchema.safeParse(body)
 
@@ -32,7 +44,18 @@ export async function POST(request: NextRequest) {
 
     const { encryptedData, pwaWallet, mainWallet } = parsed.data
 
+    // Verify the authenticated user matches the mainWallet in the request
+    if (wallet.toLowerCase() !== mainWallet.toLowerCase()) {
+      return errors.forbidden('Wallet mismatch')
+    }
+
     await connectDB()
+
+    // Verify user has enough spins to unlock PWA
+    const user = await UserModel.findOne({ wallet: wallet.toLowerCase() }).select('totalSpins').lean()
+    if (!user || (user.totalSpins || 0) < MIN_SPINS_FOR_PWA) {
+      return errors.forbidden(`Need ${MIN_SPINS_FOR_PWA}+ total spins to unlock PWA`)
+    }
 
     // Generate unique 8-character token (easy to type manually if needed)
     const token = crypto.randomBytes(4).toString('hex').toUpperCase()
@@ -57,4 +80,4 @@ export async function POST(request: NextRequest) {
     console.error('PWA transfer create error:', error)
     return errors.internal('Failed to create transfer token')
   }
-}
+})

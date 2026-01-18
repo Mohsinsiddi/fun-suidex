@@ -43,6 +43,9 @@ export const RATE_LIMITS = {
   auth: { windowMs: 60 * 1000, maxRequests: 10 },         // 10 per minute
   adminLogin: { windowMs: 60 * 1000, maxRequests: 5 },    // 5 per minute
 
+  // PWA transfer token - very strict to prevent brute force
+  transfer: { windowMs: 60 * 1000, maxRequests: 5 },      // 5 per minute (prevent token guessing)
+
   // User actions
   spin: { windowMs: 60 * 1000, maxRequests: 30 },         // 30 per minute
   payment: { windowMs: 60 * 1000, maxRequests: 10 },      // 10 per minute

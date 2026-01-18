@@ -22,7 +22,6 @@ import {
   AlertCircle,
   ChevronRight,
   Copy,
-  ExternalLink,
   Share,
 } from 'lucide-react'
 
@@ -51,7 +50,6 @@ export function PWASetupModal({
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [copied, setCopied] = useState(false)
   const [transferToken, setTransferToken] = useState<string | null>(null)
-  const [transferUrl, setTransferUrl] = useState<string | null>(null)
   const [copiedTransfer, setCopiedTransfer] = useState(false)
   const [isIOS, setIsIOS] = useState(false)
   const [isInAppBrowser, setIsInAppBrowser] = useState(false)
@@ -81,7 +79,6 @@ export function PWASetupModal({
     setPin(null)
     setIsSubmitting(false)
     setTransferToken(null)
-    setTransferUrl(null)
     setCopiedTransfer(false)
     onClose()
   }
@@ -179,8 +176,6 @@ export function PWASetupModal({
 
         if (transferData.success) {
           setTransferToken(transferData.data.token)
-          const baseUrl = window.location.origin
-          setTransferUrl(`${baseUrl}/pwa/transfer/${transferData.data.token}`)
         }
       } catch (transferErr) {
         // Transfer token creation failed, but main setup succeeded
@@ -201,14 +196,6 @@ export function PWASetupModal({
       navigator.clipboard.writeText(pwaWalletAddress)
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
-    }
-  }
-
-  const copyTransferUrl = () => {
-    if (transferUrl) {
-      navigator.clipboard.writeText(transferUrl)
-      setCopiedTransfer(true)
-      setTimeout(() => setCopiedTransfer(false), 2000)
     }
   }
 
@@ -404,29 +391,23 @@ export function PWASetupModal({
                 Your PWA Wallet: <span className="text-accent font-mono">{formatWallet(pwaWalletAddress || '')}</span>
               </p>
 
-              {/* Transfer to Mobile - PROMINENT */}
-              {transferToken && transferUrl && (
-                <div className="bg-gradient-to-br from-accent/10 to-secondary/10 border-2 border-accent/50 rounded-xl p-4 mb-3">
-                  <div className="flex items-center gap-2 mb-3">
-                    <div className="w-8 h-8 bg-accent/20 rounded-lg flex items-center justify-center">
-                      {isIOS ? <Share className="w-4 h-4 text-accent" /> : <Smartphone className="w-4 h-4 text-accent" />}
-                    </div>
-                    <div className="text-left">
-                      <p className="text-white font-bold text-sm">Open on {isIOS ? 'Safari' : 'Mobile'}</p>
-                      <p className="text-text-muted text-[10px]">Link expires in 10 minutes</p>
-                    </div>
+              {/* Transfer Code - Simple & Secure */}
+              {transferToken && (
+                <div className="bg-surface border border-border rounded-xl p-4 mb-3">
+                  {/* Code Display */}
+                  <div className="bg-black rounded-xl p-4 mb-3 text-center">
+                    <p className="text-text-muted text-[10px] mb-2">Your Transfer Code</p>
+                    <p className="text-accent font-mono text-3xl font-bold tracking-[0.2em]">{transferToken}</p>
                   </div>
 
-                  {/* Transfer Code - Easy to see */}
-                  <div className="bg-black/40 rounded-lg p-3 mb-3">
-                    <p className="text-text-muted text-[10px] mb-1">Transfer Code</p>
-                    <p className="text-accent font-mono text-2xl font-bold tracking-wider">{transferToken}</p>
-                  </div>
-
-                  {/* Copy Link Button */}
+                  {/* Copy Code Button */}
                   <button
-                    onClick={copyTransferUrl}
-                    className="w-full py-2.5 bg-accent text-black rounded-lg font-bold text-sm flex items-center justify-center gap-2"
+                    onClick={() => {
+                      navigator.clipboard.writeText(transferToken)
+                      setCopiedTransfer(true)
+                      setTimeout(() => setCopiedTransfer(false), 2000)
+                    }}
+                    className="w-full py-2.5 bg-accent text-black rounded-xl font-bold text-sm flex items-center justify-center gap-2 mb-3"
                   >
                     {copiedTransfer ? (
                       <>
@@ -436,56 +417,21 @@ export function PWASetupModal({
                     ) : (
                       <>
                         <Copy className="w-4 h-4" />
-                        Copy Transfer Link
+                        Copy Code
                       </>
                     )}
                   </button>
 
-                  {/* Instructions */}
-                  <div className="mt-3 text-left">
-                    <p className="text-white text-xs font-medium mb-1.5">Instructions:</p>
-                    <ol className="space-y-1 text-text-secondary text-[10px]">
-                      {isIOS ? (
-                        <>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">1.</span>
-                            <span>Copy the link above</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">2.</span>
-                            <span>Open <strong className="text-white">Safari</strong> (not this app)</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">3.</span>
-                            <span>Paste and go</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">4.</span>
-                            <span>Tap Share → Add to Home Screen</span>
-                          </li>
-                        </>
-                      ) : (
-                        <>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">1.</span>
-                            <span>Copy the link above</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">2.</span>
-                            <span>Open Chrome on your phone</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">3.</span>
-                            <span>Paste and go</span>
-                          </li>
-                          <li className="flex gap-1.5">
-                            <span className="text-accent font-bold">4.</span>
-                            <span>Menu → Add to Home screen</span>
-                          </li>
-                        </>
-                      )}
-                    </ol>
+                  {/* Simple Instructions */}
+                  <div className="text-center text-xs text-text-secondary space-y-1">
+                    <p>1. Open <strong className="text-white">{isIOS ? 'Safari' : 'Chrome'}</strong> on your phone</p>
+                    <p>2. Go to <strong className="text-accent">suidex.games/pwa</strong></p>
+                    <p>3. Enter the code above</p>
                   </div>
+
+                  <p className="text-text-muted text-[9px] text-center mt-3">
+                    Code expires in 10 min • One-time use
+                  </p>
                 </div>
               )}
 

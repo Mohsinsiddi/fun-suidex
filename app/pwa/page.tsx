@@ -13,7 +13,7 @@ import {
 } from '@/lib/pwa/encryption'
 import { createPWAAuthMessage } from '@/lib/pwa/auth'
 import { PINInput } from '@/components/pwa/PINInput'
-import { Gamepad2, Smartphone, ArrowRight, AlertTriangle, Trash2, Key, Loader2, Check } from 'lucide-react'
+import { Gamepad2, AlertTriangle, Trash2, Key, Loader2, Check, Share, Home } from 'lucide-react'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 
 export default function PWALoginPage() {
@@ -26,8 +26,11 @@ export default function PWALoginPage() {
   const [error, setError] = useState<string | null>(null)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
 
+  // PWA detection
+  const [isStandalone, setIsStandalone] = useState(false)
+  const [isIOS, setIsIOS] = useState(false)
+
   // Transfer code entry
-  const [showTransferInput, setShowTransferInput] = useState(false)
   const [transferCode, setTransferCode] = useState('')
   const [transferLoading, setTransferLoading] = useState(false)
   const [transferError, setTransferError] = useState<string | null>(null)
@@ -37,6 +40,15 @@ export default function PWALoginPage() {
     setMounted(true)
     const stored = getStoredWallet()
     setHasStoredWallet(!!stored)
+
+    // Detect iOS
+    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent)
+    setIsIOS(iOS)
+
+    // Detect standalone mode (opened from homescreen)
+    const standalone = window.matchMedia('(display-mode: standalone)').matches
+      || (window.navigator as any).standalone === true
+    setIsStandalone(standalone)
   }, [])
 
   // Redirect if already authenticated
@@ -210,7 +222,6 @@ export default function PWALoginPage() {
       // Refresh state after short delay
       setTimeout(() => {
         setHasStoredWallet(true)
-        setShowTransferInput(false)
         setTransferSuccess(false)
         setTransferCode('')
       }, 1500)
@@ -231,10 +242,10 @@ export default function PWALoginPage() {
     )
   }
 
-  // No stored wallet - need to set up or enter transfer code
+  // No stored wallet - show different screens based on context
   if (!hasStoredWallet) {
-    // Show transfer code input
-    if (showTransferInput) {
+    // STANDALONE (opened from Home Screen) - Show transfer code entry
+    if (isStandalone) {
       return (
         <div className="flex-1 flex flex-col items-center justify-center p-6">
           <div className="w-16 h-16 bg-gradient-to-br from-accent/20 to-secondary/20 rounded-2xl flex items-center justify-center mb-6">
@@ -245,7 +256,7 @@ export default function PWALoginPage() {
             Enter Transfer Code
           </h1>
           <p className="text-text-secondary text-sm text-center mb-6 max-w-xs">
-            Enter the 8-character code from Nightly
+            Enter the 8-character code from your wallet browser
           </p>
 
           {transferSuccess ? (
@@ -288,82 +299,81 @@ export default function PWALoginPage() {
                 )}
               </button>
 
-              <button
-                onClick={() => {
-                  setShowTransferInput(false)
-                  setTransferCode('')
-                  setTransferError(null)
-                }}
-                className="mt-4 text-text-muted text-xs hover:text-white"
-              >
-                Back
-              </button>
+              {/* How to get a code */}
+              <div className="mt-6 bg-surface/40 rounded-xl border border-border/50 p-3 max-w-xs w-full">
+                <p className="text-text-muted text-[10px] text-center">
+                  Get code from <strong className="text-white">Nightly → Profile → PWA Access</strong>
+                </p>
+              </div>
             </>
           )}
         </div>
       )
     }
 
+    // IN BROWSER - Show "Add to Home Screen" instructions only
     return (
       <div className="flex-1 flex flex-col items-center justify-center p-6">
-        <div className="w-16 h-16 bg-gradient-to-br from-accent/20 to-secondary/20 rounded-2xl flex items-center justify-center mb-6">
-          <Smartphone className="w-8 h-8 text-accent" />
+        {/* Header */}
+        <div className="w-16 h-16 bg-gradient-to-br from-accent to-secondary rounded-2xl flex items-center justify-center mb-6 shadow-lg shadow-accent/30">
+          <Gamepad2 className="w-8 h-8 text-black" />
         </div>
 
-        <h1 className="text-xl font-bold text-white mb-2 text-center">
-          PWA Not Set Up
-        </h1>
-        <p className="text-text-secondary text-sm text-center mb-6 max-w-xs">
-          Enter your transfer code or set up from Nightly
+        <h1 className="text-2xl font-bold text-white mb-2 text-center">Install SuiDex Games</h1>
+        <p className="text-text-secondary text-sm text-center mb-8 max-w-xs">
+          Add to your Home Screen to continue
         </p>
 
-        {/* Transfer Code Button - PRIMARY */}
-        <button
-          onClick={() => setShowTransferInput(true)}
-          className="w-full max-w-xs py-4 bg-gradient-to-r from-accent to-secondary text-black rounded-xl font-bold text-sm flex items-center justify-center gap-2 mb-4"
-        >
-          <Key className="w-5 h-5" />
-          Enter Transfer Code
-        </button>
-
-        <p className="text-text-muted text-xs mb-6">or</p>
-
-        {/* Setup Instructions - Simplified */}
-        <div className="bg-surface/60 rounded-xl border border-border p-4 mb-4 max-w-xs w-full">
-          <h3 className="text-white font-medium text-sm mb-3">How to set up PWA:</h3>
-          <ol className="space-y-2 text-xs text-text-secondary">
-            <li className="flex gap-2">
-              <span className="text-accent font-bold flex-shrink-0">1.</span>
-              <span>Open SuiDex in <strong className="text-white">Nightly</strong> wallet</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent font-bold flex-shrink-0">2.</span>
-              <span>Go to <strong className="text-white">Profile → PWA Access</strong></span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent font-bold flex-shrink-0">3.</span>
-              <span>Set up PWA (sign + set PIN)</span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent font-bold flex-shrink-0">4.</span>
-              <span>Copy the <strong className="text-white">transfer link</strong> or <strong className="text-white">8-char code</strong></span>
-            </li>
-            <li className="flex gap-2">
-              <span className="text-accent font-bold flex-shrink-0">5.</span>
-              <span>Open link in Safari, add to Home Screen, then open</span>
-            </li>
-          </ol>
+        {/* Add to Home Screen Instructions */}
+        <div className="bg-surface/60 rounded-2xl border border-border p-5 max-w-xs w-full">
+          {isIOS ? (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-black font-bold text-sm">1</span>
+                <span className="text-white text-sm">Tap <strong className="text-accent">⋯</strong> (bottom right)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-black font-bold text-sm">2</span>
+                <span className="text-white text-sm flex items-center gap-1">Tap <strong className="text-accent">Share</strong> <Share className="w-4 h-4 text-accent" /></span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-black font-bold text-sm">3</span>
+                <span className="text-white text-sm">Tap <strong className="text-accent">⋯</strong> (in share menu)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">4</span>
+                <span className="text-white text-sm">Tap <strong className="text-green-400">Add to Home Screen</strong></span>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-accent flex items-center justify-center text-black font-bold text-sm">1</span>
+                <span className="text-white text-sm">Tap <strong className="text-accent">⋮</strong> menu (top right)</span>
+              </div>
+              <div className="flex items-center gap-3">
+                <span className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center text-white font-bold text-sm">2</span>
+                <span className="text-white text-sm">Tap <strong className="text-green-400">Add to Home screen</strong></span>
+              </div>
+            </div>
+          )}
         </div>
 
-        <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 max-w-xs w-full mb-4">
-          <p className="text-amber-400 text-xs text-center">
-            <strong>Tip:</strong> Use the transfer link for easiest setup!
+        {/* Open from Home Screen note */}
+        <div className="mt-6 flex items-center gap-2 text-text-muted text-xs">
+          <Home className="w-4 h-4" />
+          <span>Then open from Home Screen</span>
+        </div>
+
+        {/* Where to get code info */}
+        <div className="mt-6 bg-surface/40 rounded-xl border border-border/50 p-3 max-w-xs w-full text-center">
+          <p className="text-text-muted text-[10px]">
+            You'll enter your transfer code after opening from Home Screen
+          </p>
+          <p className="text-text-muted/60 text-[9px] mt-1">
+            Get code from <strong className="text-white">Nightly → Profile → PWA Access</strong>
           </p>
         </div>
-
-        <p className="text-text-muted text-[10px] text-center max-w-xs">
-          Need 25+ spins to unlock PWA access
-        </p>
       </div>
     )
   }

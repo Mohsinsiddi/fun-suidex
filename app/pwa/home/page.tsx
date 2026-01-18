@@ -97,9 +97,11 @@ export default function PWAHomePage() {
     }
   }, [mounted, isAuthenticated, router])
 
-  // Fetch activity feed
+  // Fetch fresh user data and activity feed on mount
   useEffect(() => {
     if (mounted && isAuthenticated) {
+      // Always fetch fresh data on page load
+      fetchUser()
       fetchActivityFeed()
     }
   }, [mounted, isAuthenticated])

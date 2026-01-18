@@ -151,7 +151,8 @@ export default function ProfileSettingsPage() {
           onSuccess: async (sig) => {
             const success = await login(account.address, sig.signature, nonceData.data.nonce)
             if (success) {
-              await fetchUser()
+              // Force fetch to get full profile data (login only sets basic auth data)
+              await fetchUser(true)
               await fetchUserBadges()
             } else {
               setError('Verification failed')
