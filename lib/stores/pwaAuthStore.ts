@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { clearAllPWACaches } from '@/lib/utils/pwaCacheManager'
 
 // ============================================
 // PWA Auth Store
@@ -191,6 +192,8 @@ export const usePWAAuthStore = create<PWAAuthState>()(
 
       logout: () => {
         set(initialState)
+        // Clear all PWA page caches
+        clearAllPWACaches()
       },
 
       clearError: () => {

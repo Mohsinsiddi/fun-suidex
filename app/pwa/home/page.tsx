@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore } from '@/lib/stores/pwaAuthStore'
+import { registerCacheClear } from '@/lib/utils/pwaCacheManager'
 import { generateAvatarSVG } from '@/lib/utils/avatar'
 import {
   CircleDot,
@@ -75,6 +76,18 @@ function getRelativeTime(dateString: string): string {
   return `${diffDays}d`
 }
 
+// Activity feed cache (30 seconds - short for "live" feel)
+let activityCache: { data: Activity[]; timestamp: number } | null = null
+const ACTIVITY_CACHE_DURATION = 30 * 1000
+
+// Clear cache function
+function clearActivityCache() {
+  activityCache = null
+}
+
+// Register with cache manager
+registerCacheClear(clearActivityCache)
+
 export default function PWAHomePage() {
   const router = useRouter()
   const { isAuthenticated, purchasedSpins, bonusSpins, totalWinsUSD, fetchUser } = usePWAAuthStore()
@@ -83,6 +96,7 @@ export default function PWAHomePage() {
   const [activities, setActivities] = useState<Activity[]>([])
   const [loadingFeed, setLoadingFeed] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [fetchingFeed, setFetchingFeed] = useState(false)
 
   const totalSpins = purchasedSpins + bonusSpins
 
@@ -100,30 +114,43 @@ export default function PWAHomePage() {
   // Fetch fresh user data and activity feed on mount
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      // Always fetch fresh data on page load
       fetchUser()
       fetchActivityFeed()
     }
   }, [mounted, isAuthenticated])
 
-  const fetchActivityFeed = async () => {
+  const fetchActivityFeed = async (force = false) => {
+    // Use cache if fresh
+    if (!force && activityCache && Date.now() - activityCache.timestamp < ACTIVITY_CACHE_DURATION) {
+      setActivities(activityCache.data)
+      setLoadingFeed(false)
+      return
+    }
+
+    // Prevent duplicate calls
+    if (fetchingFeed) return
+    setFetchingFeed(true)
+
     try {
       const res = await fetch('/api/activity?limit=10')
       const data = await res.json()
       if (data.success) {
         setActivities(data.data.activities)
+        // Update cache
+        activityCache = { data: data.data.activities, timestamp: Date.now() }
       }
     } catch (err) {
       console.error('Activity feed error:', err)
     }
     setLoadingFeed(false)
+    setFetchingFeed(false)
   }
 
   const handleRefresh = async () => {
     setRefreshing(true)
     await Promise.all([
       fetchUser(true), // Force refresh
-      fetchActivityFeed()
+      fetchActivityFeed(true) // Force refresh
     ])
     setRefreshing(false)
   }

@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
+import { registerCacheClear } from '@/lib/utils/pwaCacheManager'
 import { generateAvatarSVG } from '@/lib/utils/avatar'
 import {
   ChevronLeft,
@@ -86,6 +87,18 @@ const PRIZE_ICONS: Record<string, React.ReactNode> = {
   NOTHING: <CircleDot className="w-3.5 h-3.5 text-gray-500" />,
 }
 
+// Profile cache (60 seconds, keyed by slug)
+const profileCache: Map<string, { data: UserProfile; timestamp: number }> = new Map()
+const PROFILE_CACHE_DURATION = 60 * 1000
+
+// Clear cache function
+function clearProfileCache() {
+  profileCache.clear()
+}
+
+// Register with cache manager
+registerCacheClear(clearProfileCache)
+
 export default function PWAUserProfilePage() {
   const router = useRouter()
   const params = useParams()
@@ -94,6 +107,7 @@ export default function PWAUserProfilePage() {
   const [mounted, setMounted] = useState(false)
   const [profile, setProfile] = useState<UserProfile | null>(null)
   const [loading, setLoading] = useState(true)
+  const [fetching, setFetching] = useState(false) // Separate flag for dedup
   const [error, setError] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
   const [showAllBadges, setShowAllBadges] = useState(false)
@@ -120,7 +134,21 @@ export default function PWAUserProfilePage() {
     }
   }, [mounted, isAuthenticated, slug])
 
-  const fetchProfile = async (includeHistory: boolean = false) => {
+  const fetchProfile = async (includeHistory: boolean = false, force: boolean = false) => {
+    // Check cache first (only for initial load with history)
+    if (includeHistory && !force) {
+      const cached = profileCache.get(slug)
+      if (cached && Date.now() - cached.timestamp < PROFILE_CACHE_DURATION) {
+        setProfile(cached.data)
+        setLoading(false)
+        return
+      }
+    }
+
+    // Prevent duplicate calls
+    if (fetching && includeHistory) return
+    if (includeHistory) setFetching(true)
+
     if (!includeHistory) {
       setLoadingHistory(true)
     } else {
@@ -129,14 +157,16 @@ export default function PWAUserProfilePage() {
     setError(null)
 
     try {
-      const historyParams = includeHistory
-        ? `?history=true&page=${historyPage}&limit=10`
-        : `?history=true&page=${historyPage}&limit=10`
+      const historyParams = `?history=true&page=${includeHistory ? 1 : historyPage}&limit=10`
       const res = await pwaFetch(`/api/users/${encodeURIComponent(slug)}${historyParams}`)
       const data = await res.json()
 
       if (data.success) {
         setProfile(data.data)
+        // Update cache
+        if (includeHistory) {
+          profileCache.set(slug, { data: data.data, timestamp: Date.now() })
+        }
       } else {
         setError(data.error || 'User not found')
       }
@@ -147,6 +177,7 @@ export default function PWAUserProfilePage() {
 
     setLoading(false)
     setLoadingHistory(false)
+    if (includeHistory) setFetching(false)
   }
 
   const loadMoreHistory = useCallback(async () => {

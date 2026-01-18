@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
+import { registerCacheClear } from '@/lib/utils/pwaCacheManager'
 import { generateAvatarSVG } from '@/lib/utils/avatar'
 import {
   Search,
@@ -43,6 +44,14 @@ interface LeaderboardEntry {
 // Simple cache for leaderboard data (60 seconds)
 let leaderboardCache: { data: LeaderboardEntry[]; timestamp: number } | null = null
 const CACHE_DURATION = 60 * 1000
+
+// Clear cache function
+function clearLeaderboardCache() {
+  leaderboardCache = null
+}
+
+// Register with cache manager
+registerCacheClear(clearLeaderboardCache)
 
 export default function PWASearchPage() {
   const router = useRouter()

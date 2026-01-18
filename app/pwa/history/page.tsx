@@ -1,9 +1,10 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
+import { registerCacheClear } from '@/lib/utils/pwaCacheManager'
 import {
   History,
   ChevronLeft,
@@ -16,6 +17,7 @@ import {
   Search,
   Settings,
   RefreshCw,
+  ChevronDown,
 } from 'lucide-react'
 
 interface SpinRecord {
@@ -29,6 +31,18 @@ interface SpinRecord {
   distributedTxHash?: string
 }
 
+// Cache for history data (60 seconds)
+let historyCache: { data: SpinRecord[]; timestamp: number; page: number } | null = null
+const CACHE_DURATION = 60 * 1000
+
+// Clear cache function
+function clearHistoryCache() {
+  historyCache = null
+}
+
+// Register with cache manager
+registerCacheClear(clearHistoryCache)
+
 export default function PWAHistoryPage() {
   const router = useRouter()
   const { isAuthenticated } = usePWAAuthStore()
@@ -36,8 +50,12 @@ export default function PWAHistoryPage() {
   const [mounted, setMounted] = useState(false)
   const [spins, setSpins] = useState<SpinRecord[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetching, setFetching] = useState(false) // Separate flag for dedup
+  const [loadingMore, setLoadingMore] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [page, setPage] = useState(1)
+  const [hasMore, setHasMore] = useState(true)
 
   useEffect(() => {
     setMounted(true)
@@ -50,7 +68,7 @@ export default function PWAHistoryPage() {
     }
   }, [mounted, isAuthenticated, router])
 
-  // Fetch spin history
+  // Fetch spin history with cache
   useEffect(() => {
     if (mounted && isAuthenticated) {
       fetchHistory()
@@ -58,16 +76,34 @@ export default function PWAHistoryPage() {
   }, [mounted, isAuthenticated])
 
   const fetchHistory = async (isRefresh = false) => {
+    // Use cache if fresh and not refreshing
+    if (!isRefresh && historyCache && Date.now() - historyCache.timestamp < CACHE_DURATION) {
+      setSpins(historyCache.data)
+      setPage(historyCache.page)
+      setHasMore(historyCache.data.length === 20)
+      setLoading(false)
+      return
+    }
+
+    // Prevent duplicate calls
+    if (fetching) return
+    setFetching(true)
+
     if (isRefresh) setRefreshing(true)
     else setLoading(true)
     setError(null)
 
     try {
-      const res = await pwaFetch('/api/spin/history?limit=50')
+      const res = await pwaFetch('/api/spin/history?limit=20&page=1')
       const data = await res.json()
 
       if (data.success) {
-        setSpins(data.data.spins || [])
+        const newSpins = data.data.spins || []
+        setSpins(newSpins)
+        setPage(1)
+        setHasMore(data.pagination?.totalPages > 1)
+        // Update cache
+        historyCache = { data: newSpins, timestamp: Date.now(), page: 1 }
       } else {
         setError(data.error || 'Failed to load history')
       }
@@ -78,7 +114,34 @@ export default function PWAHistoryPage() {
 
     setLoading(false)
     setRefreshing(false)
+    setFetching(false)
   }
+
+  const loadMore = useCallback(async () => {
+    if (loadingMore || !hasMore) return
+
+    setLoadingMore(true)
+    const nextPage = page + 1
+
+    try {
+      const res = await pwaFetch(`/api/spin/history?limit=20&page=${nextPage}`)
+      const data = await res.json()
+
+      if (data.success) {
+        const newSpins = data.data.spins || []
+        const allSpins = [...spins, ...newSpins]
+        setSpins(allSpins)
+        setPage(nextPage)
+        setHasMore(nextPage < (data.pagination?.totalPages || 1))
+        // Update cache
+        historyCache = { data: allSpins, timestamp: Date.now(), page: nextPage }
+      }
+    } catch (err) {
+      console.error('Load more error:', err)
+    }
+
+    setLoadingMore(false)
+  }, [loadingMore, hasMore, page, spins])
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -218,6 +281,27 @@ export default function PWAHistoryPage() {
               )}
             </div>
           ))}
+
+          {/* Load More Button */}
+          {hasMore && (
+            <button
+              onClick={loadMore}
+              disabled={loadingMore}
+              className="w-full mt-3 py-3 flex items-center justify-center gap-2 text-sm text-accent hover:text-white border border-accent/30 rounded-xl transition-colors disabled:opacity-50"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Loading...
+                </>
+              ) : (
+                <>
+                  Load More
+                  <ChevronDown className="w-4 h-4" />
+                </>
+              )}
+            </button>
+          )}
         </div>
       )}
 
