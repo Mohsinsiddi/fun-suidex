@@ -49,6 +49,13 @@ test.describe('User Pages - Public', () => {
     await page.waitForLoadState('networkidle')
     await expect(page.locator('body')).toBeVisible()
   })
+
+  test('Docs page loads', async ({ page }) => {
+    const response = await page.goto('/docs')
+    expect(response?.status()).toBe(200)
+    await page.waitForLoadState('networkidle')
+    await expect(page.locator('body')).toBeVisible()
+  })
 })
 
 test.describe('User Pages - Performance', () => {
@@ -60,6 +67,7 @@ test.describe('User Pages - Performance', () => {
     { name: 'Profile', path: '/profile' },
     { name: 'Referral', path: '/referral' },
     { name: 'Activity', path: '/activity' },
+    { name: 'Docs', path: '/docs' },
   ]
 
   for (const { name, path } of pages) {

@@ -18,6 +18,9 @@
     "test:headed": "playwright test --headed",
     "test:user": "playwright test user-pages",
     "test:admin": "playwright test admin-pages",
+    "test:pwa": "playwright test pwa",
+    "test:api": "playwright test tests/api/",
+    "test:docs": "playwright test additional-pages",
     "test:report": "playwright show-report"
   },
   "dependencies": {
