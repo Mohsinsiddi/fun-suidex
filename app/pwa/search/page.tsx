@@ -11,7 +11,7 @@ import {
   Trophy,
   X,
   Loader2,
-  CircleDot,
+  Home,
   History,
   Settings,
 } from 'lucide-react'
@@ -91,7 +91,7 @@ export default function PWASearchPage() {
     <div className="flex-1 flex flex-col p-4 pb-20">
       {/* Header */}
       <div className="flex items-center gap-3 mb-4">
-        <Link href="/pwa/game" className="p-2 -ml-2 text-text-secondary hover:text-white transition-colors">
+        <Link href="/pwa/home" className="p-2 -ml-2 text-text-secondary hover:text-white transition-colors">
           <ChevronLeft className="w-5 h-5" />
         </Link>
         <h1 className="text-lg font-bold text-white flex items-center gap-2">
@@ -217,9 +217,9 @@ export default function PWASearchPage() {
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-md border-t border-border/50 px-4 py-2 z-40">
         <div className="max-w-md mx-auto flex items-center justify-around">
-          <Link href="/pwa/game" className="flex flex-col items-center gap-1 py-1 px-3 text-text-secondary hover:text-white transition-colors">
-            <CircleDot className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Play</span>
+          <Link href="/pwa/home" className="flex flex-col items-center gap-1 py-1 px-3 text-text-secondary hover:text-white transition-colors">
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Home</span>
           </Link>
           <Link href="/pwa/history" className="flex flex-col items-center gap-1 py-1 px-3 text-text-secondary hover:text-white transition-colors">
             <History className="w-5 h-5" />

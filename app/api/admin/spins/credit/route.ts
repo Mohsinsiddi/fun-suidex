@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, AdminModel, AdminLogModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { isValidSuiAddress } from '@/lib/sui/client'
+import { sendSpinsCreditedPush } from '@/lib/push/webPush'
 
 export async function POST(request: NextRequest) {
   try {
@@ -86,6 +87,28 @@ export async function POST(request: NextRequest) {
       },
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     })
+
+    // Send push notification if user has PWA push enabled (non-blocking)
+    UserModel.findOne({ wallet: wallet.toLowerCase() })
+      .select('pwaPushSubscription')
+      .lean()
+      .then(async (userForPush) => {
+        if (userForPush?.pwaPushSubscription?.endpoint) {
+          const result = await sendSpinsCreditedPush(
+            userForPush.pwaPushSubscription,
+            amount,
+            type as 'purchased' | 'bonus'
+          )
+          if (!result.success && result.error === 'subscription_expired') {
+            // Clean up expired subscription
+            await UserModel.updateOne(
+              { wallet: wallet.toLowerCase() },
+              { $set: { pwaPushSubscription: null } }
+            )
+          }
+        }
+      })
+      .catch((err) => console.error('Push notification error:', err))
 
     return NextResponse.json({
       success: true,

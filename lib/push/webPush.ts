@@ -160,3 +160,26 @@ export async function sendFreeSpinsPush(
     },
   })
 }
+
+/**
+ * Send push notification for spins credited by admin
+ */
+export async function sendSpinsCreditedPush(
+  subscription: PushSubscription,
+  spinsCount: number,
+  spinType: 'purchased' | 'bonus'
+): Promise<{ success: boolean; error?: string }> {
+  const emoji = spinType === 'bonus' ? '🎁' : '🎰'
+  const typeLabel = spinType === 'bonus' ? 'bonus' : 'purchased'
+
+  return sendPushNotification(subscription, {
+    title: `${emoji} Spins Credited!`,
+    body: `You received ${spinsCount} ${typeLabel} spin${spinsCount > 1 ? 's' : ''}! Go spin the wheel!`,
+    tag: 'spins-credited',
+    data: {
+      type: 'spins_credited',
+      spinsCount,
+      spinType,
+    },
+  })
+}

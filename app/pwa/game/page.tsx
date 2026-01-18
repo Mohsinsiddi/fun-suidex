@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
-import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search } from 'lucide-react'
+import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home } from 'lucide-react'
 import Link from 'next/link'
 
 const DEFAULT_WHEEL_SLOTS = [
@@ -526,9 +526,9 @@ export default function PWAGamePage() {
       {/* Bottom Navigation */}
       <div className="fixed bottom-0 left-0 right-0 bg-surface/95 backdrop-blur-md border-t border-border/50 px-4 py-2 z-40">
         <div className="max-w-md mx-auto flex items-center justify-around">
-          <Link href="/pwa/game" className="flex flex-col items-center gap-1 py-1 px-3 text-accent">
-            <CircleDot className="w-5 h-5" />
-            <span className="text-[10px] font-medium">Play</span>
+          <Link href="/pwa/home" className="flex flex-col items-center gap-1 py-1 px-3 text-text-secondary hover:text-white transition-colors">
+            <Home className="w-5 h-5" />
+            <span className="text-[10px] font-medium">Home</span>
           </Link>
           <Link href="/pwa/history" className="flex flex-col items-center gap-1 py-1 px-3 text-text-secondary hover:text-white transition-colors">
             <History className="w-5 h-5" />

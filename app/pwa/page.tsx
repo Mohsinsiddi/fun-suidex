@@ -42,7 +42,7 @@ export default function PWALoginPage() {
   // Redirect if already authenticated
   useEffect(() => {
     if (mounted && isAuthenticated) {
-      router.replace('/pwa/game')
+      router.replace('/pwa/home')
     }
   }, [mounted, isAuthenticated, router])
 
@@ -121,8 +121,8 @@ export default function PWALoginPage() {
         totalWinsUSD: userData.totalWinsUSD || 0,
       })
 
-      // Navigate to game
-      router.replace('/pwa/game')
+      // Navigate to home
+      router.replace('/pwa/home')
     } catch (err) {
       console.error('PWA login error:', err)
       setError('Login failed. Please try again.')
