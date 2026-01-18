@@ -30,6 +30,9 @@ interface PWAAuthState {
   isSessionLocked: boolean
   lastActiveAt: number | null
 
+  // Cache control - prevents redundant fetches
+  lastFetched: number | null
+
   // Actions
   setTokens: (accessToken: string, refreshToken: string) => void
   setUser: (data: {
@@ -41,7 +44,7 @@ interface PWAAuthState {
     totalWinsUSD?: number
     referralCode?: string
   }) => void
-  fetchUser: () => Promise<boolean>
+  fetchUser: (force?: boolean) => Promise<boolean>
   refreshTokens: () => Promise<boolean>
   setSpins: (
     spins: { free: number; purchased: number; bonus: number },
@@ -53,6 +56,9 @@ interface PWAAuthState {
   unlockSession: () => void
   updateLastActive: () => void
 }
+
+// Cache duration: 30 seconds - prevents redundant API calls when navigating
+const CACHE_DURATION = 30 * 1000
 
 const initialState = {
   isAuthenticated: false,
@@ -70,6 +76,7 @@ const initialState = {
   referralCode: null,
   isSessionLocked: false,
   lastActiveAt: null,
+  lastFetched: null,
 }
 
 export const usePWAAuthStore = create<PWAAuthState>()(
@@ -94,9 +101,17 @@ export const usePWAAuthStore = create<PWAAuthState>()(
         })
       },
 
-      fetchUser: async () => {
-        const { accessToken, refreshTokens } = get()
+      fetchUser: async (force = false) => {
+        const { accessToken, refreshTokens, lastFetched, isLoading } = get()
         if (!accessToken) return false
+
+        // Skip if already loading
+        if (isLoading) return true
+
+        // Skip if cache is fresh (unless forced)
+        if (!force && lastFetched && Date.now() - lastFetched < CACHE_DURATION) {
+          return true
+        }
 
         set({ isLoading: true, error: null })
 
@@ -113,7 +128,7 @@ export const usePWAAuthStore = create<PWAAuthState>()(
               set({ ...initialState })
               return false
             }
-            return get().fetchUser()
+            return get().fetchUser(true)
           }
 
           const user = data.data
@@ -126,6 +141,7 @@ export const usePWAAuthStore = create<PWAAuthState>()(
             totalSpins: user.totalSpins || 0,
             totalWinsUSD: user.totalWinsUSD || 0,
             referralCode: user.referralCode || null,
+            lastFetched: Date.now(),
           })
           return true
         } catch (error) {
@@ -169,6 +185,7 @@ export const usePWAAuthStore = create<PWAAuthState>()(
           bonusSpins: spins.bonus,
           totalSpins: stats?.totalSpins ?? get().totalSpins,
           totalWinsUSD: stats?.totalWinsUSD ?? get().totalWinsUSD,
+          lastFetched: Date.now(), // Update cache timestamp
         })
       },
 

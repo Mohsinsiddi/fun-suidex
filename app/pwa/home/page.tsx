@@ -122,7 +122,7 @@ export default function PWAHomePage() {
   const handleRefresh = async () => {
     setRefreshing(true)
     await Promise.all([
-      fetchUser(),
+      fetchUser(true), // Force refresh
       fetchActivityFeed()
     ])
     setRefreshing(false)

@@ -13,8 +13,10 @@ interface LeaderboardEntry {
   rank: number
   wallet: string
   displayWallet: string
+  displayName?: string | null
   value: number
   totalSpins?: number
+  totalWinsUSD?: number
   profileSlug?: string | null
   hasProfile: boolean
 }
@@ -115,7 +117,7 @@ export async function GET(request: NextRequest) {
         hasCompletedFirstSpin: true,
         [config.field]: { $gt: 0 },
       })
-        .select(`wallet ${config.field} totalSpins profileSlug isProfilePublic`)
+        .select(`wallet ${config.field} totalSpins totalWinsUSD profileSlug isProfilePublic displayName`)
         .sort({ [config.field]: -1, createdAt: 1 }) // Secondary sort by createdAt for tie-breaking
         .skip(skip)
         .limit(limit)
@@ -131,8 +133,10 @@ export async function GET(request: NextRequest) {
       rank: skip + index + 1,
       wallet: user.wallet,
       displayWallet: `${user.wallet.slice(0, 6)}...${user.wallet.slice(-4)}`,
+      displayName: user.displayName || null,
       value: user[config.field] || 0,
       totalSpins: user.totalSpins,
+      totalWinsUSD: user.totalWinsUSD || 0,
       profileSlug: user.isProfilePublic ? user.profileSlug : null,
       hasProfile: Boolean(user.profileSlug && user.isProfilePublic),
     }))
