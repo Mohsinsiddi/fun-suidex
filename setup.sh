@@ -1,0 +1,1583 @@
+#!/bin/bash
+
+# ============================================
+# ADMIN PORTAL REFACTOR v2
+# - Shared layout with sidebar
+# - ALL original code preserved exactly
+# - Just extracts sidebar to layout.tsx
+# - Adds Affiliates nav item
+# ============================================
+
+set -e
+
+echo "🔧 Refactoring Admin Portal..."
+echo ""
+
+# ============================================
+# 1. BACKUP & CREATE STRUCTURE
+# ============================================
+echo "📁 Creating route group structure..."
+
+mkdir -p "app/admin/(auth)/login"
+mkdir -p "app/admin/(dashboard)/dashboard"
+mkdir -p "app/admin/(dashboard)/config"
+mkdir -p "app/admin/(dashboard)/users"
+mkdir -p "app/admin/(dashboard)/revenue"
+mkdir -p "app/admin/(dashboard)/distribute"
+mkdir -p "app/admin/(dashboard)/affiliates"
+
+# ============================================
+# 2. MOVE LOGIN PAGE (unchanged)
+# ============================================
+echo "📝 Moving login page..."
+
+cat > "app/admin/(auth)/login/page.tsx" << 'EOF'
+'use client'
+
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { Lock, User, AlertCircle } from 'lucide-react'
+
+export default function AdminLoginPage() {
+  const router = useRouter()
+  const [username, setUsername] = useState('')
+  const [password, setPassword] = useState('')
+  const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError('')
+    setLoading(true)
+
+    try {
+      const res = await fetch('/api/admin/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ username, password }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok) {
+        throw new Error(data.error || 'Login failed')
+      }
+
+      router.push('/admin/dashboard')
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Login failed')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center px-4 bg-background">
+      <div className="w-full max-w-md">
+        <div className="text-center mb-8">
+          <h1 className="font-display text-3xl font-bold">
+            <span className="text-accent">SuiDex</span> Admin
+          </h1>
+          <p className="text-text-secondary mt-2">
+            Sign in to access the admin dashboard
+          </p>
+        </div>
+
+        <div className="card p-8">
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {error && (
+              <div className="flex items-center gap-2 p-3 bg-error/10 border border-error/20 rounded-lg text-error text-sm">
+                <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                {error}
+              </div>
+            )}
+
+            <div>
+              <label htmlFor="username" className="block text-sm font-medium text-text-secondary mb-2">
+                Username
+              </label>
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+                <input
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value.toLowerCase())}
+                  className="input pl-10"
+                  placeholder="admin"
+                  required
+                  autoComplete="username"
+                />
+              </div>
+            </div>
+
+            <div>
+              <label htmlFor="password" className="block text-sm font-medium text-text-secondary mb-2">
+                Password
+              </label>
+              <div className="relative">
+                <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
+                <input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="input pl-10"
+                  placeholder="••••••••"
+                  required
+                  autoComplete="current-password"
+                />
+              </div>
+            </div>
+
+            <button type="submit" disabled={loading || !username || !password} className="btn btn-primary w-full">
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
+
+        <p className="text-center text-sm text-text-muted mt-6">
+          First time? Run <code className="text-accent bg-card px-2 py-1 rounded">pnpm admin:create</code> to create an account.
+        </p>
+      </div>
+    </div>
+  )
+}
+EOF
+
+echo "✅ Login page moved"
+
+# ============================================
+# 3. CREATE SHARED LAYOUT (with Affiliates)
+# ============================================
+echo "📝 Creating shared layout..."
+
+cat > "app/admin/(dashboard)/layout.tsx" << 'EOF'
+'use client'
+
+import { usePathname, useRouter } from 'next/navigation'
+import Link from 'next/link'
+import {
+  LayoutDashboard,
+  Settings,
+  DollarSign,
+  Users,
+  Gift,
+  LogOut,
+  UserPlus,
+} from 'lucide-react'
+
+const NAV_ITEMS = [
+  { href: '/admin/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+  { href: '/admin/revenue', icon: DollarSign, label: 'Revenue' },
+  { href: '/admin/distribute', icon: Gift, label: 'Distribute' },
+  { href: '/admin/users', icon: Users, label: 'Users' },
+  { href: '/admin/config', icon: Settings, label: 'Config' },
+  { href: '/admin/affiliates', icon: UserPlus, label: 'Affiliates' },
+]
+
+export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {
+  const pathname = usePathname()
+  const router = useRouter()
+
+  const handleLogout = async () => {
+    await fetch('/api/admin/auth/logout', { method: 'POST' })
+    router.push('/admin/login')
+  }
+
+  return (
+    <div className="min-h-screen flex bg-background">
+      {/* Sidebar */}
+      <aside className="w-64 admin-sidebar flex flex-col">
+        <div className="p-6 border-b border-border">
+          <h1 className="font-display text-xl font-bold">
+            <span className="text-accent">SuiDex</span> Admin
+          </h1>
+        </div>
+
+        <nav className="flex-1 p-4 space-y-1">
+          {NAV_ITEMS.map((item) => (
+            <Link
+              key={item.href}
+              href={item.href}
+              className={`admin-nav-item ${pathname === item.href ? 'active' : ''}`}
+            >
+              <item.icon className="w-5 h-5" />
+              {item.label}
+            </Link>
+          ))}
+        </nav>
+
+        <div className="p-4 border-t border-border">
+          <button
+            onClick={handleLogout}
+            className="admin-nav-item w-full text-error hover:bg-error/10"
+          >
+            <LogOut className="w-5 h-5" />
+            Logout
+          </button>
+        </div>
+      </aside>
+
+      {/* Main Content */}
+      <main className="flex-1 p-8 overflow-auto">
+        <div className="max-w-6xl mx-auto">
+          {children}
+        </div>
+      </main>
+    </div>
+  )
+}
+EOF
+
+echo "✅ Shared layout created"
+
+# ============================================
+# 4. DASHBOARD PAGE (stripped sidebar)
+# ============================================
+echo "📝 Creating dashboard page..."
+
+cat > "app/admin/(dashboard)/dashboard/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import {
+  Settings,
+  DollarSign,
+  Users,
+  Gift,
+  RefreshCw,
+  Database,
+  TrendingUp,
+  Activity,
+  CheckCircle,
+  AlertCircle,
+} from 'lucide-react'
+
+interface DashboardStats {
+  totalUsers: number
+  totalSpins: number
+  totalRevenueSUI: number
+  pendingPrizes: number
+  todaySpins: number
+  todayRevenueSUI: number
+}
+
+export default function AdminDashboardPage() {
+  const router = useRouter()
+  const [stats, setStats] = useState<DashboardStats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [seeding, setSeeding] = useState(false)
+  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string } | null>(null)
+
+  useEffect(() => {
+    fetchStats()
+  }, [])
+
+  const fetchStats = async () => {
+    try {
+      const res = await fetch('/api/admin/stats')
+      if (res.status === 401) {
+        router.push('/admin/login')
+        return
+      }
+      const data = await res.json()
+      if (data.success) {
+        setStats(data.data)
+      }
+    } catch (err) {
+      console.error('Failed to fetch stats:', err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleSeedDefaults = async () => {
+    if (!confirm('This will seed default configuration. Continue?')) return
+    
+    setSeeding(true)
+    setSeedResult(null)
+
+    try {
+      const res = await fetch('/api/admin/seed', { method: 'POST' })
+      const data = await res.json()
+      
+      setSeedResult({
+        success: data.success,
+        message: data.message || (data.success ? 'Defaults seeded successfully!' : 'Failed to seed'),
+      })
+    } catch (err) {
+      setSeedResult({
+        success: false,
+        message: 'Network error. Please try again.',
+      })
+    } finally {
+      setSeeding(false)
+    }
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Dashboard</h2>
+          <p className="text-text-secondary">Overview of your games platform</p>
+        </div>
+        <button onClick={fetchStats} className="btn btn-ghost" disabled={loading}>
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          Refresh
+        </button>
+      </div>
+
+      {/* Stats Grid */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <StatCard title="Total Users" value={stats?.totalUsers ?? '-'} icon={Users} loading={loading} />
+        <StatCard title="Total Spins" value={stats?.totalSpins ?? '-'} icon={Activity} loading={loading} />
+        <StatCard title="Revenue (SUI)" value={stats?.totalRevenueSUI?.toFixed(2) ?? '-'} icon={TrendingUp} loading={loading} accent />
+        <StatCard title="Pending Prizes" value={stats?.pendingPrizes ?? '-'} icon={Gift} loading={loading} warning={stats?.pendingPrizes ? stats.pendingPrizes > 0 : false} />
+      </div>
+
+      {/* Today's Stats */}
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4">Today</h3>
+          <div className="space-y-4">
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Spins</span>
+              <span className="font-mono">{stats?.todaySpins ?? '-'}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-text-secondary">Revenue</span>
+              <span className="font-mono text-accent">{stats?.todayRevenueSUI?.toFixed(2) ?? '-'} SUI</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Seed Defaults Card */}
+        <div className="card p-6">
+          <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
+            <Database className="w-5 h-5" />
+            Database Setup
+          </h3>
+          <p className="text-text-secondary text-sm mb-4">
+            Initialize the database with default prize table, rates, and configuration.
+          </p>
+          
+          {seedResult && (
+            <div className={`flex items-center gap-2 p-3 rounded-lg mb-4 ${seedResult.success ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
+              {seedResult.success ? <CheckCircle className="w-4 h-4" /> : <AlertCircle className="w-4 h-4" />}
+              {seedResult.message}
+            </div>
+          )}
+
+          <button onClick={handleSeedDefaults} disabled={seeding} className="btn btn-secondary w-full">
+            {seeding ? (
+              <><RefreshCw className="w-4 h-4 animate-spin" />Seeding...</>
+            ) : (
+              <><Database className="w-4 h-4" />Seed Defaults</>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* Quick Actions */}
+      <div className="card p-6">
+        <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Link href="/admin/revenue" className="p-4 bg-background rounded-lg text-center hover:bg-card-hover transition-colors">
+            <DollarSign className="w-8 h-8 mx-auto mb-2 text-accent" />
+            <span className="text-sm">View Revenue</span>
+          </Link>
+          <Link href="/admin/distribute" className="p-4 bg-background rounded-lg text-center hover:bg-card-hover transition-colors">
+            <Gift className="w-8 h-8 mx-auto mb-2 text-purple-400" />
+            <span className="text-sm">Distribute Prizes</span>
+          </Link>
+          <Link href="/admin/config" className="p-4 bg-background rounded-lg text-center hover:bg-card-hover transition-colors">
+            <Settings className="w-8 h-8 mx-auto mb-2 text-text-secondary" />
+            <span className="text-sm">Edit Config</span>
+          </Link>
+          <Link href="/admin/users" className="p-4 bg-background rounded-lg text-center hover:bg-card-hover transition-colors">
+            <Users className="w-8 h-8 mx-auto mb-2 text-cyan-400" />
+            <span className="text-sm">Manage Users</span>
+          </Link>
+        </div>
+      </div>
+    </>
+  )
+}
+
+function StatCard({ title, value, icon: Icon, loading, accent, warning }: {
+  title: string
+  value: string | number
+  icon: React.ElementType
+  loading?: boolean
+  accent?: boolean
+  warning?: boolean
+}) {
+  return (
+    <div className="card p-6">
+      <div className="flex items-start justify-between">
+        <div>
+          <p className="text-text-secondary text-sm">{title}</p>
+          <p className={`text-2xl font-bold mt-1 ${loading ? 'skeleton h-8 w-20' : accent ? 'text-accent' : warning ? 'text-warning' : ''}`}>
+            {loading ? '' : value}
+          </p>
+        </div>
+        <div className={`p-3 rounded-lg ${accent ? 'bg-accent/10 text-accent' : warning ? 'bg-warning/10 text-warning' : 'bg-card text-text-secondary'}`}>
+          <Icon className="w-5 h-5" />
+        </div>
+      </div>
+    </div>
+  )
+}
+EOF
+
+echo "✅ Dashboard page created"
+
+# ============================================
+# 5. CONFIG PAGE (stripped sidebar)
+# ============================================
+echo "📝 Creating config page..."
+
+cat > "app/admin/(dashboard)/config/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { Save, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
+
+interface PrizeSlot {
+  slotIndex: number
+  type: 'liquid_victory' | 'locked_victory' | 'suitrump' | 'no_prize'
+  amount: number
+  valueUSD: number
+  weight: number
+  lockDuration?: string
+}
+
+interface AdminConfig {
+  spinRateSUI: number
+  adminWalletAddress: string
+  autoApprovalLimitSUI: number
+  paymentLookbackHours: number
+  referralCommissionPercent: number
+  referralEnabled: boolean
+  spinPurchaseEnabled: boolean
+  freeSpinMinStakeUSD: number
+  freeSpinCooldownHours: number
+  prizeTable: PrizeSlot[]
+}
+
+const PRIZE_TYPES = [
+  { value: 'liquid_victory', label: 'Liquid Victory' },
+  { value: 'locked_victory', label: 'Locked Victory' },
+  { value: 'suitrump', label: 'SuiTrump' },
+  { value: 'no_prize', label: 'No Prize' },
+]
+
+const LOCK_DURATIONS = [
+  { value: '', label: 'None' },
+  { value: '1_week', label: '1 Week' },
+  { value: '3_month', label: '3 Months' },
+  { value: '1_year', label: '1 Year' },
+  { value: '3_year', label: '3 Years' },
+]
+
+export default function AdminConfigPage() {
+  const router = useRouter()
+  const [config, setConfig] = useState<AdminConfig | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  useEffect(() => { fetchConfig() }, [])
+
+  const fetchConfig = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/config')
+      if (res.status === 401) { router.push('/admin/login'); return }
+      const data = await res.json()
+      if (data.success) setConfig(data.data)
+      else setError(data.error)
+    } catch (err) { setError('Failed to load config') }
+    setLoading(false)
+  }
+
+  const handleSave = async () => {
+    if (!config) return
+    setSaving(true)
+    setError(null)
+    setSuccess(null)
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(config),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess('Configuration saved successfully!')
+        setTimeout(() => setSuccess(null), 3000)
+      } else setError(data.error)
+    } catch (err) { setError('Failed to save config') }
+    setSaving(false)
+  }
+
+  const updatePrizeSlot = (index: number, field: string, value: any) => {
+    if (!config) return
+    const newPrizeTable = [...config.prizeTable]
+    newPrizeTable[index] = { ...newPrizeTable[index], [field]: value }
+    setConfig({ ...config, prizeTable: newPrizeTable })
+  }
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-20">
+        <RefreshCw className="w-8 h-8 animate-spin text-accent" />
+      </div>
+    )
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Configuration</h2>
+          <p className="text-text-secondary">Manage prize table and game settings</p>
+        </div>
+        <button onClick={handleSave} disabled={saving} className="btn btn-primary">
+          {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+          Save Changes
+        </button>
+      </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-error/10 border border-error/20 rounded-lg text-error">
+          <AlertCircle className="w-5 h-5" />{error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-success/10 border border-success/20 rounded-lg text-success">
+          <CheckCircle className="w-5 h-5" />{success}
+        </div>
+      )}
+
+      {config && (
+        <>
+          {/* General Settings */}
+          <div className="card p-6 mb-6">
+            <h3 className="text-lg font-semibold mb-4">General Settings</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Spin Rate (SUI per spin)</label>
+                <input
+                  type="number"
+                  value={config.spinRateSUI}
+                  onChange={(e) => setConfig({ ...config, spinRateSUI: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  step="0.1"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Admin Wallet Address</label>
+                <input
+                  type="text"
+                  value={config.adminWalletAddress}
+                  onChange={(e) => setConfig({ ...config, adminWalletAddress: e.target.value })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg font-mono text-sm"
+                  placeholder="0x..."
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Auto-Approval Limit (SUI)</label>
+                <input
+                  type="number"
+                  value={config.autoApprovalLimitSUI}
+                  onChange={(e) => setConfig({ ...config, autoApprovalLimitSUI: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Payment Lookback (hours)</label>
+                <input
+                  type="number"
+                  value={config.paymentLookbackHours}
+                  onChange={(e) => setConfig({ ...config, paymentLookbackHours: parseInt(e.target.value) || 48 })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Referral Commission (%)</label>
+                <input
+                  type="number"
+                  value={config.referralCommissionPercent}
+                  onChange={(e) => setConfig({ ...config, referralCommissionPercent: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                  min="0"
+                  max="100"
+                />
+              </div>
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Free Spin Min Stake (USD)</label>
+                <input
+                  type="number"
+                  value={config.freeSpinMinStakeUSD}
+                  onChange={(e) => setConfig({ ...config, freeSpinMinStakeUSD: parseFloat(e.target.value) || 0 })}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-6 mt-6">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.spinPurchaseEnabled}
+                  onChange={(e) => setConfig({ ...config, spinPurchaseEnabled: e.target.checked })}
+                  className="w-5 h-5 rounded bg-background border-border accent-accent"
+                />
+                <span className="text-text-secondary">Enable Spin Purchases</span>
+              </label>
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={config.referralEnabled}
+                  onChange={(e) => setConfig({ ...config, referralEnabled: e.target.checked })}
+                  className="w-5 h-5 rounded bg-background border-border accent-accent"
+                />
+                <span className="text-text-secondary">Enable Referrals</span>
+              </label>
+            </div>
+          </div>
+
+          {/* Prize Table */}
+          <div className="card p-6">
+            <h3 className="text-lg font-semibold mb-4">Prize Table (16 Slots)</h3>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="border-b border-border">
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">#</th>
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">Type</th>
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">Amount</th>
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">Value (USD)</th>
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">Weight</th>
+                    <th className="px-3 py-3 text-left text-xs text-text-secondary">Lock</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {config.prizeTable.map((slot, i) => (
+                    <tr key={i} className="border-b border-border/50 hover:bg-card-hover">
+                      <td className="px-3 py-2 text-text-secondary text-sm">{i}</td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={slot.type}
+                          onChange={(e) => updatePrizeSlot(i, 'type', e.target.value)}
+                          className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                        >
+                          {PRIZE_TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
+                        </select>
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={slot.amount}
+                          onChange={(e) => updatePrizeSlot(i, 'amount', parseInt(e.target.value) || 0)}
+                          className="w-24 px-2 py-1 bg-background border border-border rounded text-sm"
+                          disabled={slot.type === 'no_prize'}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={slot.valueUSD}
+                          onChange={(e) => updatePrizeSlot(i, 'valueUSD', parseInt(e.target.value) || 0)}
+                          className="w-20 px-2 py-1 bg-background border border-border rounded text-sm"
+                          disabled={slot.type === 'no_prize'}
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <input
+                          type="number"
+                          value={slot.weight}
+                          onChange={(e) => updatePrizeSlot(i, 'weight', parseInt(e.target.value) || 1)}
+                          className="w-20 px-2 py-1 bg-background border border-border rounded text-sm"
+                          min="1"
+                        />
+                      </td>
+                      <td className="px-3 py-2">
+                        <select
+                          value={slot.lockDuration || ''}
+                          onChange={(e) => updatePrizeSlot(i, 'lockDuration', e.target.value || undefined)}
+                          className="w-full px-2 py-1 bg-background border border-border rounded text-sm"
+                          disabled={slot.type !== 'locked_victory'}
+                        >
+                          {LOCK_DURATIONS.map((d) => <option key={d.value} value={d.value}>{d.label}</option>)}
+                        </select>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div className="mt-4 p-4 bg-background rounded-lg">
+              <p className="text-sm text-text-secondary">
+                <strong className="text-accent">Weight:</strong> Higher weight = more likely to land. 
+                Total weight: {config.prizeTable.reduce((sum, s) => sum + s.weight, 0)}
+              </p>
+            </div>
+          </div>
+        </>
+      )}
+    </>
+  )
+}
+EOF
+
+echo "✅ Config page created"
+
+# ============================================
+# 6. USERS PAGE (stripped sidebar)
+# ============================================
+echo "📝 Creating users page..."
+
+cat > "app/admin/(dashboard)/users/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { RefreshCw, Search, Plus, AlertCircle, CheckCircle } from 'lucide-react'
+
+interface User {
+  _id: string
+  wallet: string
+  purchasedSpins: number
+  bonusSpins: number
+  totalSpins: number
+  totalWinsUSD: number
+  createdAt: string
+  lastActiveAt: string
+}
+
+export default function AdminUsersPage() {
+  const router = useRouter()
+  const [users, setUsers] = useState<User[]>([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState('')
+  const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
+
+  const [showCreditModal, setShowCreditModal] = useState(false)
+  const [creditWallet, setCreditWallet] = useState('')
+  const [creditAmount, setCreditAmount] = useState(1)
+  const [creditType, setCreditType] = useState<'purchased' | 'bonus'>('purchased')
+  const [crediting, setCrediting] = useState(false)
+
+  useEffect(() => { fetchUsers() }, [])
+
+  const fetchUsers = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/users')
+      if (res.status === 401) { router.push('/admin/login'); return }
+      const data = await res.json()
+      if (data.success) setUsers(data.data || [])
+      else setError(data.error)
+    } catch (err) { setError('Failed to load users') }
+    setLoading(false)
+  }
+
+  const handleCredit = async () => {
+    if (!creditWallet || creditAmount <= 0) return
+    setCrediting(true)
+    setError(null)
+    try {
+      const res = await fetch('/api/admin/spins/credit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: creditWallet, amount: creditAmount, type: creditType }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        setSuccess(`Credited ${creditAmount} ${creditType} spins to ${creditWallet.slice(0, 10)}...`)
+        setShowCreditModal(false)
+        setCreditWallet('')
+        setCreditAmount(1)
+        fetchUsers()
+        setTimeout(() => setSuccess(null), 3000)
+      } else setError(data.error)
+    } catch (err) { setError('Failed to credit spins') }
+    setCrediting(false)
+  }
+
+  const filteredUsers = users.filter(u => u.wallet.toLowerCase().includes(search.toLowerCase()))
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Users</h2>
+          <p className="text-text-secondary">Manage users and credit spins</p>
+        </div>
+        <div className="flex gap-3">
+          <button onClick={() => setShowCreditModal(true)} className="btn btn-primary">
+            <Plus className="w-4 h-4" />Credit Spins
+          </button>
+          <button onClick={fetchUsers} disabled={loading} className="btn btn-ghost">
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* Messages */}
+      {error && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-error/10 border border-error/20 rounded-lg text-error">
+          <AlertCircle className="w-5 h-5" />{error}
+        </div>
+      )}
+      {success && (
+        <div className="mb-6 flex items-center gap-2 p-4 bg-success/10 border border-success/20 rounded-lg text-success">
+          <CheckCircle className="w-5 h-5" />{success}
+        </div>
+      )}
+
+      {/* Search */}
+      <div className="mb-6">
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-text-secondary" />
+          <input
+            type="text"
+            placeholder="Search by wallet address..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="w-full pl-10 pr-4 py-3 bg-card border border-border rounded-lg placeholder-text-secondary"
+          />
+        </div>
+      </div>
+
+      {/* Users Table */}
+      <div className="card overflow-hidden">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Wallet</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Purchased</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Bonus</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Total Spins</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Wins (USD)</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Last Active</th>
+              <th className="px-6 py-4 text-left text-xs text-text-secondary uppercase">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {filteredUsers.map((user) => (
+              <tr key={user._id} className="border-b border-border/50 hover:bg-card-hover">
+                <td className="px-6 py-4 font-mono text-sm">{user.wallet.slice(0, 10)}...{user.wallet.slice(-6)}</td>
+                <td className="px-6 py-4 text-warning font-medium">{user.purchasedSpins}</td>
+                <td className="px-6 py-4 text-purple-400 font-medium">{user.bonusSpins}</td>
+                <td className="px-6 py-4 text-text-secondary">{user.totalSpins}</td>
+                <td className="px-6 py-4 text-success">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
+                <td className="px-6 py-4 text-text-secondary text-sm">
+                  {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
+                </td>
+                <td className="px-6 py-4">
+                  <button
+                    onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
+                    className="text-sm text-accent hover:text-accent/80"
+                  >
+                    Credit
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {filteredUsers.length === 0 && (
+              <tr>
+                <td colSpan={7} className="px-6 py-8 text-center text-text-secondary">
+                  {loading ? 'Loading...' : 'No users found'}
+                </td>
+              </tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Credit Modal */}
+      {showCreditModal && (
+        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-4">
+          <div className="card p-6 w-full max-w-md">
+            <h3 className="text-xl font-bold mb-4">Credit Spins</h3>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Wallet Address</label>
+                <input
+                  type="text"
+                  value={creditWallet}
+                  onChange={(e) => setCreditWallet(e.target.value)}
+                  placeholder="0x..."
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg font-mono text-sm"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Amount</label>
+                <input
+                  type="number"
+                  value={creditAmount}
+                  onChange={(e) => setCreditAmount(parseInt(e.target.value) || 1)}
+                  min="1"
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm text-text-secondary mb-2">Type</label>
+                <select
+                  value={creditType}
+                  onChange={(e) => setCreditType(e.target.value as 'purchased' | 'bonus')}
+                  className="w-full px-4 py-2 bg-background border border-border rounded-lg"
+                >
+                  <option value="purchased">Purchased Spins</option>
+                  <option value="bonus">Bonus Spins</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button onClick={() => setShowCreditModal(false)} className="btn btn-ghost flex-1">Cancel</button>
+              <button
+                onClick={handleCredit}
+                disabled={crediting || !creditWallet}
+                className="btn btn-primary flex-1 disabled:opacity-50"
+              >
+                {crediting ? 'Crediting...' : 'Credit Spins'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
+  )
+}
+EOF
+
+echo "✅ Users page created"
+
+# ============================================
+# 7. REVENUE PAGE (stripped sidebar)
+# ============================================
+echo "📝 Creating revenue page..."
+
+cat > "app/admin/(dashboard)/revenue/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { RefreshCw, DollarSign, TrendingUp, Calendar } from 'lucide-react'
+
+interface RevenueData {
+  totalRevenueSUI: number
+  totalPayments: number
+  todayRevenueSUI: number
+  todayPayments: number
+  weekRevenueSUI: number
+  weekPayments: number
+  pendingPayments: number
+  recentPayments: {
+    _id: string
+    wallet: string
+    amountSUI: number
+    spinsGranted: number
+    status: string
+    createdAt: string
+  }[]
+}
+
+export default function AdminRevenuePage() {
+  const router = useRouter()
+  const [data, setData] = useState<RevenueData | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => { fetchRevenue() }, [])
+
+  const fetchRevenue = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/revenue')
+      if (res.status === 401) { router.push('/admin/login'); return }
+      const json = await res.json()
+      if (json.success) setData(json.data)
+    } catch (err) { console.error(err) }
+    setLoading(false)
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Revenue</h2>
+          <p className="text-text-secondary">Track payments and spin purchases</p>
+        </div>
+        <button onClick={fetchRevenue} disabled={loading} className="btn btn-ghost">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        </button>
+      </div>
+
+      {data && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Total Revenue</p>
+                  <p className="text-2xl font-bold mt-1 text-accent">{data.totalRevenueSUI?.toFixed(2) || 0} SUI</p>
+                  <p className="text-sm text-text-secondary mt-1">{data.totalPayments || 0} payments</p>
+                </div>
+                <div className="p-3 rounded-lg bg-accent/10 text-accent"><DollarSign className="w-5 h-5" /></div>
+              </div>
+            </div>
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Today</p>
+                  <p className="text-2xl font-bold mt-1">{data.todayRevenueSUI?.toFixed(2) || 0} SUI</p>
+                  <p className="text-sm text-text-secondary mt-1">{data.todayPayments || 0} payments</p>
+                </div>
+                <div className="p-3 rounded-lg bg-card text-text-secondary"><Calendar className="w-5 h-5" /></div>
+              </div>
+            </div>
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">This Week</p>
+                  <p className="text-2xl font-bold mt-1">{data.weekRevenueSUI?.toFixed(2) || 0} SUI</p>
+                  <p className="text-sm text-text-secondary mt-1">{data.weekPayments || 0} payments</p>
+                </div>
+                <div className="p-3 rounded-lg bg-card text-text-secondary"><TrendingUp className="w-5 h-5" /></div>
+              </div>
+            </div>
+            <div className="card p-6">
+              <div className="flex items-start justify-between">
+                <div>
+                  <p className="text-text-secondary text-sm">Pending</p>
+                  <p className={`text-2xl font-bold mt-1 ${(data.pendingPayments || 0) > 0 ? 'text-warning' : ''}`}>{data.pendingPayments || 0}</p>
+                  <p className="text-sm text-text-secondary mt-1">awaiting approval</p>
+                </div>
+                <div className={`p-3 rounded-lg ${(data.pendingPayments || 0) > 0 ? 'bg-warning/10 text-warning' : 'bg-card text-text-secondary'}`}><RefreshCw className="w-5 h-5" /></div>
+              </div>
+            </div>
+          </div>
+
+          {/* Recent Payments */}
+          <div className="card">
+            <div className="p-4 border-b border-border">
+              <h3 className="text-lg font-semibold">Recent Payments</h3>
+            </div>
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="px-6 py-3 text-left text-xs text-text-secondary">Wallet</th>
+                  <th className="px-6 py-3 text-left text-xs text-text-secondary">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs text-text-secondary">Spins</th>
+                  <th className="px-6 py-3 text-left text-xs text-text-secondary">Status</th>
+                  <th className="px-6 py-3 text-left text-xs text-text-secondary">Date</th>
+                </tr>
+              </thead>
+              <tbody>
+                {data.recentPayments?.map((p) => (
+                  <tr key={p._id} className="border-b border-border/50">
+                    <td className="px-6 py-4 font-mono text-sm">{p.wallet.slice(0, 10)}...{p.wallet.slice(-4)}</td>
+                    <td className="px-6 py-4 text-accent">{p.amountSUI} SUI</td>
+                    <td className="px-6 py-4 text-warning">{p.spinsGranted}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-2 py-1 rounded text-xs ${p.status === 'verified' ? 'bg-success/20 text-success' : p.status === 'pending' ? 'bg-warning/20 text-warning' : 'bg-error/20 text-error'}`}>{p.status}</span>
+                    </td>
+                    <td className="px-6 py-4 text-text-secondary text-sm">{new Date(p.createdAt).toLocaleDateString()}</td>
+                  </tr>
+                ))}
+                {(!data.recentPayments || data.recentPayments.length === 0) && (
+                  <tr><td colSpan={5} className="px-6 py-8 text-center text-text-secondary">No payments yet</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {loading && (
+        <div className="flex items-center justify-center py-20">
+          <RefreshCw className="w-8 h-8 animate-spin text-accent" />
+        </div>
+      )}
+    </>
+  )
+}
+EOF
+
+echo "✅ Revenue page created"
+
+# ============================================
+# 8. DISTRIBUTE PAGE (stripped sidebar)
+# ============================================
+echo "📝 Creating distribute page..."
+
+cat > "app/admin/(dashboard)/distribute/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { RefreshCw, Gift, DollarSign, Check, ExternalLink } from 'lucide-react'
+
+interface PendingPrize {
+  _id: string
+  wallet: string
+  prizeType: string
+  prizeAmount: number
+  prizeValueUSD: number
+  lockDuration: string | null
+  status: string
+  createdAt: string
+}
+
+export default function AdminDistributePage() {
+  const router = useRouter()
+  const [prizes, setPrizes] = useState<PendingPrize[]>([])
+  const [loading, setLoading] = useState(true)
+  const [processing, setProcessing] = useState<string | null>(null)
+
+  useEffect(() => { fetchPrizes() }, [])
+
+  const fetchPrizes = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/admin/distribute')
+      if (res.status === 401) { router.push('/admin/login'); return }
+      const data = await res.json()
+      if (data.success) setPrizes(data.data || [])
+    } catch (err) { console.error(err) }
+    setLoading(false)
+  }
+
+  const handleDistribute = async (spinId: string, txHash: string) => {
+    if (!txHash) return
+    setProcessing(spinId)
+    try {
+      const res = await fetch('/api/admin/distribute', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ spinId, txHash }),
+      })
+      const data = await res.json()
+      if (data.success) setPrizes(prev => prev.filter(p => p._id !== spinId))
+    } catch (err) { console.error(err) }
+    setProcessing(null)
+  }
+
+  const getPrizeTypeLabel = (type: string) => {
+    switch (type) {
+      case 'liquid_victory': return 'Liquid VICT'
+      case 'locked_victory': return 'Locked VICT'
+      case 'suitrump': return 'SuiTrump'
+      default: return type
+    }
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Prize Distribution</h2>
+          <p className="text-text-secondary">Distribute pending prizes to winners</p>
+        </div>
+        <button onClick={fetchPrizes} disabled={loading} className="btn btn-ghost">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        </button>
+      </div>
+
+      {/* Summary */}
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <div className="card p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-text-secondary text-sm">Pending Prizes</p>
+              <p className="text-2xl font-bold mt-1 text-warning">{prizes.length}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-warning/10 text-warning"><Gift className="w-5 h-5" /></div>
+          </div>
+        </div>
+        <div className="card p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-text-secondary text-sm">Total Value (USD)</p>
+              <p className="text-2xl font-bold mt-1 text-success">${prizes.reduce((s, p) => s + p.prizeValueUSD, 0).toFixed(0)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-success/10 text-success"><DollarSign className="w-5 h-5" /></div>
+          </div>
+        </div>
+        <div className="card p-6">
+          <div className="flex items-start justify-between">
+            <div>
+              <p className="text-text-secondary text-sm">Total VICT</p>
+              <p className="text-2xl font-bold mt-1 text-accent">{prizes.filter(p => p.prizeType !== 'suitrump').reduce((s, p) => s + p.prizeAmount, 0).toLocaleString()}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-accent/10 text-accent"><Gift className="w-5 h-5" /></div>
+          </div>
+        </div>
+      </div>
+
+      {/* Pending Prizes Table */}
+      <div className="card">
+        <div className="p-4 border-b border-border">
+          <h3 className="text-lg font-semibold">Pending Prizes</h3>
+        </div>
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-border">
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Wallet</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Type</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Amount</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Value</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Lock</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Date</th>
+              <th className="px-4 py-3 text-left text-xs text-text-secondary">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {prizes.map((prize) => (
+              <tr key={prize._id} className="border-b border-border/50 hover:bg-card-hover">
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-2">
+                    <span className="font-mono text-sm">{prize.wallet.slice(0, 8)}...{prize.wallet.slice(-4)}</span>
+                    <a href={`https://suiscan.xyz/mainnet/account/${prize.wallet}`} target="_blank" rel="noopener noreferrer" className="text-text-secondary hover:text-accent">
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <span className={`px-2 py-1 rounded text-xs ${
+                    prize.prizeType === 'liquid_victory' ? 'bg-warning/20 text-warning' :
+                    prize.prizeType === 'locked_victory' ? 'bg-purple-500/20 text-purple-400' :
+                    'bg-cyan-500/20 text-cyan-400'
+                  }`}>
+                    {getPrizeTypeLabel(prize.prizeType)}
+                  </span>
+                </td>
+                <td className="px-4 py-3 font-medium">{prize.prizeAmount.toLocaleString()}</td>
+                <td className="px-4 py-3 text-success">${prize.prizeValueUSD}</td>
+                <td className="px-4 py-3 text-text-secondary text-sm">{prize.lockDuration || '-'}</td>
+                <td className="px-4 py-3 text-text-secondary text-sm">{new Date(prize.createdAt).toLocaleDateString()}</td>
+                <td className="px-4 py-3">
+                  <button
+                    onClick={() => {
+                      const txHash = prompt('Enter transaction hash:')
+                      if (txHash) handleDistribute(prize._id, txHash)
+                    }}
+                    disabled={processing === prize._id}
+                    className="flex items-center gap-1 px-3 py-1 bg-success hover:bg-success/80 rounded text-white text-xs disabled:opacity-50"
+                  >
+                    <Check className="w-3 h-3" />
+                    {processing === prize._id ? 'Processing...' : 'Mark Sent'}
+                  </button>
+                </td>
+              </tr>
+            ))}
+            {prizes.length === 0 && (
+              <tr><td colSpan={7} className="px-4 py-8 text-center text-text-secondary">No pending prizes 🎉</td></tr>
+            )}
+          </tbody>
+        </table>
+      </div>
+    </>
+  )
+}
+EOF
+
+echo "✅ Distribute page created"
+
+# ============================================
+# 9. AFFILIATES PAGE (new)
+# ============================================
+echo "📝 Creating affiliates page..."
+
+cat > "app/admin/(dashboard)/affiliates/page.tsx" << 'EOF'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { RefreshCw, CheckCircle, Clock, XCircle, Users, DollarSign } from 'lucide-react'
+
+interface AffiliateReward {
+  _id: string
+  referrerWallet: string
+  refereeWallet: string
+  originalPrizeUSD: number
+  rewardAmountVICT: number
+  rewardValueUSD: number
+  tweetStatus: 'pending' | 'clicked' | 'completed'
+  payoutStatus: 'pending_tweet' | 'ready' | 'paid'
+  paidTxHash?: string
+  createdAt: string
+}
+
+interface Stats {
+  pendingTweet: number
+  ready: number
+  paid: number
+  pendingVICT: number
+  pendingUSD: number
+}
+
+export default function AdminAffiliatesPage() {
+  const router = useRouter()
+  const [rewards, setRewards] = useState<AffiliateReward[]>([])
+  const [stats, setStats] = useState<Stats | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [filter, setFilter] = useState('all')
+  const [selectedIds, setSelectedIds] = useState<string[]>([])
+  const [txHash, setTxHash] = useState('')
+  const [paying, setPaying] = useState(false)
+
+  useEffect(() => { fetchData() }, [filter])
+
+  const fetchData = async () => {
+    setLoading(true)
+    try {
+      const res = await fetch(`/api/admin/affiliates?status=${filter}`)
+      if (res.status === 401) { router.push('/admin/login'); return }
+      const data = await res.json()
+      if (data.success) {
+        setRewards(data.rewards || [])
+        setStats(data.stats)
+      }
+    } catch (err) { console.error(err) }
+    setLoading(false)
+  }
+
+  const handleSelectAll = () => {
+    const readyIds = rewards.filter(r => r.payoutStatus === 'ready').map(r => r._id)
+    setSelectedIds(selectedIds.length === readyIds.length ? [] : readyIds)
+  }
+
+  const handleToggle = (id: string) => {
+    setSelectedIds(prev => prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id])
+  }
+
+  const handlePay = async () => {
+    if (!selectedIds.length) return
+    if (!confirm(`Mark ${selectedIds.length} rewards as paid?`)) return
+    
+    setPaying(true)
+    try {
+      const res = await fetch('/api/admin/affiliates/pay', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rewardIds: selectedIds, txHash: txHash || undefined }),
+      })
+      const data = await res.json()
+      if (data.success) {
+        alert(`Successfully marked ${data.count} rewards as paid!`)
+        setSelectedIds([])
+        setTxHash('')
+        fetchData()
+      } else {
+        alert(data.error || 'Failed')
+      }
+    } catch (err) { alert('Network error') }
+    setPaying(false)
+  }
+
+  const formatWallet = (w: string) => w ? `${w.slice(0, 6)}...${w.slice(-4)}` : '-'
+  const formatDate = (d: string) => new Date(d).toLocaleDateString()
+
+  const getTweetIcon = (status: string) => {
+    if (status === 'completed') return <CheckCircle size={16} className="text-green-400" />
+    if (status === 'clicked') return <Clock size={16} className="text-yellow-400" />
+    return <XCircle size={16} className="text-red-400" />
+  }
+
+  const getStatusBadge = (status: string) => {
+    if (status === 'paid') return <span className="px-2 py-1 text-xs rounded-full bg-green-500/20 text-green-400">Paid</span>
+    if (status === 'ready') return <span className="px-2 py-1 text-xs rounded-full bg-blue-500/20 text-blue-400">Ready</span>
+    return <span className="px-2 py-1 text-xs rounded-full bg-yellow-500/20 text-yellow-400">Pending</span>
+  }
+
+  return (
+    <>
+      {/* Header */}
+      <div className="flex items-center justify-between mb-8">
+        <div>
+          <h2 className="text-2xl font-bold">Affiliate Rewards</h2>
+          <p className="text-text-secondary">Manage referral commissions</p>
+        </div>
+        <button onClick={fetchData} disabled={loading} className="btn btn-ghost">
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />Refresh
+        </button>
+      </div>
+
+      {/* Stats */}
+      {stats && (
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 mb-6">
+          <div className="card p-4">
+            <p className="text-text-secondary text-xs mb-1">Pending Tweet</p>
+            <p className="text-2xl font-bold text-yellow-400">{stats.pendingTweet}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-text-secondary text-xs mb-1">Ready to Pay</p>
+            <p className="text-2xl font-bold text-blue-400">{stats.ready}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-text-secondary text-xs mb-1">Paid</p>
+            <p className="text-2xl font-bold text-green-400">{stats.paid}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-text-secondary text-xs mb-1">Pending VICT</p>
+            <p className="text-2xl font-bold text-white">{(stats.pendingVICT || 0).toLocaleString()}</p>
+          </div>
+          <div className="card p-4">
+            <p className="text-text-secondary text-xs mb-1">Pending USD</p>
+            <p className="text-2xl font-bold text-accent">${(stats.pendingUSD || 0).toFixed(2)}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Filters */}
+      <div className="flex flex-wrap items-center gap-3 mb-4">
+        {['all', 'pending_tweet', 'ready', 'paid'].map(f => (
+          <button key={f} onClick={() => setFilter(f)} className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${filter === f ? 'bg-accent text-black' : 'bg-card text-text-secondary border border-border hover:border-white/20'}`}>
+            {f === 'all' ? 'All' : f === 'pending_tweet' ? 'Pending Tweet' : f.charAt(0).toUpperCase() + f.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {/* Bulk Actions */}
+      {rewards.some(r => r.payoutStatus === 'ready') && (
+        <div className="card p-4 mb-4 flex flex-wrap items-center gap-3">
+          <button onClick={handleSelectAll} className="btn btn-ghost btn-sm">
+            {selectedIds.length ? 'Deselect All' : 'Select Ready'}
+          </button>
+          <span className="text-text-secondary text-sm">{selectedIds.length} selected</span>
+          <input
+            type="text"
+            placeholder="TX Hash (optional)"
+            value={txHash}
+            onChange={e => setTxHash(e.target.value)}
+            className="px-4 py-2 bg-background border border-border rounded-lg flex-1 min-w-[200px]"
+          />
+          <button onClick={handlePay} disabled={!selectedIds.length || paying} className="btn btn-primary">
+            {paying ? 'Processing...' : 'Mark as Paid'}
+          </button>
+        </div>
+      )}
+
+      {/* Table */}
+      <div className="card overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center">
+            <RefreshCw className="w-8 h-8 animate-spin text-accent mx-auto" />
+          </div>
+        ) : rewards.length === 0 ? (
+          <div className="p-12 text-center">
+            <Users size={48} className="mx-auto mb-4 text-text-muted" />
+            <p className="text-text-secondary">No rewards found</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="border-b border-border">
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">SELECT</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">REFERRER</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">REFEREE</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">PRIZE</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">COMMISSION</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">TWEET</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">STATUS</th>
+                  <th className="text-left py-3 px-4 text-xs text-text-secondary">DATE</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rewards.map(r => (
+                  <tr key={r._id} className="border-b border-border/50 hover:bg-card-hover">
+                    <td className="py-3 px-4">
+                      {r.payoutStatus === 'ready' && (
+                        <input type="checkbox" checked={selectedIds.includes(r._id)} onChange={() => handleToggle(r._id)} className="w-4 h-4" />
+                      )}
+                    </td>
+                    <td className="py-3 px-4 font-mono text-sm">{formatWallet(r.referrerWallet)}</td>
+                    <td className="py-3 px-4 font-mono text-sm text-text-secondary">{formatWallet(r.refereeWallet)}</td>
+                    <td className="py-3 px-4">${(r.originalPrizeUSD || 0).toFixed(2)}</td>
+                    <td className="py-3 px-4">
+                      <span className="text-green-400">${(r.rewardValueUSD || 0).toFixed(2)}</span>
+                      <span className="text-text-muted text-xs ml-1">({(r.rewardAmountVICT || 0).toLocaleString()})</span>
+                    </td>
+                    <td className="py-3 px-4">{getTweetIcon(r.tweetStatus)}</td>
+                    <td className="py-3 px-4">{getStatusBadge(r.payoutStatus)}</td>
+                    <td className="py-3 px-4 text-text-secondary text-sm">{formatDate(r.createdAt)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </>
+  )
+}
+EOF
+
+echo "✅ Affiliates page created"
+
+# ============================================
+# 10. CLEANUP OLD FILES
+# ============================================
+echo "🧹 Cleaning up old files..."
+
+rm -rf app/admin/dashboard 2>/dev/null || true
+rm -rf app/admin/config 2>/dev/null || true
+rm -rf app/admin/users 2>/dev/null || true
+rm -rf app/admin/revenue 2>/dev/null || true
+rm -rf app/admin/distribute 2>/dev/null || true
+rm -rf app/admin/login 2>/dev/null || true
+rm -rf app/admin/affiliates 2>/dev/null || true
+
+echo "✅ Old files removed"
+
+# ============================================
+# DONE
+# ============================================
+echo ""
+echo "============================================"
+echo "🎉 ADMIN PORTAL REFACTORED!"
+echo "============================================"
+echo ""
+echo "📁 New Structure:"
+echo "   app/admin/"
+echo "   ├── (auth)/"
+echo "   │   └── login/page.tsx       (standalone, no sidebar)"
+echo "   └── (dashboard)/"
+echo "       ├── layout.tsx           (SHARED SIDEBAR)"
+echo "       ├── dashboard/page.tsx"
+echo "       ├── config/page.tsx"
+echo "       ├── users/page.tsx"
+echo "       ├── revenue/page.tsx"
+echo "       ├── distribute/page.tsx"
+echo "       └── affiliates/page.tsx  (NEW!)"
+echo ""
+echo "✅ All original functionality preserved"
+echo "✅ Sidebar now in ONE file (layout.tsx)"
+echo "✅ Affiliates page added"
+echo ""
+echo "🚀 Run: npm run dev"
+echo ""

@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>PWA Icon Generator - SuiDex Games</title>
+  <style>
+    body { font-family: system-ui, sans-serif; padding: 40px; background: #1a1a2e; color: white; }
+    h1 { color: #00e5ff; }
+    .icons { display: flex; flex-wrap: wrap; gap: 20px; margin: 20px 0; }
+    .icon-box { text-align: center; background: #16213e; padding: 20px; border-radius: 12px; }
+    .icon-box canvas { display: block; margin: 0 auto 10px; border-radius: 20%; }
+    .icon-box a { color: #00e5ff; text-decoration: none; }
+    .icon-box a:hover { text-decoration: underline; }
+    button { background: #00e5ff; color: black; border: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; cursor: pointer; margin: 10px 5px; }
+    button:hover { background: #00b8d4; }
+    .instructions { background: #16213e; padding: 20px; border-radius: 12px; margin-top: 20px; }
+    code { background: #0f0f23; padding: 2px 6px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>PWA Icon Generator</h1>
+  <p>Generate all required PWA icons for SuiDex Games</p>
+
+  <button onclick="generateAllIcons()">Generate All Icons</button>
+  <button onclick="downloadAll()">Download All as ZIP</button>
+
+  <div class="icons" id="icons"></div>
+
+  <div class="instructions">
+    <h3>Instructions:</h3>
+    <ol>
+      <li>Click "Generate All Icons" to create icons</li>
+      <li>Right-click each icon and "Save Image As..." to download</li>
+      <li>Save them to <code>public/icons/</code> folder</li>
+      <li>Or use "Download All" (requires JSZip library)</li>
+    </ol>
+    <p><strong>Required files:</strong></p>
+    <ul>
+      <li>icon-72.png, icon-96.png, icon-128.png, icon-144.png</li>
+      <li>icon-152.png, icon-192.png, icon-384.png, icon-512.png</li>
+      <li>badge-72.png (for notifications)</li>
+    </ul>
+  </div>
+
+  <script>
+    const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+    const canvases = {};
+
+    function drawIcon(canvas, size) {
+      const ctx = canvas.getContext('2d');
+      const scale = size / 512;
+
+      // Background gradient
+      const gradient = ctx.createLinearGradient(0, 0, size, size);
+      gradient.addColorStop(0, '#00e5ff');
+      gradient.addColorStop(1, '#00b8d4');
+
+      // Rounded rectangle background
+      const radius = size * 0.1875; // 96/512
+      ctx.beginPath();
+      ctx.roundRect(0, 0, size, size, radius);
+      ctx.fillStyle = gradient;
+      ctx.fill();
+
+      // Gamepad icon
+      ctx.save();
+      ctx.translate(size * 0.1875, size * 0.25); // 96/512, 128/512
+      ctx.scale(scale, scale);
+
+      // Controller body
+      ctx.fillStyle = '#050609';
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 320, 256, 40);
+      ctx.fill();
+
+      // D-pad vertical
+      ctx.fillStyle = '#00e5ff';
+      ctx.beginPath();
+      ctx.roundRect(56, 72, 24, 72, 4);
+      ctx.fill();
+
+      // D-pad horizontal
+      ctx.beginPath();
+      ctx.roundRect(32, 96, 72, 24, 4);
+      ctx.fill();
+
+      // Buttons
+      ctx.beginPath();
+      ctx.arc(248, 84, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(288, 124, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(208, 124, 18, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.arc(248, 164, 18, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.restore();
+
+      // Text "S" for small icons, "SuiDex" for larger
+      ctx.fillStyle = '#050609';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+
+      if (size >= 192) {
+        ctx.font = `bold ${size * 0.12}px Arial`;
+        ctx.fillText('SuiDex', size / 2, size * 0.82);
+      } else if (size >= 96) {
+        ctx.font = `bold ${size * 0.2}px Arial`;
+        ctx.fillText('S', size / 2, size * 0.82);
+      }
+    }
+
+    function drawBadge(canvas, size) {
+      const ctx = canvas.getContext('2d');
+
+      // Simple circular badge
+      ctx.fillStyle = '#00e5ff';
+      ctx.beginPath();
+      ctx.arc(size/2, size/2, size/2, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Gamepad simple
+      ctx.fillStyle = '#050609';
+      ctx.font = `bold ${size * 0.5}px Arial`;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText('S', size/2, size/2);
+    }
+
+    function generateAllIcons() {
+      const container = document.getElementById('icons');
+      container.innerHTML = '';
+
+      sizes.forEach(size => {
+        const box = document.createElement('div');
+        box.className = 'icon-box';
+
+        const canvas = document.createElement('canvas');
+        canvas.width = size;
+        canvas.height = size;
+        drawIcon(canvas, size);
+        canvases[`icon-${size}`] = canvas;
+
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `icon-${size}.png`;
+        link.textContent = `icon-${size}.png`;
+
+        box.appendChild(canvas);
+        box.appendChild(link);
+        container.appendChild(box);
+      });
+
+      // Badge icon
+      const badgeBox = document.createElement('div');
+      badgeBox.className = 'icon-box';
+
+      const badgeCanvas = document.createElement('canvas');
+      badgeCanvas.width = 72;
+      badgeCanvas.height = 72;
+      drawBadge(badgeCanvas, 72);
+      canvases['badge-72'] = badgeCanvas;
+
+      const badgeLink = document.createElement('a');
+      badgeLink.href = badgeCanvas.toDataURL('image/png');
+      badgeLink.download = 'badge-72.png';
+      badgeLink.textContent = 'badge-72.png';
+
+      badgeBox.appendChild(badgeCanvas);
+      badgeBox.appendChild(badgeLink);
+      container.appendChild(badgeBox);
+    }
+
+    async function downloadAll() {
+      if (Object.keys(canvases).length === 0) {
+        generateAllIcons();
+      }
+
+      // Simple download each one
+      for (const [name, canvas] of Object.entries(canvases)) {
+        const link = document.createElement('a');
+        link.href = canvas.toDataURL('image/png');
+        link.download = `${name}.png`;
+        link.click();
+        await new Promise(r => setTimeout(r, 200)); // Small delay between downloads
+      }
+    }
+
+    // Generate on load
+    generateAllIcons();
+  </script>
+</body>
+</html>
