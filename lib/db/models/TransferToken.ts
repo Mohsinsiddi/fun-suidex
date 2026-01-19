@@ -20,8 +20,7 @@ const TransferTokenSchema = new mongoose.Schema({
   usedAt: { type: Date, default: null },
 })
 
-// Index for faster lookups
-TransferTokenSchema.index({ token: 1 })
+// Index for faster lookups (token index is already created by unique: true)
 TransferTokenSchema.index({ mainWallet: 1 })
 // TTL index - auto-delete 24 hours after expiration for cleanup
 TransferTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 86400 })

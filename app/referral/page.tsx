@@ -40,10 +40,10 @@ export default function ReferralPage() {
   const [signError, setSignError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
-  // Fetch auth data on mount/account change
+  // Fetch auth data on mount/account change - pass expected wallet for mismatch detection
   useEffect(() => {
     if (account?.address) {
-      fetchUser().finally(() => setLoading(false))
+      fetchUser(false, account.address).finally(() => setLoading(false))
     } else {
       setLoading(false)
     }

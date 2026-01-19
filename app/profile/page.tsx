@@ -97,10 +97,11 @@ export default function ProfileSettingsPage() {
 
   // Fetch auth and badge data on mount/account change
   // Force refresh on profile page to ensure accurate stats
+  // Pass expected wallet for mismatch detection
   useEffect(() => {
     if (account?.address) {
       Promise.all([
-        fetchUser(true), // Force fresh data for profile
+        fetchUser(true, account.address), // Force fresh data for profile
         fetchUserBadges()
       ]).finally(() => {
         setLoading(false)

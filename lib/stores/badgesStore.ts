@@ -33,6 +33,7 @@ interface BadgesState {
   fetchUserBadges: () => Promise<void>
   addUserBadge: (badge: UserBadge) => void
   invalidate: () => void
+  reset: () => void
 }
 
 // Cache duration: 10 minutes
@@ -174,6 +175,19 @@ export const useBadgesStore = create<BadgesState>((set, get) => ({
     set({
       lastFetchedAll: null,
       lastFetchedUser: null,
+    })
+  },
+
+  // Reset user-specific data (on wallet change/logout)
+  reset: () => {
+    set({
+      userBadges: [],
+      badgeProgress: [],
+      badgeStats: initialBadgeStats,
+      isLoadingUser: false,
+      lastFetchedUser: null,
+      error: null,
+      // Keep allBadges cached - they're public data
     })
   },
 }))

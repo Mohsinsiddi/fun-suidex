@@ -19,7 +19,7 @@ export function ConnectWallet() {
   const [copied, setCopied] = useState(false);
   const [signingIn, setSigningIn] = useState(false);
 
-  const { isAuthenticated, login, logout, isLoading, fetchUser } = useAuthStore();
+  const { isAuthenticated, login, isLoading, fetchUser } = useAuthStore();
 
   const handleSignIn = async () => {
     if (!currentAccount?.address) return;
@@ -72,8 +72,9 @@ export function ConnectWallet() {
   };
 
   const handleDisconnect = () => {
+    // Just disconnect the wallet - WalletChangeHandler will detect
+    // the change and handle logout API + store cleanup
     disconnect();
-    logout();
     setShowDropdown(false);
   };
 
