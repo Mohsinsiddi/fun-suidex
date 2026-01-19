@@ -358,7 +358,7 @@ Admin user accounts (username/password auth).
   _id: ObjectId,
   
   username: "richie",                   // Unique, lowercase
-  passwordHash: "$argon2id$...",        // Argon2id hashed
+  passwordHash: "$2b$12$...",           // bcrypt hashed
   
   role: "super_admin" | "admin",        // Super admin can invite others
   
@@ -777,7 +777,7 @@ pnpm seed:defaults
 | Area | Implementation |
 |------|----------------|
 | User Auth | Wallet signature (implicit 2FA) |
-| Admin Auth | Username/password (Argon2id hashed) |
+| Admin Auth | Username/password (bcrypt hashed) |
 | JWT | Short-lived access tokens (15m) |
 | Refresh Tokens | httpOnly cookies (7 days) |
 | Prize Randomness | crypto.randomBytes() server-side |
