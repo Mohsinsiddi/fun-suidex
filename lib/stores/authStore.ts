@@ -58,7 +58,7 @@ interface AuthState {
   lastFetched: number | null
 
   // Actions
-  fetchUser: (force?: boolean) => Promise<boolean>
+  fetchUser: (force?: boolean, expectedWallet?: string) => Promise<boolean>
   refreshSpins: () => Promise<void>
   setSpins: (
     spins: { free: number; purchased: number; bonus: number },
@@ -110,7 +110,7 @@ export const useAuthStore = create<AuthState>()(
       ...initialState,
 
       // Fetch current user data from /api/auth/me
-      fetchUser: async (force = false) => {
+      fetchUser: async (force = false, expectedWallet?: string) => {
         const state = get()
 
         // Don't fetch if already loading or fetch in progress
@@ -122,6 +122,12 @@ export const useAuthStore = create<AuthState>()(
         if (!force && state.isAuthenticated && state.wallet) {
           // Already have data - only refetch if cache is stale (5 min)
           if (cacheTime < 5 * 60 * 1000) {
+            // But check for wallet mismatch if expectedWallet provided
+            if (expectedWallet && state.wallet.toLowerCase() !== expectedWallet.toLowerCase()) {
+              // Wallet changed - force reset
+              set(initialState)
+              return false
+            }
             return true
           }
         } else if (!force && cacheTime < 2000) {
@@ -147,6 +153,19 @@ export const useAuthStore = create<AuthState>()(
           }
 
           const user = data.data
+
+          // Check for wallet mismatch - if stored wallet doesn't match API response
+          const apiWallet = user.wallet?.toLowerCase()
+          const storedWallet = state.wallet?.toLowerCase()
+          if (storedWallet && apiWallet && storedWallet !== apiWallet) {
+            console.log('[authStore] Wallet mismatch detected, resetting state')
+            fetchInProgress = false
+            set({
+              ...initialState,
+              isLoading: false,
+            })
+            return false
+          }
 
           set({
             isAuthenticated: true,

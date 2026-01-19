@@ -11,6 +11,7 @@ import { getFullnodeUrl } from '@mysten/sui/client'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactNode, useState } from 'react'
 import type { ThemeVars } from '@mysten/dapp-kit'
+import { WalletChangeHandler } from './WalletChangeHandler'
 
 // ----------------------------------------
 // Dark Theme (matches your app)
@@ -104,11 +105,12 @@ export function SuiProvider({ children }: SuiProviderProps) {
   return (
     <QueryClientProvider client={queryClient}>
       <SuiClientProvider networks={networkConfig} defaultNetwork="mainnet">
-        <WalletProvider 
+        <WalletProvider
           autoConnect={true}
           preferredWallets={['Slush', 'Nightly', 'Phantom', 'Sui Wallet']}
           theme={darkTheme}
         >
+          <WalletChangeHandler />
           {children}
         </WalletProvider>
       </SuiClientProvider>

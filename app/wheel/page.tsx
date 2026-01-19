@@ -98,10 +98,10 @@ export default function WheelPage() {
     }
   }, [prizeTable])
 
-  // Check auth when wallet connects
+  // Check auth when wallet connects - pass expected wallet for mismatch detection
   useEffect(() => {
     if (account?.address) {
-      fetchUser()
+      fetchUser(false, account.address)
     }
   }, [account?.address])
 

@@ -55,10 +55,10 @@ function HomePageContent() {
     }
   }, [searchParams])
 
-  // Check auth when wallet connects
+  // Check auth when wallet connects - pass expected wallet for mismatch detection
   useEffect(() => {
     if (account?.address) {
-      fetchUser().then((authenticated) => {
+      fetchUser(false, account.address).then((authenticated) => {
         if (authenticated && referredBy) {
           setIsLinked(true)
           localStorage.removeItem('suidex_referrer')
