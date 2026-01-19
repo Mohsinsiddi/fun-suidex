@@ -4,7 +4,7 @@
 // GET /api/pwa/transfer/[token] - Get and consume transfer token
 // Rate limited to prevent brute-force attacks
 
-import { NextRequest } from 'next/server'
+import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { TransferToken } from '@/lib/db/models/TransferToken'
 import { success, errors } from '@/lib/utils/apiResponse'
@@ -33,19 +33,54 @@ export async function GET(
 
     await connectDB()
 
-    // Find and delete the token (one-time use)
-    const transfer = await TransferToken.findOneAndDelete({
+    // Find the token first to check its status
+    const existingToken = await TransferToken.findOne({
       token: token.toUpperCase(),
     })
 
-    if (!transfer) {
-      return errors.notFound('Transfer token not found or expired')
+    if (!existingToken) {
+      return errors.notFound('Transfer code not found or expired')
     }
 
+    // Check if already used - return 410 Gone
+    if (existingToken.status === 'used') {
+      return NextResponse.json(
+        { success: false, error: 'Transfer code already used' },
+        { status: 410 } // 410 Gone
+      )
+    }
+
+    // Check if expired
+    if (existingToken.status === 'expired' || new Date(existingToken.expiresAt) < new Date()) {
+      // Update status if needed
+      if (existingToken.status === 'active') {
+        await TransferToken.updateOne(
+          { _id: existingToken._id },
+          { $set: { status: 'expired' } }
+        )
+      }
+      return errors.badRequest('Transfer code has expired')
+    }
+
+    // Mark as used instead of deleting (keeps the encrypted data cleared for security)
+    await TransferToken.updateOne(
+      { _id: existingToken._id, status: 'active' },
+      {
+        $set: {
+          status: 'used',
+          usedAt: new Date(),
+          // Clear encrypted data for security after use
+          'encryptedData.ciphertext': '',
+          'encryptedData.salt': '',
+          'encryptedData.iv': '',
+        }
+      }
+    )
+
     return success({
-      encryptedData: transfer.encryptedData,
-      pwaWallet: transfer.pwaWallet,
-      mainWallet: transfer.mainWallet,
+      encryptedData: existingToken.encryptedData,
+      pwaWallet: existingToken.pwaWallet,
+      mainWallet: existingToken.mainWallet,
     })
   } catch (error) {
     console.error('PWA transfer retrieve error:', error)

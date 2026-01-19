@@ -60,19 +60,28 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     // Generate unique 8-character token (easy to type manually if needed)
     const token = crypto.randomBytes(4).toString('hex').toUpperCase()
 
-    // Delete any existing tokens for this wallet (only allow one active transfer)
-    await TransferToken.deleteMany({ mainWallet: mainWallet.toLowerCase() })
+    // Mark any existing active tokens as expired (only allow one active transfer)
+    await TransferToken.updateMany(
+      { mainWallet: mainWallet.toLowerCase(), status: 'active' },
+      { $set: { status: 'expired' } }
+    )
+
+    // Set expiration 10 minutes from now
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000)
 
     // Create new transfer token
     await TransferToken.create({
       token,
+      status: 'active',
       encryptedData,
       pwaWallet: pwaWallet.toLowerCase(),
       mainWallet: mainWallet.toLowerCase(),
+      expiresAt,
     })
 
     return success({
       token,
+      expiresAt: expiresAt.toISOString(),
       expiresIn: 600, // 10 minutes
       transferUrl: `/pwa/transfer/${token}`,
     })

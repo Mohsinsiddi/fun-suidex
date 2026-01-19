@@ -80,6 +80,9 @@ export default function ProfileSettingsPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Track if we've determined eligibility (separate from loading)
+  const [eligibilityDetermined, setEligibilityDetermined] = useState(false)
+
   const [profile, setProfile] = useState<ProfileData | null>(null)
 
   // Edit state
@@ -99,9 +102,13 @@ export default function ProfileSettingsPage() {
       Promise.all([
         fetchUser(true), // Force fresh data for profile
         fetchUserBadges()
-      ]).finally(() => setLoading(false))
+      ]).finally(() => {
+        setLoading(false)
+        setEligibilityDetermined(true)
+      })
     } else {
       setLoading(false)
+      setEligibilityDetermined(true)
     }
   }, [account?.address, fetchUser, fetchUserBadges])
 
@@ -135,6 +142,7 @@ export default function ProfileSettingsPage() {
     setSigningIn(true)
     setError(null)
     clearError()
+    setEligibilityDetermined(false) // Reset until we fetch fresh data
 
     try {
       const nonceRes = await fetch('/api/auth/nonce', {
@@ -149,25 +157,29 @@ export default function ProfileSettingsPage() {
         { message: new TextEncoder().encode(nonceData.data.nonce) },
         {
           onSuccess: async (sig) => {
-            const success = await login(account.address, sig.signature, nonceData.data.nonce)
-            if (success) {
+            const loginSuccess = await login(account.address, sig.signature, nonceData.data.nonce)
+            if (loginSuccess) {
               // Force fetch to get full profile data (login only sets basic auth data)
               await fetchUser(true)
               await fetchUserBadges()
+              setEligibilityDetermined(true)
             } else {
               setError('Verification failed')
+              setEligibilityDetermined(true)
             }
             setSigningIn(false)
           },
           onError: () => {
             setError('Signature rejected')
             setSigningIn(false)
+            setEligibilityDetermined(true)
           },
         }
       )
     } catch (err: any) {
       setError(err.message)
       setSigningIn(false)
+      setEligibilityDetermined(true)
     }
   }
 
@@ -263,7 +275,7 @@ export default function ProfileSettingsPage() {
             </div>
           </div>
 
-          {loading ? (
+          {loading || authLoading || !eligibilityDetermined ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-accent" />
             </div>
