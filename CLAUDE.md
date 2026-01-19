@@ -11,7 +11,7 @@ SuiDex Games is a gamified rewards platform ("Wheel of Victory") for Victory tok
 - **Frontend**: Next.js 14.2.21 (App Router), React 18, TypeScript, Tailwind CSS 3.4.17
 - **Blockchain**: @mysten/sui 1.18.0, @mysten/dapp-kit 0.14.37
 - **Database**: MongoDB Atlas (Mongoose 8.9.4)
-- **Auth**: JWT (jose) for users, Argon2 for admin passwords
+- **Auth**: JWT (jose) for users, bcrypt for admin passwords
 - **State**: Zustand 5.0.2
 - **Animations**: Framer Motion 11.15.0
 
@@ -71,14 +71,14 @@ scripts/              # CLI scripts for admin management
 - **User**: Wallet, spin balances (free/purchased/bonus), referral code, stats
 - **Spin**: Spin results, prize details, distribution status
 - **Payment**: SUI payment tracking, claim status
-- **Admin**: Admin accounts with Argon2 password hashes
+- **Admin**: Admin accounts with bcrypt password hashes
 - **AdminConfig**: Singleton for prize table, spin rates, settings
 - **Referral**: Referral relationships and commission tracking
 
 ### Authentication
 
 - **Users**: Wallet signature verification → JWT tokens (15m access, 7d refresh)
-- **Admins**: Username/password (Argon2id) → session tokens in httpOnly cookies
+- **Admins**: Username/password (bcrypt) → session tokens in httpOnly cookies
 
 ### API Patterns
 

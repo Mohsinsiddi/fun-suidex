@@ -15,7 +15,7 @@ A gamified rewards platform for Victory token stakers on the SUI blockchain.
 - **Frontend**: Next.js 14.2.21, React 18, Tailwind CSS 3.4.17
 - **Blockchain**: @mysten/sui 1.18.0, @mysten/dapp-kit 0.14.37
 - **Database**: MongoDB (Mongoose 8.9.4)
-- **Auth**: JWT (jose), Argon2 for admin passwords
+- **Auth**: JWT (jose), bcrypt for admin passwords
 - **State**: Zustand 5.0.2
 - **Animations**: Framer Motion 11.15.0
 
@@ -205,7 +205,7 @@ pnpm seed:defaults    # Seed default config
 
 ## Security Notes
 
-- Admin auth is username/password (Argon2 hashed)
+- Admin auth is username/password (bcrypt hashed)
 - User auth is wallet signature (JWT)
 - Prize selection uses crypto.randomBytes()
 - TX verification queries SUI RPC directly

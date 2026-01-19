@@ -15,7 +15,8 @@ import { ERRORS } from '@/constants'
 
 // Dummy hash for timing attack prevention - computed once at startup
 // This ensures consistent timing whether user exists or not
-const DUMMY_HASH = '$argon2id$v=19$m=65536,t=3,p=4$dummysaltvalue1234$dummyhashvalue567890abcdef'
+// Bcrypt hash format: $2b$[cost]$[22 char salt][31 char hash]
+const DUMMY_HASH = '$2b$12$dummysaltvalue1234567890uDummyHashValue1234567890abcdef'
 
 export async function POST(request: NextRequest) {
   try {
