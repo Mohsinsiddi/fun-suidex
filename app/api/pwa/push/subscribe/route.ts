@@ -93,6 +93,12 @@ export async function POST(request: NextRequest) {
 
 export async function DELETE(request: NextRequest) {
   try {
+    // Rate limit
+    const rateLimit = checkRateLimit(request, 'auth')
+    if (!rateLimit.allowed) {
+      return errors.rateLimited(rateLimit.resetIn)
+    }
+
     // Verify PWA token
     const payload = await getPWAPayload(request)
     if (!payload) {

@@ -2,8 +2,10 @@
 // SuiDex Games Service Worker
 // ============================================
 // Handles push notifications and basic caching
+// IMPORTANT: Push notifications work independently of app state
+// They should be received even when app is closed/minimized
 
-const CACHE_NAME = 'suidex-pwa-v1'
+const CACHE_NAME = 'suidex-pwa-v2'
 const OFFLINE_URL = '/pwa/offline'
 
 // Assets to cache for offline use
@@ -15,17 +17,19 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing service worker...')
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(STATIC_ASSETS)
     })
   )
-  // Activate immediately
+  // Activate immediately - important for push notifications to work right away
   self.skipWaiting()
 })
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating service worker...')
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -35,7 +39,7 @@ self.addEventListener('activate', (event) => {
       )
     })
   )
-  // Take control of all pages immediately
+  // Take control of all pages immediately - critical for push notifications
   self.clients.claim()
 })
 
@@ -85,41 +89,65 @@ self.addEventListener('fetch', (event) => {
   )
 })
 
-// Push notification event
+// Push notification event - CRITICAL: This runs even when app is closed/minimized
+// The browser wakes up the service worker to handle push events
 self.addEventListener('push', (event) => {
-  if (!event.data) return
+  console.log('[SW] Push event received')
 
-  try {
-    const payload = event.data.json()
-
-    const options = {
-      body: payload.body || 'You have a new notification',
-      icon: payload.icon || '/icons/icon-192.png',
-      badge: payload.badge || '/icons/badge-72.png',
-      tag: payload.tag || 'default',
-      requireInteraction: payload.requireInteraction || false,
-      data: payload.data || {},
-      actions: payload.actions || [],
-      vibrate: [100, 50, 100],
-    }
-
-    event.waitUntil(
-      self.registration.showNotification(
-        payload.title || 'SuiDex Games',
-        options
-      )
-    )
-  } catch (error) {
-    console.error('Push notification error:', error)
+  // Always show a notification, even if data is missing
+  let payload = {
+    title: 'SuiDex Games',
+    body: 'You have a new notification',
   }
+
+  if (event.data) {
+    try {
+      payload = event.data.json()
+      console.log('[SW] Push payload:', payload)
+    } catch (error) {
+      console.error('[SW] Failed to parse push data:', error)
+      // Try as text
+      try {
+        payload.body = event.data.text()
+      } catch (e) {
+        // Use default message
+      }
+    }
+  }
+
+  const options = {
+    body: payload.body || 'You have a new notification',
+    icon: payload.icon || '/icons/icon-192.png',
+    badge: payload.badge || '/icons/icon-192.png',
+    tag: payload.tag || 'suidex-notification',
+    requireInteraction: payload.requireInteraction || false,
+    data: payload.data || {},
+    actions: payload.actions || [],
+    vibrate: [200, 100, 200],
+    // Renotify allows showing notification even if tag already exists
+    renotify: true,
+  }
+
+  // waitUntil keeps the service worker alive until the notification is shown
+  event.waitUntil(
+    self.registration.showNotification(
+      payload.title || 'SuiDex Games',
+      options
+    ).then(() => {
+      console.log('[SW] Notification shown successfully')
+    }).catch((error) => {
+      console.error('[SW] Failed to show notification:', error)
+    })
+  )
 })
 
-// Notification click event
+// Notification click event - handles clicks even when app is closed
 self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.action)
   event.notification.close()
 
   const data = event.notification.data || {}
-  let url = '/pwa/game'
+  let url = '/pwa/home'
 
   // Determine URL based on notification type
   if (data.type === 'prize_distributed') {
@@ -127,8 +155,10 @@ self.addEventListener('notificationclick', (event) => {
   } else if (data.type === 'affiliate_reward') {
     url = '/pwa/history'
   } else if (data.type === 'new_referral') {
-    url = '/pwa/game'
+    url = '/pwa/home'
   } else if (data.type === 'free_spins') {
+    url = '/pwa/game'
+  } else if (data.type === 'spins_credited') {
     url = '/pwa/game'
   }
 
@@ -146,19 +176,23 @@ self.addEventListener('notificationclick', (event) => {
     }
   }
 
+  // Get the full URL
+  const fullUrl = new URL(url, self.location.origin).href
+
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there's already a window open
+      // Check if there's already a window open with our app
       for (const client of windowClients) {
-        if (client.url.includes('/pwa') && 'focus' in client) {
-          client.navigate(url)
-          return client.focus()
+        // Check if any window is on our origin
+        if (new URL(client.url).origin === self.location.origin && 'focus' in client) {
+          // Navigate the existing window to the target URL
+          return client.navigate(fullUrl).then(() => client.focus())
         }
       }
 
-      // Open a new window
+      // No existing window - open a new one
       if (clients.openWindow) {
-        return clients.openWindow(url)
+        return clients.openWindow(fullUrl)
       }
     })
   )

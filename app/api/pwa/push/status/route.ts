@@ -40,6 +40,8 @@ export async function GET(request: NextRequest) {
     return success({
       enabled: hasSubscription,
       hasSubscription,
+      // Return endpoint so frontend can verify it matches browser subscription
+      endpoint: user.pwaPushSubscription?.endpoint || null,
     })
   } catch (error) {
     console.error('Push status error:', error)
