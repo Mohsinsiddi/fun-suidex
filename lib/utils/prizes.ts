@@ -33,7 +33,7 @@ export function selectPrizeSlot(prizeTable: PrizeSlot[]): {
   
   for (const slot of prizeTable) {
     cumulativeWeight += slot.weight
-    if (targetWeight <= cumulativeWeight) {
+    if (targetWeight < cumulativeWeight) {
       return { slot, serverSeed, randomValue }
     }
   }

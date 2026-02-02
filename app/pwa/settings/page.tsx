@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import { clearStoredWallet } from '@/lib/pwa/encryption'
+import { urlBase64ToUint8Array, checkPushSupport } from '@/lib/utils/push'
 import {
   Settings,
   Bell,
@@ -33,6 +34,7 @@ export default function PWASettingsPage() {
   const [pushEnabled, setPushEnabled] = useState(false)
   const [pushLoading, setPushLoading] = useState(false)
   const [pushChecking, setPushChecking] = useState(true)
+  const [pushNotSupported, setPushNotSupported] = useState<string | null>(null)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showClearConfirm, setShowClearConfirm] = useState(false)
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null)
@@ -52,8 +54,19 @@ export default function PWASettingsPage() {
 
   const checkPushStatus = async () => {
     setPushChecking(true)
+    setPushNotSupported(null)
     try {
-      // First check server status
+      // First check if push is even supported on this platform
+      const pushSupport = checkPushSupport()
+      if (!pushSupport.supported) {
+        console.log('Push not supported:', pushSupport.reason)
+        setPushNotSupported(pushSupport.reason || 'Push notifications not supported')
+        setPushEnabled(false)
+        setPushChecking(false)
+        return
+      }
+
+      // Check server status
       const serverRes = await pwaFetch('/api/pwa/push/status')
       const serverData = await serverRes.json()
 
@@ -65,14 +78,19 @@ export default function PWASettingsPage() {
 
       // If server says enabled, verify browser subscription matches
       if (serverData.data.enabled) {
-        // Check if service worker is ready and has a subscription
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
-          const registration = await navigator.serviceWorker.ready
+        try {
+          // Wait for service worker with timeout
+          const registration = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('timeout')), 5000)
+            )
+          ])
+
           const browserSub = await registration.pushManager.getSubscription()
 
           if (!browserSub) {
             // Server has subscription but browser doesn't - needs re-sync
-            // Auto-clear server subscription since it's stale
             console.log('Push subscription mismatch - clearing stale server subscription')
             await pwaFetch('/api/pwa/push/subscribe', { method: 'DELETE' })
             setPushEnabled(false)
@@ -80,10 +98,20 @@ export default function PWASettingsPage() {
             return
           }
 
-          // Both exist - subscription is valid
+          // Verify the endpoints match (server vs browser)
+          if (serverData.data.endpoint && browserSub.endpoint !== serverData.data.endpoint) {
+            console.log('Push subscription endpoint mismatch - re-registering')
+            await pwaFetch('/api/pwa/push/subscribe', { method: 'DELETE' })
+            setPushEnabled(false)
+            setPushChecking(false)
+            return
+          }
+
+          // Both exist and match - subscription is valid
           setPushEnabled(true)
-        } else {
-          // Push not supported on this browser
+        } catch (swError) {
+          console.error('Service worker check failed:', swError)
+          // SW not ready, but server has subscription - could be stale
           setPushEnabled(false)
         }
       } else {
@@ -143,7 +171,17 @@ export default function PWASettingsPage() {
 
     try {
       if (pushEnabled) {
-        // Unsubscribe
+        // Unsubscribe from both browser and server
+        try {
+          const registration = await navigator.serviceWorker.ready
+          const subscription = await registration.pushManager.getSubscription()
+          if (subscription) {
+            await subscription.unsubscribe()
+          }
+        } catch (e) {
+          console.error('Failed to unsubscribe from browser:', e)
+        }
+
         const res = await pwaFetch('/api/pwa/push/subscribe', { method: 'DELETE' })
         const data = await res.json()
         if (data.success) {
@@ -153,28 +191,78 @@ export default function PWASettingsPage() {
           setMessage({ type: 'error', text: data.error || 'Failed to disable notifications' })
         }
       } else {
-        // Request permission and subscribe
-        if (!('Notification' in window)) {
-          setMessage({ type: 'error', text: 'Push notifications not supported' })
+        // Check if push notifications are supported on this platform
+        const pushSupport = checkPushSupport()
+        if (!pushSupport.supported) {
+          setMessage({ type: 'error', text: pushSupport.reason || 'Push notifications not supported' })
           setPushLoading(false)
           return
         }
 
+        // Validate VAPID key is configured
+        const vapidKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY
+        if (!vapidKey) {
+          setMessage({ type: 'error', text: 'Push notifications not configured on this server' })
+          setPushLoading(false)
+          return
+        }
+
+        // Request notification permission
         const permission = await Notification.requestPermission()
         if (permission !== 'granted') {
-          setMessage({ type: 'error', text: 'Please allow notifications in browser settings' })
+          setMessage({ type: 'error', text: 'Please allow notifications in your browser settings' })
           setPushLoading(false)
           return
         }
 
-        // Get push subscription
-        const registration = await navigator.serviceWorker.ready
-        const subscription = await registration.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
-        })
+        // Wait for service worker to be ready with timeout
+        let registration: ServiceWorkerRegistration
+        try {
+          registration = await Promise.race([
+            navigator.serviceWorker.ready,
+            new Promise<never>((_, reject) =>
+              setTimeout(() => reject(new Error('Service worker not ready')), 10000)
+            )
+          ])
+        } catch {
+          setMessage({ type: 'error', text: 'Service worker not ready. Please reload the app and try again.' })
+          setPushLoading(false)
+          return
+        }
 
-        // Send to server
+        console.log('Service worker ready, scope:', registration.scope)
+
+        // Get or create push subscription
+        let subscription = await registration.pushManager.getSubscription()
+
+        if (!subscription) {
+          try {
+            // Convert VAPID key from base64 string to Uint8Array (REQUIRED by Web Push API)
+            const applicationServerKey = urlBase64ToUint8Array(vapidKey)
+
+            // Create new subscription
+            subscription = await registration.pushManager.subscribe({
+              userVisibleOnly: true,
+              applicationServerKey,
+            })
+            console.log('Created new push subscription')
+          } catch (subscribeError: any) {
+            console.error('Push subscription failed:', subscribeError)
+            if (subscribeError.name === 'NotAllowedError') {
+              setMessage({ type: 'error', text: 'Notifications are blocked. Please enable them in your browser settings.' })
+            } else if (subscribeError.name === 'AbortError') {
+              setMessage({ type: 'error', text: 'Subscription was cancelled. Please try again.' })
+            } else {
+              setMessage({ type: 'error', text: `Failed to subscribe: ${subscribeError.message || 'Unknown error'}` })
+            }
+            setPushLoading(false)
+            return
+          }
+        } else {
+          console.log('Using existing push subscription')
+        }
+
+        // Send subscription to server
         const res = await pwaFetch('/api/pwa/push/subscribe', {
           method: 'POST',
           body: JSON.stringify({
@@ -185,14 +273,14 @@ export default function PWASettingsPage() {
         const data = await res.json()
         if (data.success) {
           setPushEnabled(true)
-          setMessage({ type: 'success', text: 'Push notifications enabled' })
+          setMessage({ type: 'success', text: 'Push notifications enabled! You will receive alerts even when the app is closed.' })
         } else {
-          setMessage({ type: 'error', text: data.error || 'Failed to enable notifications' })
+          setMessage({ type: 'error', text: data.error || 'Failed to save notification settings' })
         }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Push toggle error:', err)
-      setMessage({ type: 'error', text: 'Failed to update notification settings' })
+      setMessage({ type: 'error', text: err.message || 'Failed to update notification settings' })
     }
 
     setPushLoading(false)
@@ -306,6 +394,8 @@ export default function PWASettingsPage() {
           <div className="flex items-center gap-3">
             {pushChecking ? (
               <Loader2 className="w-5 h-5 text-text-muted animate-spin" />
+            ) : pushNotSupported ? (
+              <BellOff className="w-5 h-5 text-orange-400" />
             ) : pushEnabled ? (
               <Bell className="w-5 h-5 text-accent" />
             ) : (
@@ -314,24 +404,36 @@ export default function PWASettingsPage() {
             <div>
               <h2 className="text-white font-medium text-sm">Push Notifications</h2>
               <p className="text-text-muted text-xs">
-                {pushChecking ? 'Checking status...' : 'Get notified when prizes are sent'}
+                {pushChecking
+                  ? 'Checking status...'
+                  : pushNotSupported
+                  ? 'Not available'
+                  : pushEnabled
+                  ? 'Enabled - you will receive alerts'
+                  : 'Get notified when prizes are sent'}
               </p>
             </div>
           </div>
           <button
             onClick={handleTogglePush}
-            disabled={pushLoading || pushChecking}
+            disabled={pushLoading || pushChecking || !!pushNotSupported}
             className={`relative w-12 h-7 rounded-full transition-colors ${
               pushEnabled ? 'bg-accent' : 'bg-border'
-            } ${(pushLoading || pushChecking) ? 'opacity-50' : ''}`}
+            } ${(pushLoading || pushChecking || pushNotSupported) ? 'opacity-50 cursor-not-allowed' : ''}`}
           >
             <div className={`absolute top-1 w-5 h-5 bg-white rounded-full transition-transform ${
               pushEnabled ? 'left-6' : 'left-1'
             }`} />
           </button>
         </div>
+        {/* Show reason if not supported */}
+        {pushNotSupported && (
+          <div className="mt-3 p-2 bg-orange-500/10 border border-orange-500/30 rounded-lg">
+            <p className="text-orange-400 text-xs">{pushNotSupported}</p>
+          </div>
+        )}
         {/* Test notification button - only show when enabled */}
-        {pushEnabled && (
+        {pushEnabled && !pushNotSupported && (
           <button
             onClick={handleTestPush}
             disabled={testingPush}

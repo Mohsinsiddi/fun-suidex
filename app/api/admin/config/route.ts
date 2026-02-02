@@ -115,10 +115,11 @@ export async function PUT(request: NextRequest) {
           }
         }
 
-        // Validate lockDuration (must be null or positive integer)
+        // Validate lockDuration (must be null or valid enum string)
+        const validLockDurations = ['1_week', '3_month', '1_year', '3_year', null]
         if (slot.lockDuration !== undefined && slot.lockDuration !== null) {
-          if (typeof slot.lockDuration !== 'number' || !Number.isInteger(slot.lockDuration) || slot.lockDuration <= 0) {
-            return NextResponse.json({ success: false, error: `Invalid lockDuration at slot ${i}: must be a positive integer or null` }, { status: 400 })
+          if (!validLockDurations.includes(slot.lockDuration)) {
+            return NextResponse.json({ success: false, error: `Invalid lockDuration at slot ${i}: must be one of ${validLockDurations.filter(v => v !== null).join(', ')} or null` }, { status: 400 })
           }
         }
 

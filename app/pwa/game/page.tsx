@@ -1,10 +1,11 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
-import { Gift, Coins, ShoppingCart, Trophy, Clock, Twitter, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home } from 'lucide-react'
+import { SPIN_UI } from '@/constants'
+import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw } from 'lucide-react'
 import Link from 'next/link'
 
 const DEFAULT_WHEEL_SLOTS = [
@@ -48,6 +49,7 @@ export default function PWAGamePage() {
     purchasedSpins,
     bonusSpins,
     totalWinsUSD,
+    referralCode,
     setSpins,
   } = usePWAAuthStore()
 
@@ -61,10 +63,16 @@ export default function PWAGamePage() {
   const [activeTab, setActiveTab] = useState<TabType>('wheel')
   const [wheelSlots, setWheelSlots] = useState<WheelSlot[]>(DEFAULT_WHEEL_SLOTS)
   const [isSpinning, setIsSpinning] = useState(false)
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [rotation, setRotation] = useState(0)
   const [result, setResult] = useState<WheelSlot | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [autoSpin, setAutoSpin] = useState(false)
+  const [countdown, setCountdown] = useState<number | null>(null)
+  const [modalPaused, setModalPaused] = useState(false)
+  const pendingAutoSpinRef = useRef(false)
+  const pendingResultRef = useRef<WheelSlot | null>(null)
 
   const spins = { free: freeSpins, purchased: purchasedSpins, bonus: bonusSpins }
   const slotCount = wheelSlots.length
@@ -97,18 +105,87 @@ export default function PWAGamePage() {
     }
   }, [prizeTable])
 
+  // Load auto-spin preference from localStorage
+  useEffect(() => {
+    if (mounted) {
+      const saved = localStorage.getItem('pwa-auto-spin')
+      if (saved === 'true') setAutoSpin(true)
+    }
+  }, [mounted])
+
+  // Save auto-spin preference to localStorage
+  const toggleAutoSpin = useCallback(() => {
+    setAutoSpin(prev => {
+      const newVal = !prev
+      localStorage.setItem('pwa-auto-spin', String(newVal))
+      return newVal
+    })
+  }, [])
+
+  // Auto-close modal with countdown
+  useEffect(() => {
+    if (!result || modalPaused) return
+
+    const autoCloseMs = result.type === 'no_prize'
+      ? SPIN_UI.NO_PRIZE_AUTO_CLOSE_MS
+      : SPIN_UI.WIN_AUTO_CLOSE_MS
+
+    const countdownSeconds = Math.ceil(autoCloseMs / 1000)
+    setCountdown(countdownSeconds)
+
+    const interval = setInterval(() => {
+      setCountdown(prev => {
+        if (prev === null || prev <= 1) {
+          clearInterval(interval)
+          return null
+        }
+        return prev - 1
+      })
+    }, 1000)
+
+    const timeout = setTimeout(() => {
+      // Set flag for pending auto-spin before closing modal
+      if (autoSpin && totalSpins > 0) {
+        pendingAutoSpinRef.current = true
+      }
+      setResult(null)
+      setIsSubmitting(false)
+      setCountdown(null)
+      setModalPaused(false)
+    }, autoCloseMs)
+
+    return () => {
+      clearInterval(interval)
+      clearTimeout(timeout)
+    }
+  }, [result, modalPaused, autoSpin, totalSpins])
+
+  // Handle pending auto-spin after modal closes
+  useEffect(() => {
+    if (pendingAutoSpinRef.current && !result && !isSpinning && !isSubmitting && totalSpins > 0) {
+      pendingAutoSpinRef.current = false
+      const timer = setTimeout(() => {
+        handleSpin()
+      }, SPIN_UI.AUTO_SPIN_DELAY_MS)
+      return () => clearTimeout(timer)
+    }
+  }, [result, isSpinning, isSubmitting, totalSpins])
+
   const calculateRotationForSlot = (slotIndex: number): number => {
     const slotCenterAngle = slotIndex * slotAngle + (slotAngle / 2)
     return 360 - slotCenterAngle
   }
 
-  const spinWheel = async (slotToLandOn: number) => {
+  const spinWheel = async (slotToLandOn: number, capturedSlot: WheelSlot) => {
     if (isSpinning || slotToLandOn < 0 || slotToLandOn >= slotCount) return
     setIsSpinning(true)
     setResult(null)
     setShowConfetti(false)
     setError(null)
     setActiveTab('wheel')
+
+    // Store the captured slot to avoid flicker from state changes during animation
+    pendingResultRef.current = capturedSlot
 
     const currentNormalized = ((rotation % 360) + 360) % 360
     const targetAngle = calculateRotationForSlot(slotToLandOn)
@@ -119,27 +196,44 @@ export default function PWAGamePage() {
 
     setTimeout(() => {
       setIsSpinning(false)
-      const winningSlot = wheelSlots[slotToLandOn]
+      // Use the captured slot to prevent flicker
+      const winningSlot = pendingResultRef.current || wheelSlots[slotToLandOn]
       setResult(winningSlot)
+      setModalPaused(false) // Reset pause state for new result
+      pendingResultRef.current = null
       if (winningSlot.type !== 'no_prize') {
         setShowConfetti(true)
-        setTimeout(() => setShowConfetti(false), 5000)
+        setTimeout(() => setShowConfetti(false), SPIN_UI.CONFETTI_DURATION_MS)
       }
-    }, 5000)
+    }, 6000) // Match wheel animation duration
   }
 
   const handleSpin = async () => {
     if (totalSpins <= 0) { setError('No spins available!'); return }
+    if (isSubmitting || isSpinning) return // Prevent multiple clicks
+
+    setIsSubmitting(true)
+    setError(null)
+
     try {
       const res = await pwaFetch('/api/spin', { method: 'POST' })
       const data = await res.json()
-      if (!data.success) { setError(data.error || 'Spin failed'); return }
+      if (!data.success) {
+        setError(data.error || 'Spin failed')
+        setIsSubmitting(false)
+        return
+      }
       // Update spins from response
       if (data.data.spins) {
         setSpins(data.data.spins, data.data.stats)
       }
-      spinWheel(data.data.slotIndex)
-    } catch (err: any) { setError(err.message || 'Network error') }
+      // Capture the slot at API response time to avoid flicker
+      const capturedSlot = wheelSlots[data.data.slotIndex]
+      spinWheel(data.data.slotIndex, capturedSlot)
+    } catch (err: any) {
+      setError(err.message || 'Network error')
+      setIsSubmitting(false)
+    }
   }
 
   // Create slice path
@@ -189,10 +283,40 @@ export default function PWAGamePage() {
     }
   }
 
-  const shareOnTwitter = () => {
+  const closeResultModal = useCallback(() => {
+    setResult(null)
+    setIsSubmitting(false)
+    setCountdown(null)
+    setModalPaused(false)
+  }, [])
+
+  const pauseModal = useCallback(() => {
+    setModalPaused(true)
+    setCountdown(null)
+  }, [])
+
+  const shareOnTwitter = useCallback(() => {
     if (!result || result.type === 'no_prize') return
-    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(`I just won ${result.label} ${result.sublabel} on @SuiDex Wheel of Victory! #SuiDex #PWA`)}`, '_blank')
-  }
+    pauseModal() // Pause auto-close when sharing
+
+    const tokenName = result.tokenSymbol === 'TRUMP' ? 'SuiTrump' : 'VICT'
+    const lockInfo = result.lockType !== 'LIQUID' && result.lockType !== 'MEME' ? ` (${result.lockType})` : ''
+    const hashtags = SPIN_UI.TWEET_HASHTAGS.map(h => `#${h}`).join(' ')
+
+    // Include referral link if user has a referral code
+    const shareUrl = referralCode
+      ? `${SPIN_UI.TWEET_BASE_URL}/r/${referralCode}`
+      : `${SPIN_UI.TWEET_BASE_URL}/wheel`
+
+    const tweetText = `🎉 I just won ${result.label} worth of ${tokenName}${lockInfo} on @suidexHQ Wheel of Victory! 🎡
+
+Spin to win up to $3,500! 🔥
+
+🔗 ${shareUrl}
+${hashtags}`
+
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank', 'width=550,height=450')
+  }, [result, pauseModal, referralCode])
 
   const getTypeIcon = (type: string, size: string = "w-3.5 h-3.5") => {
     if (type === 'liquid_victory') return <Droplets className={`${size} text-yellow-400`} />
@@ -222,9 +346,9 @@ export default function PWAGamePage() {
       {/* Confetti */}
       {showConfetti && (
         <div className="fixed inset-0 pointer-events-none z-50 overflow-hidden">
-          {[...Array(80)].map((_, i) => (
+          {[...Array(SPIN_UI.CONFETTI_PARTICLE_COUNT)].map((_, i) => (
             <div key={i} className="absolute animate-confetti" style={{ left: `${Math.random() * 100}%`, top: -20, animationDelay: `${Math.random() * 2}s`, animationDuration: `${2 + Math.random() * 2}s` }}>
-              <div style={{ width: 6 + Math.random() * 6, height: 6 + Math.random() * 6, backgroundColor: ['#00ff88', '#FFD700', '#00ffff', '#a855f7', '#34D399'][Math.floor(Math.random() * 5)], transform: `rotate(${Math.random() * 360}deg)`, borderRadius: Math.random() > 0.5 ? '50%' : '0' }} />
+              <div style={{ width: 6 + Math.random() * 6, height: 6 + Math.random() * 6, backgroundColor: ['#00e5ff', '#FFD700', '#00ff88', '#a855f7', '#34D399'][Math.floor(Math.random() * 5)], transform: `rotate(${Math.random() * 360}deg)`, borderRadius: Math.random() > 0.5 ? '50%' : '0' }} />
             </div>
           ))}
         </div>
@@ -306,7 +430,7 @@ export default function PWAGamePage() {
                 height="100%"
                 viewBox="0 0 400 400"
                 className="relative z-10"
-                style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}
+                style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 6s cubic-bezier(0.15, 0.60, 0.08, 1.0)' : 'none' }}
               >
                 <defs>
                   {wheelSlots.map((_, i) => (
@@ -374,19 +498,32 @@ export default function PWAGamePage() {
             </div>
 
             {/* Spin Button */}
-            <div className="mt-5 w-full max-w-[280px]">
+            <div className="mt-5 w-full max-w-[280px] space-y-2">
               <button
                 onClick={handleSpin}
-                disabled={isSpinning || totalSpins <= 0}
+                disabled={isSubmitting || isSpinning || totalSpins <= 0}
                 className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
-                  isSpinning
+                  isSubmitting || isSpinning
                     ? 'bg-gray-700 text-gray-400'
                     : totalSpins > 0
                       ? 'bg-gradient-to-r from-accent to-secondary text-black hover:shadow-lg hover:shadow-accent/30 active:scale-[0.98]'
                       : 'bg-gray-700 text-gray-400'
                 }`}
               >
-                {isSpinning ? '🎰 Spinning...' : totalSpins > 0 ? `🎯 SPIN (${totalSpins})` : '❌ No Spins'}
+                {isSubmitting && !isSpinning ? '⏳ Loading...' : isSpinning ? '🎰 Spinning...' : totalSpins > 0 ? `🎯 SPIN (${totalSpins})` : '❌ No Spins'}
+              </button>
+
+              {/* Auto-spin toggle */}
+              <button
+                onClick={toggleAutoSpin}
+                className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg text-xs font-medium transition-all ${
+                  autoSpin
+                    ? 'bg-accent/20 text-accent border border-accent/30'
+                    : 'bg-surface text-text-secondary border border-border hover:border-accent/30'
+                }`}
+              >
+                <RotateCw className={`w-3.5 h-3.5 ${autoSpin ? 'animate-spin' : ''}`} style={{ animationDuration: '2s' }} />
+                Auto-spin {autoSpin ? 'ON' : 'OFF'}
               </button>
             </div>
           </div>
@@ -477,45 +614,83 @@ export default function PWAGamePage() {
 
       {/* Result Modal */}
       {result && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={() => setResult(null)}>
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-50 p-4" onClick={closeResultModal}>
           <div
-            className={`w-full max-w-[280px] rounded-2xl overflow-hidden animate-modal-pop ${result.type === 'no_prize' ? 'bg-gray-800' : 'bg-gradient-to-b from-yellow-900/95 to-amber-950'}`}
-            style={{ boxShadow: result.type !== 'no_prize' ? `0 0 40px ${result.color}25` : undefined }}
-            onClick={(e) => e.stopPropagation()}
+            className={`w-full max-w-[300px] rounded-2xl overflow-hidden animate-modal-pop border ${result.type === 'no_prize' ? 'bg-surface border-border' : 'bg-gradient-to-b from-accent/10 to-surface border-accent/30'}`}
+            style={{ boxShadow: result.type !== 'no_prize' ? `0 0 40px ${result.color}20` : undefined }}
+            onClick={(e) => { e.stopPropagation(); pauseModal(); }}
           >
+            {/* Countdown indicator */}
+            {countdown !== null && !modalPaused && (
+              <div className="h-1 bg-black/20">
+                <div
+                  className="h-full bg-accent transition-all duration-1000 ease-linear"
+                  style={{ width: `${(countdown / (result.type === 'no_prize' ? 3 : 5)) * 100}%` }}
+                />
+              </div>
+            )}
+
             {result.type === 'no_prize' ? (
               <div className="p-5 text-center">
                 <div className="text-4xl mb-2">😢</div>
-                <h2 className="text-base font-bold text-gray-200 mb-0.5">No Prize</h2>
-                <p className="text-gray-500 text-xs mb-4">Better luck next time!</p>
+                <h2 className="text-base font-bold text-white mb-0.5">No Prize</h2>
+                <p className="text-text-muted text-xs mb-1">Better luck next time!</p>
+
+                {/* Auto-close indicator */}
+                {countdown !== null && !modalPaused && (
+                  <p className="text-text-muted text-[10px] mb-3">
+                    {autoSpin && totalSpins > 0 ? `Auto-spinning in ${countdown}s...` : `Closing in ${countdown}s...`}
+                  </p>
+                )}
+                {modalPaused && <p className="text-accent text-[10px] mb-3">Paused</p>}
+
                 <div className="flex gap-2">
-                  <button onClick={() => setResult(null)} className="flex-1 py-2 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-medium text-sm">Close</button>
-                  {totalSpins > 0 && <button onClick={() => { setResult(null); handleSpin(); }} className="flex-1 py-2 bg-accent rounded-lg text-black font-bold text-sm">Spin Again</button>}
+                  <button onClick={closeResultModal} className="flex-1 py-2.5 bg-surface hover:bg-white/10 border border-border rounded-lg text-white font-medium text-sm transition-colors">
+                    Close
+                  </button>
+                  {totalSpins > 0 && (
+                    <button onClick={() => { closeResultModal(); handleSpin(); }} className="flex-1 py-2.5 bg-accent hover:bg-accent-hover rounded-lg text-black font-bold text-sm transition-colors">
+                      Spin Again
+                    </button>
+                  )}
                 </div>
               </div>
             ) : (
               <div className="p-4 text-center">
                 <div className="text-3xl mb-1">🎉</div>
-                <p className="text-yellow-300 font-medium text-[10px] mb-1 tracking-wide">CONGRATULATIONS!</p>
-                <div className="text-4xl font-black mb-0.5" style={{ color: result.color, textShadow: `0 0 20px ${result.color}40` }}>{result.label}</div>
-                <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold" style={{ backgroundColor: `${result.color}20`, color: result.color }}>
+                <p className="text-accent font-medium text-[10px] mb-1 tracking-wider uppercase">Congratulations!</p>
+                <div className="text-4xl font-black mb-1" style={{ color: result.color, textShadow: `0 0 20px ${result.color}40` }}>{result.label}</div>
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white">
                   <span>{result.lockType}</span>
-                  <span>•</span>
+                  <span className="opacity-50">•</span>
                   <span>{result.tokenSymbol}</span>
                 </div>
-                {result.amount && <div className="text-yellow-200 font-mono text-sm mt-2">{result.amount}</div>}
+                {result.amount && <div className="text-white/80 font-mono text-sm mt-2">{result.amount}</div>}
 
-                <div className="bg-black/30 rounded-lg p-2.5 mt-3 text-[11px]">
-                  <div className="flex justify-between mb-1"><span className="text-gray-400">Slot</span><span className="text-white">#{result.index + 1}</span></div>
-                  <div className="flex justify-between"><span className="text-gray-400">Value</span><span className="text-yellow-400 font-bold">${result.valueUSD.toLocaleString()}</span></div>
-                  <div className="flex items-center justify-center gap-1 text-yellow-300 mt-2 pt-2 border-t border-white/10 text-[10px]">
-                    <Clock className="w-3 h-3" /><span>Within <strong>48h</strong></span>
+                <div className="bg-black/30 rounded-lg p-3 mt-3 text-[11px]">
+                  <div className="flex justify-between mb-1.5"><span className="text-text-muted">Slot</span><span className="text-white font-medium">#{result.index + 1}</span></div>
+                  <div className="flex justify-between"><span className="text-text-muted">Value</span><span className="text-accent font-bold">${result.valueUSD.toLocaleString()}</span></div>
+                  <div className="flex items-center justify-center gap-1 text-text-secondary mt-2 pt-2 border-t border-white/10 text-[10px]">
+                    <Clock className="w-3 h-3" /><span>Distributed within <strong className="text-white">48h</strong></span>
                   </div>
                 </div>
 
+                {/* Auto-close indicator */}
+                {countdown !== null && !modalPaused && (
+                  <p className="text-text-muted text-[10px] mt-2">
+                    {autoSpin && totalSpins > 0 ? `Auto-spinning in ${countdown}s...` : `Closing in ${countdown}s...`}
+                  </p>
+                )}
+                {modalPaused && <p className="text-accent text-[10px] mt-2">Paused - tap to resume</p>}
+
                 <div className="flex gap-2 mt-3">
-                  <button onClick={shareOnTwitter} className="flex-1 flex items-center justify-center gap-1 py-2 bg-[#1DA1F2] rounded-lg text-white font-medium text-xs"><Twitter className="w-3.5 h-3.5" />Share</button>
-                  <button onClick={() => setResult(null)} className="flex-1 py-2 bg-white/10 rounded-lg text-white font-medium text-xs">Close</button>
+                  <button onClick={shareOnTwitter} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#1DA1F2] hover:bg-[#1a8cd8] rounded-lg text-white font-medium text-xs transition-colors">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+                    Share Win
+                  </button>
+                  <button onClick={closeResultModal} className="flex-1 py-2.5 bg-white/10 hover:bg-white/20 rounded-lg text-white font-medium text-xs transition-colors">
+                    Close
+                  </button>
                 </div>
               </div>
             )}

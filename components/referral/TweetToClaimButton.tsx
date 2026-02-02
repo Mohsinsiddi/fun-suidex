@@ -17,7 +17,7 @@ export default function TweetToClaimButton({ reward, onComplete }: Props) {
     try {
       await fetch(`/api/referral/tweet-clicked/${reward._id}`, { method: 'POST' })
 
-      const link = reward.tweetIntentUrl || `https://games.suidex.io?ref=${reward.referrerWallet}`
+      const link = reward.tweetIntentUrl || `https://fun-suidex.vercel.app?ref=${reward.referrerWallet}`
       const prizeUSD = reward.originalPrizeUSD || reward.rewardValueUSD / 0.1
       const text = `My friend just won $${prizeUSD.toFixed(2)} on the Wheel of Victory! 🎡🔥\n\nI earned $${(prizeUSD * 0.1).toFixed(2)} in referral rewards!\n\nSpin yours 👉 ${link}\n\n@suidexHQ #SuiDex #WheelOfVictory`
       

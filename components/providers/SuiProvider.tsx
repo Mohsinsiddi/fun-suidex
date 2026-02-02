@@ -98,6 +98,8 @@ export function SuiProvider({ children }: SuiProviderProps) {
       queries: {
         staleTime: 60 * 1000,
         refetchOnWindowFocus: false,
+        retry: 3, // Retry failed queries
+        retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       },
     },
   }))
@@ -109,6 +111,9 @@ export function SuiProvider({ children }: SuiProviderProps) {
           autoConnect={true}
           preferredWallets={['Slush', 'Nightly', 'Phantom', 'Sui Wallet']}
           theme={darkTheme}
+          stashedWallet={{
+            name: 'SuiDex Games PWA',
+          }}
         >
           <WalletChangeHandler />
           {children}
