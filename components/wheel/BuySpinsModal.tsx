@@ -1,7 +1,15 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { X, Wallet, Copy, Check, ExternalLink, Loader2 } from 'lucide-react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { X, Wallet, Copy, Check, ExternalLink, Loader2, RefreshCw, Zap } from 'lucide-react'
+
+interface UnclaimedTx {
+  txHash: string
+  amountSUI: number
+  suggestedSpins: number
+  timestamp: Date
+  requiresApproval: boolean
+}
 
 interface BuySpinsModalProps {
   isOpen: boolean
@@ -12,13 +20,21 @@ interface BuySpinsModalProps {
 export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps) {
   const [adminWallet, setAdminWallet] = useState('')
   const [spinRate, setSpinRate] = useState(1)
-  const [step, setStep] = useState<'info' | 'verify'>('info')
+  const [step, setStep] = useState<'info' | 'verify' | 'auto'>('info')
   const [txHash, setTxHash] = useState('')
   const [verifying, setVerifying] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState<{ spins: number } | null>(null)
   const [copied, setCopied] = useState(false)
 
+  // Real-time TX scanning
+  const [scanning, setScanning] = useState(false)
+  const [unclaimedTxs, setUnclaimedTxs] = useState<UnclaimedTx[]>([])
+  const [autoClaimEnabled, setAutoClaimEnabled] = useState(true)
+  const scanIntervalRef = useRef<NodeJS.Timeout | null>(null)
+  const lastScanRef = useRef<number>(0)
+
+  // Fetch config on open
   useEffect(() => {
     if (isOpen) {
       fetch('/api/config')
@@ -32,6 +48,96 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
         .catch(console.error)
     }
   }, [isOpen])
+
+  // Scan for unclaimed transactions
+  const scanForTransactions = useCallback(async () => {
+    // Prevent rapid scanning
+    const now = Date.now()
+    if (now - lastScanRef.current < 3000) return
+    lastScanRef.current = now
+
+    try {
+      setScanning(true)
+      const res = await fetch('/api/payment/claim')
+      const data = await res.json()
+
+      if (data.success && data.data?.unclaimed) {
+        const newTxs = data.data.unclaimed as UnclaimedTx[]
+        setUnclaimedTxs(newTxs)
+
+        // Auto-claim first unclaimed TX if enabled
+        if (autoClaimEnabled && newTxs.length > 0 && !newTxs[0].requiresApproval) {
+          await claimTransaction(newTxs[0].txHash)
+        }
+      }
+    } catch (err) {
+      console.error('Scan error:', err)
+    } finally {
+      setScanning(false)
+    }
+  }, [autoClaimEnabled])
+
+  // Claim a specific transaction
+  const claimTransaction = async (hash: string) => {
+    setVerifying(true)
+    setError('')
+
+    try {
+      const res = await fetch('/api/payment/claim', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ txHash: hash }),
+      })
+
+      const data = await res.json()
+
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to claim payment')
+      }
+
+      if (data.data.status === 'pending_approval') {
+        setError('Payment requires admin approval (>10 SUI)')
+        setUnclaimedTxs(prev => prev.filter(tx => tx.txHash !== hash))
+      } else {
+        setSuccess({ spins: data.data.spinsCredited })
+        onSuccess?.(data.data.spinsCredited)
+        stopScanning()
+      }
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Claim failed')
+    } finally {
+      setVerifying(false)
+    }
+  }
+
+  // Start real-time scanning
+  const startScanning = useCallback(() => {
+    setStep('auto')
+    scanForTransactions()
+
+    // Poll every 5 seconds
+    scanIntervalRef.current = setInterval(scanForTransactions, 5000)
+  }, [scanForTransactions])
+
+  // Stop scanning
+  const stopScanning = useCallback(() => {
+    if (scanIntervalRef.current) {
+      clearInterval(scanIntervalRef.current)
+      scanIntervalRef.current = null
+    }
+  }, [])
+
+  // Cleanup on unmount or close
+  useEffect(() => {
+    return () => stopScanning()
+  }, [stopScanning])
+
+  useEffect(() => {
+    if (!isOpen) {
+      stopScanning()
+      setUnclaimedTxs([])
+    }
+  }, [isOpen, stopScanning])
 
   const handleCopyAddress = async () => {
     try {
@@ -83,10 +189,12 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
   }
 
   const handleClose = () => {
+    stopScanning()
     setStep('info')
     setTxHash('')
     setError('')
     setSuccess(null)
+    setUnclaimedTxs([])
     onClose()
   }
 
@@ -191,15 +299,108 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
             </div>
 
             {/* Actions */}
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={startScanning}
+                className="w-full px-4 py-3 bg-accent hover:bg-accent-hover text-black font-bold rounded-xl transition-colors flex items-center justify-center gap-2"
+              >
+                <Zap className="w-4 h-4" />
+                I&apos;ve Sent Payment - Auto Detect
+              </button>
+              <div className="flex gap-3">
+                <button onClick={handleClose} className="flex-1 px-4 py-3 bg-background hover:bg-surface-alt border border-border rounded-xl font-medium text-text-secondary transition-colors">
+                  Cancel
+                </button>
+                <button
+                  onClick={() => setStep('verify')}
+                  className="flex-1 px-4 py-3 bg-surface hover:bg-white/10 border border-border rounded-xl font-medium text-white transition-colors"
+                >
+                  Enter TX Manually
+                </button>
+              </div>
+            </div>
+          </>
+        ) : step === 'auto' ? (
+          /* Step 2a: Auto-Scan Mode */
+          <>
+            <div className="flex items-center gap-3 mb-6">
+              <div className={`p-3 rounded-xl ${scanning ? 'bg-accent/20' : 'bg-accent/10'}`}>
+                <RefreshCw className={`w-6 h-6 text-accent ${scanning ? 'animate-spin' : ''}`} />
+              </div>
+              <div>
+                <h3 className="text-lg font-bold text-white">Scanning for Payment</h3>
+                <p className="text-sm text-text-secondary">Waiting to detect your transaction...</p>
+              </div>
+            </div>
+
+            {error && (
+              <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 mb-4 text-sm text-red-400">
+                {error}
+              </div>
+            )}
+
+            {/* Scanning Status */}
+            <div className="bg-background rounded-xl p-4 mb-4">
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-text-secondary text-sm">Status</span>
+                <span className={`text-sm font-medium ${scanning ? 'text-accent' : 'text-text-muted'}`}>
+                  {scanning ? 'Scanning...' : 'Waiting'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-text-secondary text-sm">Transactions Found</span>
+                <span className="text-white font-bold">{unclaimedTxs.length}</span>
+              </div>
+            </div>
+
+            {/* Detected Transactions */}
+            {unclaimedTxs.length > 0 && (
+              <div className="space-y-2 mb-4">
+                <p className="text-sm font-medium text-white">Detected Payments:</p>
+                {unclaimedTxs.map((tx) => (
+                  <div key={tx.txHash} className="bg-accent/10 border border-accent/30 rounded-xl p-3">
+                    <div className="flex items-center justify-between mb-2">
+                      <span className="text-white font-bold">{tx.amountSUI} SUI</span>
+                      <span className="text-accent font-medium">= {tx.suggestedSpins} Spins</span>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <code className="text-xs text-text-muted font-mono">
+                        {tx.txHash.slice(0, 16)}...
+                      </code>
+                      {tx.requiresApproval ? (
+                        <span className="text-xs text-yellow-400">Needs Approval</span>
+                      ) : (
+                        <button
+                          onClick={() => claimTransaction(tx.txHash)}
+                          disabled={verifying}
+                          className="text-xs text-accent hover:underline"
+                        >
+                          {verifying ? 'Claiming...' : 'Claim Now'}
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Info */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 mb-4 text-sm text-blue-300">
+              <p>Keep this window open. We&apos;ll automatically detect and claim your payment when it arrives.</p>
+            </div>
+
             <div className="flex gap-3">
-              <button onClick={handleClose} className="flex-1 px-4 py-3 bg-background hover:bg-surface-alt border border-border rounded-xl font-medium text-text-secondary transition-colors">
-                Cancel
+              <button
+                onClick={() => { stopScanning(); setStep('info'); }}
+                className="flex-1 px-4 py-3 bg-background hover:bg-surface-alt border border-border rounded-xl font-medium text-text-secondary transition-colors"
+              >
+                Back
               </button>
               <button
-                onClick={() => setStep('verify')}
-                className="flex-1 px-4 py-3 bg-accent hover:bg-accent-hover text-black font-bold rounded-xl transition-colors"
+                onClick={() => { stopScanning(); setStep('verify'); }}
+                className="flex-1 px-4 py-3 bg-surface hover:bg-white/10 border border-border rounded-xl font-medium text-white transition-colors"
               >
-                I&apos;ve Sent Payment
+                Enter TX Manually
               </button>
             </div>
           </>

@@ -1,5 +1,12 @@
 import Link from 'next/link'
-import { Twitter, MessageCircle, FileText, ExternalLink, Gamepad2, ChevronRight } from 'lucide-react'
+import { MessageCircle, ExternalLink, Gamepad2, ChevronRight } from 'lucide-react'
+
+// X (Twitter) icon component
+const XIcon = ({ className }: { className?: string }) => (
+  <svg className={className} fill="currentColor" viewBox="0 0 24 24">
+    <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+  </svg>
+)
 
 export function Footer() {
   return (
@@ -31,16 +38,16 @@ export function Footer() {
               {/* Social Icons */}
               <div className="flex items-center gap-2">
                 <a
-                  href="https://twitter.com/SuiDex"
+                  href="https://x.com/suidexHQ"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all"
-                  aria-label="Twitter"
+                  aria-label="X (Twitter)"
                 >
-                  <Twitter className="w-4 h-4" />
+                  <XIcon className="w-4 h-4" />
                 </a>
                 <a
-                  href="https://t.me/SuiDex"
+                  href="https://t.me/Suidexhq"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="w-9 h-9 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all"
@@ -99,12 +106,12 @@ export function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://docs.suidex.org"
+                    href="https://suidex.gitbook.io/suidex"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-1.5 text-sm text-text-secondary hover:text-white transition-colors"
                   >
-                    <span>Documentation</span>
+                    <span>Docs</span>
                     <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </a>
                 </li>
@@ -115,15 +122,6 @@ export function Footer() {
             <div className="col-span-2 md:col-span-2">
               <h4 className="text-xs font-semibold text-white uppercase tracking-wider mb-4">Resources</h4>
               <ul className="space-y-2.5">
-                <li>
-                  <Link
-                    href="/docs"
-                    className="group flex items-center gap-2 text-sm text-text-secondary hover:text-white transition-colors"
-                  >
-                    <span>Documentation</span>
-                    <ChevronRight className="w-3 h-3 opacity-0 -translate-x-1 group-hover:opacity-100 group-hover:translate-x-0 transition-all text-accent" />
-                  </Link>
-                </li>
                 <li>
                   <Link
                     href="/referral"
@@ -144,12 +142,23 @@ export function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://twitter.com/SuiDex"
+                    href="https://x.com/suidexHQ"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="group flex items-center gap-1.5 text-sm text-text-secondary hover:text-white transition-colors"
                   >
                     <span>Community</span>
+                    <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="https://t.me/Suidexhq"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="group flex items-center gap-1.5 text-sm text-text-secondary hover:text-white transition-colors"
+                  >
+                    <span>Telegram</span>
                     <ExternalLink className="w-3 h-3 opacity-50 group-hover:opacity-100 transition-opacity" />
                   </a>
                 </li>

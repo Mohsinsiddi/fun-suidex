@@ -49,6 +49,7 @@ export default function PWAGamePage() {
     purchasedSpins,
     bonusSpins,
     totalWinsUSD,
+    referralCode,
     setSpins,
   } = usePWAAuthStore()
 
@@ -71,6 +72,7 @@ export default function PWAGamePage() {
   const [countdown, setCountdown] = useState<number | null>(null)
   const [modalPaused, setModalPaused] = useState(false)
   const pendingAutoSpinRef = useRef(false)
+  const pendingResultRef = useRef<WheelSlot | null>(null)
 
   const spins = { free: freeSpins, purchased: purchasedSpins, bonus: bonusSpins }
   const slotCount = wheelSlots.length
@@ -174,13 +176,16 @@ export default function PWAGamePage() {
     return 360 - slotCenterAngle
   }
 
-  const spinWheel = async (slotToLandOn: number) => {
+  const spinWheel = async (slotToLandOn: number, capturedSlot: WheelSlot) => {
     if (isSpinning || slotToLandOn < 0 || slotToLandOn >= slotCount) return
     setIsSpinning(true)
     setResult(null)
     setShowConfetti(false)
     setError(null)
     setActiveTab('wheel')
+
+    // Store the captured slot to avoid flicker from state changes during animation
+    pendingResultRef.current = capturedSlot
 
     const currentNormalized = ((rotation % 360) + 360) % 360
     const targetAngle = calculateRotationForSlot(slotToLandOn)
@@ -191,14 +196,16 @@ export default function PWAGamePage() {
 
     setTimeout(() => {
       setIsSpinning(false)
-      const winningSlot = wheelSlots[slotToLandOn]
+      // Use the captured slot to prevent flicker
+      const winningSlot = pendingResultRef.current || wheelSlots[slotToLandOn]
       setResult(winningSlot)
       setModalPaused(false) // Reset pause state for new result
+      pendingResultRef.current = null
       if (winningSlot.type !== 'no_prize') {
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), SPIN_UI.CONFETTI_DURATION_MS)
       }
-    }, 5000)
+    }, 6000) // Match wheel animation duration
   }
 
   const handleSpin = async () => {
@@ -220,7 +227,9 @@ export default function PWAGamePage() {
       if (data.data.spins) {
         setSpins(data.data.spins, data.data.stats)
       }
-      spinWheel(data.data.slotIndex)
+      // Capture the slot at API response time to avoid flicker
+      const capturedSlot = wheelSlots[data.data.slotIndex]
+      spinWheel(data.data.slotIndex, capturedSlot)
     } catch (err: any) {
       setError(err.message || 'Network error')
       setIsSubmitting(false)
@@ -294,15 +303,20 @@ export default function PWAGamePage() {
     const lockInfo = result.lockType !== 'LIQUID' && result.lockType !== 'MEME' ? ` (${result.lockType})` : ''
     const hashtags = SPIN_UI.TWEET_HASHTAGS.map(h => `#${h}`).join(' ')
 
-    const tweetText = `🎉 I just won ${result.label} worth of ${tokenName}${lockInfo} on @SuiDex Wheel of Victory! 🎡
+    // Include referral link if user has a referral code
+    const shareUrl = referralCode
+      ? `${SPIN_UI.TWEET_BASE_URL}/r/${referralCode}`
+      : `${SPIN_UI.TWEET_BASE_URL}/wheel`
+
+    const tweetText = `🎉 I just won ${result.label} worth of ${tokenName}${lockInfo} on @suidexHQ Wheel of Victory! 🎡
 
 Spin to win up to $3,500! 🔥
 
-🔗 ${SPIN_UI.TWEET_BASE_URL}
+🔗 ${shareUrl}
 ${hashtags}`
 
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`, '_blank', 'width=550,height=450')
-  }, [result, pauseModal])
+  }, [result, pauseModal, referralCode])
 
   const getTypeIcon = (type: string, size: string = "w-3.5 h-3.5") => {
     if (type === 'liquid_victory') return <Droplets className={`${size} text-yellow-400`} />
@@ -416,7 +430,7 @@ ${hashtags}`
                 height="100%"
                 viewBox="0 0 400 400"
                 className="relative z-10"
-                style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 5s cubic-bezier(0.17, 0.67, 0.12, 0.99)' : 'none' }}
+                style={{ transform: `rotate(${rotation}deg)`, transition: isSpinning ? 'transform 6s cubic-bezier(0.15, 0.60, 0.08, 1.0)' : 'none' }}
               >
                 <defs>
                   {wheelSlots.map((_, i) => (

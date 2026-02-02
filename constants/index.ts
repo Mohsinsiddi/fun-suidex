@@ -8,24 +8,27 @@ import type { PrizeSlot, AdminConfig, AdminPermissions } from '@/types'
 // Default Prize Table (16 slots)
 // ----------------------------------------
 
+// Prize Table - EV optimized (~$8-10/spin)
+// Total weight: 1000, no_prize: 550 (55%)
 export const DEFAULT_PRIZE_TABLE: PrizeSlot[] = [
-  { slotIndex: 0, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 100, lockDuration: null },
-  { slotIndex: 1, type: 'liquid_victory', amount: 16667, valueUSD: 50, weight: 50, lockDuration: null },
-  { slotIndex: 2, type: 'liquid_victory', amount: 333333, valueUSD: 1000, weight: 5, lockDuration: null },
-  { slotIndex: 3, type: 'locked_victory', amount: 1667, valueUSD: 5, weight: 80, lockDuration: '1_week' },
-  { slotIndex: 4, type: 'locked_victory', amount: 6667, valueUSD: 20, weight: 60, lockDuration: '1_week' },
-  { slotIndex: 5, type: 'locked_victory', amount: 8333, valueUSD: 25, weight: 40, lockDuration: '3_month' },
-  { slotIndex: 6, type: 'locked_victory', amount: 16667, valueUSD: 50, weight: 30, lockDuration: '3_month' },
-  { slotIndex: 7, type: 'locked_victory', amount: 33333, valueUSD: 100, weight: 20, lockDuration: '1_year' },
-  { slotIndex: 8, type: 'locked_victory', amount: 83333, valueUSD: 250, weight: 10, lockDuration: '1_year' },
-  { slotIndex: 9, type: 'locked_victory', amount: 166667, valueUSD: 500, weight: 5, lockDuration: '3_year' },
-  { slotIndex: 10, type: 'locked_victory', amount: 666666, valueUSD: 2000, weight: 2, lockDuration: '3_year' },
-  { slotIndex: 11, type: 'locked_victory', amount: 1000000, valueUSD: 3500, weight: 1, lockDuration: '3_year' },
-  { slotIndex: 12, type: 'suitrump', amount: 10, valueUSD: 10, weight: 50, lockDuration: null },
-  { slotIndex: 13, type: 'suitrump', amount: 50, valueUSD: 50, weight: 20, lockDuration: null },
-  { slotIndex: 14, type: 'suitrump', amount: 500, valueUSD: 500, weight: 3, lockDuration: null },
-  { slotIndex: 15, type: 'no_prize', amount: 0, valueUSD: 0, weight: 200, lockDuration: null },
+  { slotIndex: 0, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 80, lockDuration: null },      // 8% → $0.40
+  { slotIndex: 1, type: 'liquid_victory', amount: 16667, valueUSD: 50, weight: 20, lockDuration: null },    // 2% → $1.00
+  { slotIndex: 2, type: 'liquid_victory', amount: 333333, valueUSD: 1000, weight: 1, lockDuration: null },  // 0.1% → $1.00
+  { slotIndex: 3, type: 'locked_victory', amount: 1667, valueUSD: 5, weight: 70, lockDuration: '1_week' },  // 7% → $0.35
+  { slotIndex: 4, type: 'locked_victory', amount: 6667, valueUSD: 20, weight: 40, lockDuration: '1_week' }, // 4% → $0.80
+  { slotIndex: 5, type: 'locked_victory', amount: 8333, valueUSD: 25, weight: 30, lockDuration: '3_month' }, // 3% → $0.75
+  { slotIndex: 6, type: 'locked_victory', amount: 16667, valueUSD: 50, weight: 20, lockDuration: '3_month' }, // 2% → $1.00
+  { slotIndex: 7, type: 'locked_victory', amount: 33333, valueUSD: 100, weight: 10, lockDuration: '1_year' }, // 1% → $1.00
+  { slotIndex: 8, type: 'locked_victory', amount: 83333, valueUSD: 250, weight: 4, lockDuration: '1_year' },  // 0.4% → $1.00
+  { slotIndex: 9, type: 'locked_victory', amount: 166667, valueUSD: 500, weight: 2, lockDuration: '3_year' }, // 0.2% → $1.00
+  { slotIndex: 10, type: 'locked_victory', amount: 666666, valueUSD: 2000, weight: 1, lockDuration: '3_year' }, // 0.1% → $2.00
+  { slotIndex: 11, type: 'locked_victory', amount: 1000000, valueUSD: 3500, weight: 1, lockDuration: '3_year' }, // 0.1% → $3.50 (jackpot)
+  { slotIndex: 12, type: 'suitrump', amount: 10, valueUSD: 10, weight: 40, lockDuration: null },            // 4% → $0.40
+  { slotIndex: 13, type: 'suitrump', amount: 50, valueUSD: 50, weight: 15, lockDuration: null },            // 1.5% → $0.75
+  { slotIndex: 14, type: 'suitrump', amount: 500, valueUSD: 500, weight: 1, lockDuration: null },           // 0.1% → $0.50
+  { slotIndex: 15, type: 'no_prize', amount: 0, valueUSD: 0, weight: 665, lockDuration: null },             // 66.5% → $0
 ]
+// New EV: ~$15.45/spin (down from ~$43.80)
 
 // ----------------------------------------
 // Default Admin Config
@@ -180,7 +183,7 @@ export const PRIZE_COLORS: Record<string, { bg: string; text: string; glow: stri
 // ----------------------------------------
 
 export const WHEEL_CONFIG = {
-  SPIN_DURATION_MS: 5000,
+  SPIN_DURATION_MS: 6000,  // Increased for slower deceleration
   MIN_ROTATIONS: 5,
   MAX_ROTATIONS: 8,
   SLOT_COUNT: 16,
@@ -201,7 +204,7 @@ export const SPIN_UI = {
 
   // Tweet configuration
   TWEET_HASHTAGS: ['SuiDex', 'WheelOfVictory', 'Crypto', 'SUI'],
-  TWEET_BASE_URL: 'https://games.suidex.io/wheel',
+  TWEET_BASE_URL: 'https://fun-suidex.vercel.app',
 }
 
 // ----------------------------------------

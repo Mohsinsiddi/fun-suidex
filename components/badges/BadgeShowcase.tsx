@@ -61,9 +61,9 @@ export function BadgeShowcase({
         </div>
       )}
 
-      {/* Badge Icons */}
+      {/* Badge Icons with Names */}
       {displayBadges.length > 0 ? (
-        <div className="flex flex-wrap gap-3">
+        <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3">
           {displayBadges.map((ub) => {
             const badge = ub.badge
             if (!badge) return null
@@ -72,14 +72,21 @@ export function BadgeShowcase({
             return (
               <div
                 key={ub._id}
-                className={`
-                  relative w-14 h-14 rounded-xl flex items-center justify-center
-                  ${colors.bg} ${colors.border} border
-                  hover:scale-110 transition-transform cursor-pointer
-                `}
-                title={`${badge.name} - ${badge.description}`}
+                className="flex flex-col items-center gap-1.5 group"
+                title={badge.description}
               >
-                <span className="text-2xl">{badge.icon}</span>
+                <div
+                  className={`
+                    relative w-14 h-14 rounded-xl flex items-center justify-center
+                    ${colors.bg} ${colors.border} border
+                    group-hover:scale-110 transition-transform cursor-pointer
+                  `}
+                >
+                  <span className="text-2xl">{badge.icon}</span>
+                </div>
+                <span className="text-[10px] text-text-secondary text-center leading-tight line-clamp-2 max-w-[70px]">
+                  {badge.name}
+                </span>
               </div>
             )
           })}
@@ -87,9 +94,12 @@ export function BadgeShowcase({
           {totalCount > maxShow && (
             <Link
               href="/badges"
-              className="w-14 h-14 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/[0.08] hover:border-accent/30 transition-colors"
+              className="flex flex-col items-center gap-1.5"
             >
-              <span className="text-sm text-text-muted">+{totalCount - maxShow}</span>
+              <div className="w-14 h-14 rounded-xl flex items-center justify-center bg-white/[0.03] border border-white/[0.08] hover:border-accent/30 transition-colors">
+                <span className="text-sm text-text-muted">+{totalCount - maxShow}</span>
+              </div>
+              <span className="text-[10px] text-accent">View All</span>
             </Link>
           )}
         </div>
