@@ -293,6 +293,10 @@ export interface AdminConfig {
   profileShareMinSpins: number
   earlyBirdCutoffDate: Date | null
 
+  // Chain Sync
+  chainSyncCursor: string | null
+  chainSyncLastAt: Date | null
+
   // Metadata
   updatedAt: Date
   updatedBy: string

@@ -70,6 +70,10 @@ export const DEFAULT_ADMIN_CONFIG: Omit<AdminConfig, 'updatedAt' | 'updatedBy'> 
   profileSharingEnabled: true,
   profileShareMinSpins: 10,
   earlyBirdCutoffDate: null,
+
+  // Chain Sync
+  chainSyncCursor: null,
+  chainSyncLastAt: null,
 }
 
 // ----------------------------------------

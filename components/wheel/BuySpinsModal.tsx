@@ -325,6 +325,13 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
               )}
             </div>
 
+            {/* Warning */}
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-4 mb-4">
+              <p className="text-sm text-red-400 font-medium">
+                You MUST send SUI from your currently connected wallet only. Payments from other wallets cannot be credited and funds may be lost.
+              </p>
+            </div>
+
             {/* Instructions */}
             <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4 mb-6">
               <h4 className="font-medium text-yellow-400 mb-2">Instructions:</h4>

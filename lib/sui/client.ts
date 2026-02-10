@@ -50,7 +50,8 @@ export async function getIncomingTransactions(
   fromTimestamp: Date,
   toTimestamp: Date = new Date(),
   cursor?: string | null,
-  limit: number = 50
+  limit: number = 50,
+  order: 'ascending' | 'descending' = 'descending'
 ): Promise<IncomingTxPage> {
   const client = getSuiClient()
   const transactions: TransactionInfo[] = []
@@ -67,22 +68,34 @@ export async function getIncomingTransactions(
         showBalanceChanges: true,
       },
       limit: Math.min(limit, 50),
-      order: 'descending',
+      order,
       ...(cursor ? { cursor } : {}),
     })
+
+    console.log('[getIncomingTxs] RPC returned', txns.data.length, 'blocks for', recipientAddress)
 
     for (const tx of txns.data) {
       // Parse timestamp
       const timestampMs = tx.timestampMs ? parseInt(tx.timestampMs) : 0
       const txTimestamp = new Date(timestampMs)
 
-      // Stop paginating once transactions fall before fromTimestamp
-      if (txTimestamp < fromTimestamp) {
-        return { transactions, nextCursor: null, hasNextPage: false }
+      // In descending order, stop once transactions fall before fromTimestamp
+      // In ascending order, we rely on cursor position — skip by timestamp instead
+      if (order === 'descending') {
+        if (txTimestamp < fromTimestamp) {
+          return { transactions, nextCursor: null, hasNextPage: false }
+        }
+      } else {
+        // Ascending: skip TXs outside the time window
+        if (txTimestamp < fromTimestamp) continue
       }
 
       // Skip if after toTimestamp
       if (txTimestamp > toTimestamp) {
+        if (order === 'ascending') {
+          // In ascending order, once we're past toTimestamp all remaining will be too
+          return { transactions, nextCursor: null, hasNextPage: false }
+        }
         continue
       }
 

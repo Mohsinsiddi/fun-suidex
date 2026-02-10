@@ -159,6 +159,16 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
       default: null,  // Set by admin when launching
     },
 
+    // Chain Sync (cursor-based incremental sync)
+    chainSyncCursor: {
+      type: String,
+      default: null,
+    },
+    chainSyncLastAt: {
+      type: Date,
+      default: null,
+    },
+
     // Metadata
     updatedBy: {
       type: String,
