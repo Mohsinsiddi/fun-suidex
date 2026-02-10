@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { AdminModel, AdminConfigModel, AdminLogModel } from '@/lib/db/models'
+import { AdminModel, AdminConfigModel, AdminLogModel, PaymentModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { DEFAULT_ADMIN_CONFIG } from '@/constants'
 
@@ -44,6 +44,7 @@ export async function GET(request: NextRequest) {
       data: {
         spinRateSUI: config.spinRateSUI,
         adminWalletAddress: config.adminWalletAddress,
+        distributorWalletAddress: config.distributorWalletAddress,
         autoApprovalLimitSUI: config.autoApprovalLimitSUI,
         paymentLookbackHours: config.paymentLookbackHours,
         referralCommissionPercent: config.referralCommissionPercent,
@@ -139,8 +140,8 @@ export async function PUT(request: NextRequest) {
     }
 
     if (body.autoApprovalLimitSUI !== undefined) {
-      if (typeof body.autoApprovalLimitSUI !== 'number' || !Number.isFinite(body.autoApprovalLimitSUI) || body.autoApprovalLimitSUI < 0) {
-        return NextResponse.json({ success: false, error: 'autoApprovalLimitSUI must be a non-negative number' }, { status: 400 })
+      if (typeof body.autoApprovalLimitSUI !== 'number' || !Number.isFinite(body.autoApprovalLimitSUI) || body.autoApprovalLimitSUI < 1) {
+        return NextResponse.json({ success: false, error: 'autoApprovalLimitSUI must be at least 1 SUI' }, { status: 400 })
       }
     }
 
@@ -158,9 +159,61 @@ export async function PUT(request: NextRequest) {
       config = new AdminConfigModel(DEFAULT_ADMIN_CONFIG)
     }
 
+    // Wallet change safeguard: block if pending payments exist (unless force)
+    const oldWallet = config.adminWalletAddress
+    if (
+      body.adminWalletAddress !== undefined &&
+      body.adminWalletAddress !== oldWallet &&
+      !body.force
+    ) {
+      const pendingPayments = await PaymentModel.aggregate([
+        {
+          $match: {
+            recipientWallet: oldWallet.toLowerCase(),
+            claimStatus: { $in: ['unclaimed', 'pending_approval'] },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            total: { $sum: 1 },
+            unclaimed: { $sum: { $cond: [{ $eq: ['$claimStatus', 'unclaimed'] }, 1, 0] } },
+            pendingApproval: { $sum: { $cond: [{ $eq: ['$claimStatus', 'pending_approval'] }, 1, 0] } },
+            totalSUI: { $sum: '$amountSUI' },
+            uniqueSenders: { $addToSet: '$senderWallet' },
+            oldestTx: { $min: '$timestamp' },
+            newestTx: { $max: '$timestamp' },
+          },
+        },
+      ])
+
+      const stats = pendingPayments[0]
+      if (stats && stats.total > 0) {
+        return NextResponse.json(
+          {
+            success: false,
+            error: `Cannot change wallet: ${stats.total} payment(s) are still unclaimed or pending approval.`,
+            walletConflict: {
+              oldWallet,
+              newWallet: body.adminWalletAddress,
+              total: stats.total,
+              unclaimed: stats.unclaimed,
+              pendingApproval: stats.pendingApproval,
+              totalSUI: Math.round(stats.totalSUI * 1000) / 1000,
+              uniqueSenders: stats.uniqueSenders?.length || 0,
+              oldestTx: stats.oldestTx,
+              newestTx: stats.newestTx,
+            },
+          },
+          { status: 409 }
+        )
+      }
+    }
+
     // Update fields
     if (body.spinRateSUI !== undefined) config.spinRateSUI = body.spinRateSUI
     if (body.adminWalletAddress !== undefined) config.adminWalletAddress = body.adminWalletAddress
+    if (body.distributorWalletAddress !== undefined) config.distributorWalletAddress = body.distributorWalletAddress || null
     if (body.autoApprovalLimitSUI !== undefined) config.autoApprovalLimitSUI = body.autoApprovalLimitSUI
     if (body.paymentLookbackHours !== undefined) config.paymentLookbackHours = body.paymentLookbackHours
     if (body.referralCommissionPercent !== undefined) config.referralCommissionPercent = body.referralCommissionPercent
@@ -184,7 +237,23 @@ export async function PUT(request: NextRequest) {
 
     await config.save()
 
-    // Log the action
+    const newWallet = config.adminWalletAddress
+    const ip = request.headers.get('x-forwarded-for') || 'unknown'
+
+    // Dedicated wallet_change audit log (high-risk action)
+    if (oldWallet && newWallet && oldWallet !== newWallet) {
+      await AdminLogModel.create({
+        action: 'wallet_change',
+        adminUsername: payload.username,
+        targetType: 'config',
+        targetId: 'main',
+        before: { adminWalletAddress: oldWallet },
+        after: { adminWalletAddress: newWallet, forced: !!body.force },
+        ip,
+      })
+    }
+
+    // Log the general config update
     await AdminLogModel.create({
       action: 'config_update',
       adminUsername: payload.username,
@@ -192,7 +261,7 @@ export async function PUT(request: NextRequest) {
       targetId: 'main',
       before,
       after: config.toObject(),
-      ip: request.headers.get('x-forwarded-for') || 'unknown',
+      ip,
     })
 
     return NextResponse.json({
@@ -201,6 +270,17 @@ export async function PUT(request: NextRequest) {
     })
   } catch (error) {
     console.error('Admin config PUT error:', error)
+
+    // Surface Mongoose validation errors to the admin
+    if (error instanceof Error && error.name === 'ValidationError' && 'errors' in error) {
+      const mongooseErr = error as Error & { errors: Record<string, { message: string }> }
+      const messages = Object.values(mongooseErr.errors).map((e) => e.message)
+      return NextResponse.json(
+        { success: false, error: messages.join('; ') },
+        { status: 400 }
+      )
+    }
+
     return NextResponse.json({ success: false, error: 'Failed to update config' }, { status: 500 })
   }
 }

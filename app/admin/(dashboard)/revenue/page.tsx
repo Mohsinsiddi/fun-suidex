@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, DollarSign, TrendingUp, Calendar, CreditCard } from 'lucide-react'
+import { RefreshCw, DollarSign, TrendingUp, Calendar, CreditCard, ExternalLink, CheckCircle, XCircle } from 'lucide-react'
 import { SkeletonCardGrid, SkeletonTable, EmptyState, Pagination, PaginationInfo } from '@/components/ui'
-import { AdminTable, FilterBar, StatusBadge } from '@/components/admin'
+import { AdminTable, FilterBar, StatusBadge, ConfirmModal } from '@/components/admin'
 import type { Column, FilterConfig } from '@/components/admin'
 // Note: Revenue page uses a combined stats+payments API response that doesn't fit the paginated store pattern
 
@@ -44,6 +44,7 @@ const FILTER_CONFIGS: FilterConfig[] = [
       { value: '', label: 'All Statuses' },
       { value: 'claimed', label: 'Claimed' },
       { value: 'pending_approval', label: 'Pending Approval' },
+      { value: 'rejected', label: 'Rejected' },
       { value: 'unclaimed', label: 'Unclaimed' },
     ],
   },
@@ -66,6 +67,7 @@ const STATUS_PILLS = [
   { value: '', label: 'All' },
   { value: 'claimed', label: 'Claimed' },
   { value: 'pending_approval', label: 'Pending' },
+  { value: 'rejected', label: 'Rejected' },
 ] as const
 
 export default function AdminRevenuePage() {
@@ -86,6 +88,12 @@ export default function AdminRevenuePage() {
   // Filters
   const [filterValues, setFilterValues] = useState<Record<string, string>>({})
   const [activeStatusPill, setActiveStatusPill] = useState('')
+
+  // Approve/Reject modals
+  const [approveModal, setApproveModal] = useState<{ open: boolean; payment: Payment | null }>({ open: false, payment: null })
+  const [rejectModal, setRejectModal] = useState<{ open: boolean; payment: Payment | null }>({ open: false, payment: null })
+  const [rejectReason, setRejectReason] = useState('')
+  const [processing, setProcessing] = useState(false)
 
   // Deduplication refs
   const fetchingRef = useRef(false)
@@ -170,6 +178,54 @@ export default function AdminRevenuePage() {
     lastFetchRef.current = ''
   }, [])
 
+  // Approve payment handler
+  const handleApprove = useCallback(async () => {
+    if (!approveModal.payment) return
+    setProcessing(true)
+    try {
+      const res = await fetch('/api/admin/payments/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: approveModal.payment._id }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setApproveModal({ open: false, payment: null })
+        lastFetchRef.current = ''
+        fetchRevenue(true)
+      } else {
+        alert(json.error || 'Failed to approve payment')
+      }
+    } catch { alert('Network error') }
+    setProcessing(false)
+  }, [approveModal.payment, fetchRevenue])
+
+  // Reject payment handler
+  const handleReject = useCallback(async () => {
+    if (!rejectModal.payment) return
+    setProcessing(true)
+    try {
+      const res = await fetch('/api/admin/payments/reject', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: rejectModal.payment._id, reason: rejectReason || undefined }),
+      })
+      const json = await res.json()
+      if (json.success) {
+        setRejectModal({ open: false, payment: null })
+        setRejectReason('')
+        lastFetchRef.current = ''
+        fetchRevenue(true)
+      } else {
+        alert(json.error || 'Failed to reject payment')
+      }
+    } catch { alert('Network error') }
+    setProcessing(false)
+  }, [rejectModal.payment, rejectReason, fetchRevenue])
+
+  // SUI network for explorer links
+  const suiNetwork = process.env.NEXT_PUBLIC_SUI_NETWORK || 'mainnet'
+
   // Table columns
   const columns = useMemo<Column<Payment>[]>(() => [
     {
@@ -179,6 +235,21 @@ export default function AdminRevenuePage() {
         <span className="font-mono text-xs sm:text-sm">
           {p.senderWallet.slice(0, 8)}...{p.senderWallet.slice(-4)}
         </span>
+      ),
+    },
+    {
+      key: 'txHash',
+      header: 'TX Hash',
+      render: (p) => (
+        <a
+          href={`https://suiscan.xyz/${suiNetwork}/tx/${p.txHash}`}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="inline-flex items-center gap-1 font-mono text-xs text-[var(--accent)] hover:underline"
+        >
+          {p.txHash.slice(0, 8)}...{p.txHash.slice(-4)}
+          <ExternalLink className="w-3 h-3" />
+        </a>
       ),
     },
     {
@@ -212,7 +283,29 @@ export default function AdminRevenuePage() {
         </span>
       ),
     },
-  ], [])
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (p) => p.claimStatus === 'pending_approval' ? (
+        <div className="flex items-center gap-2">
+          <button
+            onClick={(e) => { e.stopPropagation(); setApproveModal({ open: true, payment: p }) }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-[var(--success)]/10 text-[var(--success)] border border-[var(--success)]/30 hover:bg-[var(--success)]/20 transition-colors"
+          >
+            <CheckCircle className="w-3 h-3" />
+            Approve
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); setRejectModal({ open: true, payment: p }) }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium bg-[var(--error)]/10 text-[var(--error)] border border-[var(--error)]/30 hover:bg-[var(--error)]/20 transition-colors"
+          >
+            <XCircle className="w-3 h-3" />
+            Reject
+          </button>
+        </div>
+      ) : null,
+    },
+  ], [suiNetwork])
 
   return (
     <>
@@ -383,6 +476,42 @@ export default function AdminRevenuePage() {
           </div>
         </>
       )}
+
+      {/* Approve Modal */}
+      <ConfirmModal
+        open={approveModal.open}
+        onClose={() => setApproveModal({ open: false, payment: null })}
+        onConfirm={handleApprove}
+        title="Approve Payment"
+        description={
+          approveModal.payment
+            ? `Approve payment of ${approveModal.payment.amountSUI} SUI from ${approveModal.payment.senderWallet.slice(0, 8)}...${approveModal.payment.senderWallet.slice(-4)}? This will credit ${Math.floor(approveModal.payment.amountSUI / (data?.stats ? 1 : 1))} spins to the user.`
+            : ''
+        }
+        confirmLabel="Approve & Credit Spins"
+        confirmVariant="success"
+        loading={processing}
+      />
+
+      {/* Reject Modal */}
+      <ConfirmModal
+        open={rejectModal.open}
+        onClose={() => { setRejectModal({ open: false, payment: null }); setRejectReason('') }}
+        onConfirm={handleReject}
+        title="Reject Payment"
+        description={
+          rejectModal.payment
+            ? `Reject payment of ${rejectModal.payment.amountSUI} SUI from ${rejectModal.payment.senderWallet.slice(0, 8)}...${rejectModal.payment.senderWallet.slice(-4)}? The user will see the rejection reason.`
+            : ''
+        }
+        confirmLabel="Reject Payment"
+        confirmVariant="danger"
+        loading={processing}
+        inputLabel="Rejection Reason (optional)"
+        inputPlaceholder="e.g. Duplicate transaction, invalid payment..."
+        inputValue={rejectReason}
+        onInputChange={setRejectReason}
+      />
     </>
   )
 }

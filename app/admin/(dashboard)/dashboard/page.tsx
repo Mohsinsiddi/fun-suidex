@@ -28,7 +28,10 @@ interface SyncStatus {
   lastSyncedAt: string | null
   totalVerified: number
   totalFailed: number
+  totalSkipped: number
   syncInProgress: boolean
+  hasDistributions: boolean
+  totalDistributed: number
 }
 
 export default function AdminDashboardPage() {
@@ -54,17 +57,18 @@ export default function AdminDashboardPage() {
     }
   }, [error, router])
 
-  // Fetch sync status
-  const fetchSyncStatus = useCallback(async () => {
+  // Fetch sync status (with abort to prevent double-fire in strict mode)
+  const fetchSyncStatus = useCallback(async (signal?: AbortSignal) => {
     setSyncLoading(true)
     try {
-      const res = await fetch('/api/admin/distribute/sync')
+      const res = await fetch('/api/admin/distribute/sync', { signal })
       if (res.status === 401) return
       const json = await res.json()
       if (json.success) {
         setSyncStatus(json.data)
       }
-    } catch {
+    } catch (e) {
+      if (e instanceof DOMException && e.name === 'AbortError') return
       // Silently fail - sync status is supplementary
     } finally {
       setSyncLoading(false)
@@ -72,7 +76,9 @@ export default function AdminDashboardPage() {
   }, [])
 
   useEffect(() => {
-    fetchSyncStatus()
+    const controller = new AbortController()
+    fetchSyncStatus(controller.signal)
+    return () => controller.abort()
   }, [fetchSyncStatus])
 
   const handleRefresh = () => {
@@ -94,6 +100,18 @@ export default function AdminDashboardPage() {
       // Silently fail
     } finally {
       setSyncTriggering(false)
+    }
+  }
+
+  const handleResetSync = async () => {
+    try {
+      const res = await fetch('/api/admin/distribute/sync', { method: 'PUT' })
+      const json = await res.json()
+      if (json.success) {
+        await fetchSyncStatus()
+      }
+    } catch {
+      // Silently fail
     }
   }
 
@@ -123,8 +141,8 @@ export default function AdminDashboardPage() {
 
   return (
     <>
-      {/* Failed Verifications Alert Banner */}
-      {syncStatus && syncStatus.totalFailed > 0 && (
+      {/* Failed Verifications Alert Banner — only when real distributions exist */}
+      {syncStatus && syncStatus.totalFailed > 0 && syncStatus.hasDistributions && (
         <div className="flex items-center gap-3 p-3 sm:p-4 mb-4 sm:mb-6 rounded-lg bg-[var(--error)]/10 border border-[var(--error)]/30">
           <AlertCircle className="w-5 h-5 text-[var(--error)] flex-shrink-0" />
           <div className="flex-1 min-w-0">
@@ -132,7 +150,7 @@ export default function AdminDashboardPage() {
               Distribution Sync Alert
             </p>
             <p className="text-xs sm:text-sm text-[var(--error)]/80">
-              {syncStatus.totalFailed} distribution{syncStatus.totalFailed !== 1 ? 's' : ''} failed verification. Please review and re-sync.
+              {syncStatus.totalFailed} distribution{syncStatus.totalFailed !== 1 ? 's' : ''} failed on-chain verification. Review in the Distribute tab.
             </p>
           </div>
           <button
@@ -196,44 +214,85 @@ export default function AdminDashboardPage() {
               <Skeleton className="h-9 w-full mt-2" />
             </div>
           ) : syncStatus ? (
-            <>
-              <div className="space-y-2 mb-3 sm:mb-4">
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Last Sync</span>
-                  <span className="font-mono text-xs sm:text-sm">
-                    {syncStatus.lastSyncedAt
-                      ? new Date(syncStatus.lastSyncedAt).toLocaleString(undefined, {
-                          month: 'short',
-                          day: 'numeric',
-                          hour: '2-digit',
-                          minute: '2-digit',
-                        })
-                      : 'Never'}
-                  </span>
+            syncStatus.hasDistributions ? (
+              <>
+                <div className="space-y-2 mb-3 sm:mb-4">
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Last Sync</span>
+                    <span className="font-mono text-xs sm:text-sm">
+                      {syncStatus.lastSyncedAt
+                        ? new Date(syncStatus.lastSyncedAt).toLocaleString(undefined, {
+                            month: 'short',
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit',
+                          })
+                        : 'Never'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Distributed</span>
+                    <span className="font-mono text-xs sm:text-sm">{syncStatus.totalDistributed}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Verified</span>
+                    <span className="font-mono text-xs sm:text-sm text-[var(--success)]">{syncStatus.totalVerified}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Failed</span>
+                    <span className={`font-mono text-xs sm:text-sm ${syncStatus.totalFailed > 0 ? 'text-[var(--error)]' : 'text-[var(--text-secondary)]'}`}>
+                      {syncStatus.totalFailed}
+                    </span>
+                  </div>
+                  {syncStatus.totalSkipped > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-[var(--text-secondary)] text-xs sm:text-sm" title="TX not found on-chain (mock/test data)">Skipped</span>
+                      <span className="font-mono text-xs sm:text-sm text-[var(--text-secondary)]">
+                        {syncStatus.totalSkipped}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Verified</span>
-                  <span className="font-mono text-xs sm:text-sm text-[var(--success)]">{syncStatus.totalVerified}</span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleTriggerSync}
+                    disabled={syncTriggering || syncStatus.syncInProgress}
+                    className="btn btn-secondary flex-1 text-xs sm:text-sm"
+                  >
+                    {syncTriggering || syncStatus.syncInProgress ? (
+                      <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
+                    ) : (
+                      <><RefreshCw className="w-3.5 h-3.5" /> Sync Now</>
+                    )}
+                  </button>
+                  {syncStatus.totalFailed > 0 && (
+                    <button
+                      onClick={handleResetSync}
+                      disabled={syncTriggering || syncStatus.syncInProgress}
+                      className="btn btn-ghost text-xs sm:text-sm text-[var(--text-secondary)] hover:text-[var(--error)]"
+                      title="Reset all sync counters"
+                    >
+                      Reset
+                    </button>
+                  )}
                 </div>
-                <div className="flex justify-between items-center">
-                  <span className="text-[var(--text-secondary)] text-xs sm:text-sm">Failed</span>
-                  <span className={`font-mono text-xs sm:text-sm ${syncStatus.totalFailed > 0 ? 'text-[var(--error)]' : 'text-[var(--text-secondary)]'}`}>
-                    {syncStatus.totalFailed}
-                  </span>
-                </div>
-              </div>
-              <button
-                onClick={handleTriggerSync}
-                disabled={syncTriggering || syncStatus.syncInProgress}
-                className="btn btn-secondary w-full text-xs sm:text-sm"
-              >
-                {syncTriggering || syncStatus.syncInProgress ? (
-                  <><RefreshCw className="w-3.5 h-3.5 animate-spin" /> Syncing...</>
-                ) : (
-                  <><RefreshCw className="w-3.5 h-3.5" /> Sync Now</>
+              </>
+            ) : (
+              <div className="text-center py-2">
+                <p className="text-[var(--text-secondary)] text-xs sm:text-sm mb-1">No distributions yet</p>
+                <p className="text-[var(--text-secondary)]/60 text-[10px] sm:text-xs">
+                  Distribute prizes first, then sync to verify TX hashes on-chain.
+                </p>
+                {(syncStatus.totalFailed > 0 || syncStatus.totalVerified > 0) && (
+                  <button
+                    onClick={handleResetSync}
+                    className="btn btn-ghost text-xs mt-3 text-[var(--text-secondary)] hover:text-[var(--accent)]"
+                  >
+                    Reset Stale Counters
+                  </button>
                 )}
-              </button>
-            </>
+              </div>
+            )
           ) : (
             <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Unable to load sync status.</p>
           )}

@@ -241,14 +241,18 @@ export default function AdminDistributePage() {
   // Fetch on mount and when dependencies change
   useEffect(() => { fetchData() }, [fetchData])
 
-  // Fetch sync checkpoint on mount
+  // Fetch sync checkpoint on mount (abort prevents double-fire in strict mode)
   useEffect(() => {
-    fetch('/api/admin/distribute/sync')
+    const controller = new AbortController()
+    fetch('/api/admin/distribute/sync', { signal: controller.signal })
       .then((r) => r.json())
       .then((data) => {
         if (data.success) setSyncCheckpoint(data.data)
       })
-      .catch(() => {})
+      .catch((e) => {
+        if (e instanceof DOMException && e.name === 'AbortError') return
+      })
+    return () => controller.abort()
   }, [])
 
   // ============================================

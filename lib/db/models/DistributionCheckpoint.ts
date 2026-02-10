@@ -15,6 +15,7 @@ export interface DistributionCheckpoint {
   lastTxDigest: string | null
   totalVerified: number
   totalFailed: number
+  totalSkipped: number
   syncInProgress: boolean
   updatedBy: string
 }
@@ -48,6 +49,10 @@ const DistributionCheckpointSchema = new Schema<DistributionCheckpointDocument>(
       default: 0,
     },
     totalFailed: {
+      type: Number,
+      default: 0,
+    },
+    totalSkipped: {
       type: Number,
       default: 0,
     },

@@ -162,46 +162,42 @@ export async function getTransaction(txHash: string): Promise<TransactionInfo | 
 
 /**
  * Verify a payment transaction
- * Returns transaction info if valid, null otherwise
+ * Returns { tx } on success, { error } with specific reason on failure
  */
+export interface PaymentVerifyResult {
+  tx: TransactionInfo | null
+  error?: string
+}
+
 export async function verifyPayment(
   txHash: string,
   expectedSender: string,
   expectedRecipient: string,
   minAmountSUI: number
-): Promise<TransactionInfo | null> {
+): Promise<PaymentVerifyResult> {
   const tx = await getTransaction(txHash)
-  
+
   if (!tx) {
-    console.log('Transaction not found:', txHash)
-    return null
+    return { tx: null, error: 'Transaction not found on-chain. Check the TX hash and try again.' }
   }
-  
-  // Verify sender
-  if (tx.sender.toLowerCase() !== expectedSender.toLowerCase()) {
-    console.log('Sender mismatch:', tx.sender, expectedSender)
-    return null
-  }
-  
-  // Verify recipient
-  if (tx.recipient.toLowerCase() !== expectedRecipient.toLowerCase()) {
-    console.log('Recipient mismatch:', tx.recipient, expectedRecipient)
-    return null
-  }
-  
-  // Verify amount
-  if (tx.amountSUI < minAmountSUI) {
-    console.log('Amount too low:', tx.amountSUI, minAmountSUI)
-    return null
-  }
-  
-  // Verify success
+
   if (!tx.success) {
-    console.log('Transaction failed')
-    return null
+    return { tx: null, error: 'Transaction failed on-chain.' }
   }
-  
-  return tx
+
+  if (tx.sender.toLowerCase() !== expectedSender.toLowerCase()) {
+    return { tx: null, error: 'Transaction was sent from a different wallet. Please send from your connected wallet.' }
+  }
+
+  if (tx.recipient.toLowerCase() !== expectedRecipient.toLowerCase()) {
+    return { tx: null, error: 'Transaction was sent to the wrong address. Please send to the wallet shown in the payment instructions.' }
+  }
+
+  if (tx.amountSUI < minAmountSUI) {
+    return { tx: null, error: `Payment too small: ${tx.amountSUI} SUI. Minimum is ${minAmountSUI} SUI.` }
+  }
+
+  return { tx }
 }
 
 // ----------------------------------------
@@ -210,6 +206,7 @@ export async function verifyPayment(
 
 export interface DistributionVerifyResult {
   valid: boolean
+  notFound?: boolean   // TX doesn't exist on-chain (mock/test data)
   sender: string
   recipient: string
   amount: number
@@ -236,7 +233,7 @@ export async function verifyDistributionTx(
     })
 
     if (!tx) {
-      return { valid: false, sender: '', recipient: '', amount: 0, reason: 'Transaction not found' }
+      return { valid: false, notFound: true, sender: '', recipient: '', amount: 0, reason: 'Transaction not found on-chain' }
     }
 
     if (tx.effects?.status?.status !== 'success') {
@@ -270,7 +267,9 @@ export async function verifyDistributionTx(
     return { valid: true, sender, recipient, amount }
   } catch (error) {
     const message = error instanceof Error ? error.message : 'Unknown error'
-    return { valid: false, sender: '', recipient: '', amount: 0, reason: message }
+    // SUI RPC returns errors like "Could not find the referenced transaction" for non-existent TXs
+    const isNotFound = /not found|could not find|no transaction|invalid.*digest/i.test(message)
+    return { valid: false, notFound: isNotFound, sender: '', recipient: '', amount: 0, reason: isNotFound ? 'Transaction not found on-chain' : message }
   }
 }
 
@@ -296,12 +295,15 @@ export async function batchVerifyDistributions(
       results.set(outcome.value.hash, outcome.value.result)
     } else {
       const hash = batch[settled.indexOf(outcome)]
+      const errMsg = outcome.reason instanceof Error ? outcome.reason.message : 'Verification request failed'
+      const isNotFound = /not found|could not find|no transaction|invalid.*digest/i.test(errMsg)
       results.set(hash, {
         valid: false,
+        notFound: isNotFound,
         sender: '',
         recipient: '',
         amount: 0,
-        reason: 'Verification request failed',
+        reason: isNotFound ? 'Transaction not found on-chain' : errMsg,
       })
     }
   }

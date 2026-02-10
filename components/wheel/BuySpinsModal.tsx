@@ -77,8 +77,12 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
     }
   }, [autoClaimEnabled])
 
+  // Track TX hashes that permanently failed so we don't retry them
+  const failedHashesRef = useRef<Set<string>>(new Set())
+
   // Claim a specific transaction
   const claimTransaction = async (hash: string) => {
+    if (failedHashesRef.current.has(hash)) return
     setVerifying(true)
     setError('')
 
@@ -92,6 +96,11 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
       const data = await res.json()
 
       if (!res.ok || !data.success) {
+        // Permanent error (400) — stop retrying this TX
+        if (res.status === 400 || res.status === 409) {
+          failedHashesRef.current.add(hash)
+          setUnclaimedTxs(prev => prev.filter(tx => tx.txHash !== hash))
+        }
         throw new Error(data.error || 'Failed to claim payment')
       }
 
@@ -136,6 +145,7 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
     if (!isOpen) {
       stopScanning()
       setUnclaimedTxs([])
+      failedHashesRef.current.clear()
     }
   }, [isOpen, stopScanning])
 
@@ -157,9 +167,28 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
     }
   }
 
+  // Extract digest from full SuiScan/SuiVision URLs
+  const extractDigest = (input: string): string => {
+    const trimmed = input.trim()
+    const suiscanMatch = trimmed.match(/suiscan\.xyz\/[^/]+\/tx\/([A-Za-z0-9]+)/)
+    if (suiscanMatch) return suiscanMatch[1]
+    const suivisionMatch = trimmed.match(/suivision\.xyz\/txblock\/([A-Za-z0-9]+)/)
+    if (suivisionMatch) return suivisionMatch[1]
+    return trimmed
+  }
+
   const handleVerifyPayment = async () => {
-    if (!txHash.trim()) {
+    const digest = extractDigest(txHash)
+    if (!digest) {
       setError('Please enter a transaction hash')
+      return
+    }
+    if (digest.length < 43 || digest.length > 44) {
+      setError('Transaction hash should be 43-44 characters. You can also paste a SuiScan or SuiVision URL.')
+      return
+    }
+    if (!/^[1-9A-HJ-NP-Za-km-z]+$/.test(digest)) {
+      setError('Invalid transaction hash format')
       return
     }
 
@@ -176,7 +205,16 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
       const data = await res.json()
 
       if (!res.ok || !data.success) {
+        // Show specific message for rejected payments
+        if (data.data?.status === 'rejected') {
+          throw new Error(data.error || 'This payment was rejected by admin')
+        }
         throw new Error(data.error || 'Failed to verify payment')
+      }
+
+      if (data.data.status === 'pending_approval') {
+        setError('Payment requires admin approval (>10 SUI). You will be notified once approved.')
+        return
       }
 
       setSuccess({ spins: data.data.spinsCredited })

@@ -59,18 +59,36 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
           data: { status: 'pending_approval' },
         })
       }
+      if (existingPayment.claimStatus === 'rejected') {
+        return NextResponse.json({
+          success: false,
+          error: existingPayment.adminNote
+            ? `This payment was rejected: ${existingPayment.adminNote}`
+            : 'This payment was rejected by admin',
+          data: { status: 'rejected' },
+        })
+      }
     }
 
+    // Use stored recipientWallet for already-recorded unclaimed payments
+    // (survives admin wallet changes — the on-chain data hasn't changed)
+    const verifyRecipient =
+      existingPayment && existingPayment.claimStatus === 'unclaimed'
+        ? existingPayment.recipientWallet
+        : config.adminWalletAddress
+
     // Verify the payment on chain
-    const tx = await verifyPayment(
+    // Use spinRateSUI as minimum — 1 spin's worth is the smallest useful payment
+    const minPayment = Math.min(config.minPaymentSUI ?? Infinity, config.spinRateSUI)
+    const { tx, error: verifyError } = await verifyPayment(
       txHash,
       wallet,
-      config.adminWalletAddress,
-      config.minPaymentSUI
+      verifyRecipient,
+      minPayment
     )
 
     if (!tx) {
-      return errors.badRequest(ERRORS.PAYMENT_NOT_FOUND)
+      return errors.badRequest(verifyError || ERRORS.PAYMENT_NOT_FOUND)
     }
 
     // Check lookback period

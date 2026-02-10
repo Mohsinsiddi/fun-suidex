@@ -175,7 +175,7 @@ export interface Spin {
 // Payment Types
 // ----------------------------------------
 
-export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'manual' | 'pending_approval'
+export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'manual' | 'pending_approval' | 'rejected'
 
 export interface Payment {
   _id: string

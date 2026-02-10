@@ -47,7 +47,7 @@ const PaymentSchema = new Schema<PaymentDocument>(
     // Claim Details
     claimStatus: {
       type: String,
-      enum: ['unclaimed', 'claimed', 'manual', 'pending_approval'],
+      enum: ['unclaimed', 'claimed', 'manual', 'pending_approval', 'rejected'],
       default: 'unclaimed',
       index: true,
     },

@@ -67,8 +67,37 @@ export const referralApplySchema = z.object({
 // Payment Schemas
 // ----------------------------------------
 
+// Extract raw digest from SuiScan/SuiVision URLs or plain hash
+function extractTxDigest(input: string): string {
+  const trimmed = input.trim()
+
+  // suiscan.xyz/mainnet/tx/<digest> or suiscan.xyz/testnet/tx/<digest>
+  const suiscanMatch = trimmed.match(/suiscan\.xyz\/[^/]+\/tx\/([A-Za-z0-9]+)/)
+  if (suiscanMatch) return suiscanMatch[1]
+
+  // suivision.xyz/txblock/<digest>
+  const suivisionMatch = trimmed.match(/suivision\.xyz\/txblock\/([A-Za-z0-9]+)/)
+  if (suivisionMatch) return suivisionMatch[1]
+
+  return trimmed
+}
+
+// SUI tx digests are Base58-encoded 32-byte hashes (typically 43-44 chars)
+// Base58 charset: 123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz
+const SUI_TX_DIGEST_REGEX = /^[1-9A-HJ-NP-Za-km-z]+$/
+
 export const paymentClaimSchema = z.object({
-  txHash: z.string().min(1, 'Transaction hash is required'),
+  txHash: z
+    .string()
+    .trim()
+    .transform(extractTxDigest)
+    .pipe(
+      z
+        .string()
+        .min(43, 'Transaction hash is too short')
+        .max(44, 'Transaction hash is too long')
+        .regex(SUI_TX_DIGEST_REGEX, 'Invalid transaction hash format (expected Base58)')
+    ),
 })
 
 // ----------------------------------------

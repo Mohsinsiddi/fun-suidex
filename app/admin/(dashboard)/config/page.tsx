@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, RefreshCw, AlertCircle, CheckCircle, Wallet, Check } from 'lucide-react'
+import { Save, RefreshCw, AlertCircle, CheckCircle, Wallet, Check, X, AlertTriangle, Clock, Users, ArrowRight } from 'lucide-react'
 import { useAdminConfigStore } from '@/lib/stores/admin'
+import type { WalletConflict } from '@/lib/stores/admin/adminConfigStore'
 
 interface PrizeSlot {
   slotIndex: number
@@ -57,6 +58,149 @@ function getAddressValidation(address: string): 'empty' | 'valid' | 'invalid' {
 }
 
 // ============================================
+// Wallet Change Confirmation Modal
+// ============================================
+
+function WalletChangeModal({
+  data,
+  saving,
+  onClose,
+  onForce,
+}: {
+  data: WalletConflict
+  saving: boolean
+  onClose: () => void
+  onForce: () => void
+}) {
+  const truncate = (addr: string) => addr ? `${addr.slice(0, 6)}...${addr.slice(-4)}` : '—'
+  const formatDate = (d: string | null) => d ? new Date(d).toLocaleString() : '—'
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+      <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative card w-full max-w-lg overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-4 sm:p-5 border-b border-[var(--error)]/20 bg-[var(--error)]/5">
+          <div className="p-2 rounded-lg bg-[var(--error)]/10">
+            <AlertTriangle className="w-5 h-5 text-[var(--error)]" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h3 className="text-base sm:text-lg font-bold text-[var(--error)]">Wallet Change Blocked</h3>
+            <p className="text-[10px] sm:text-xs text-[var(--text-secondary)]">Pending payments detected for current wallet</p>
+          </div>
+          <button onClick={onClose} className="p-1.5 hover:bg-white/10 rounded-lg transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        </div>
+
+        {/* Wallet transition */}
+        <div className="px-4 sm:px-5 pt-4 pb-3">
+          <div className="flex items-center gap-2 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]">
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] text-[var(--text-secondary)] mb-0.5">Current</p>
+              <p className="font-mono text-xs sm:text-sm truncate" title={data.oldWallet}>{truncate(data.oldWallet)}</p>
+            </div>
+            <ArrowRight className="w-4 h-4 text-[var(--text-secondary)] shrink-0" />
+            <div className="flex-1 min-w-0 text-right">
+              <p className="text-[10px] text-[var(--text-secondary)] mb-0.5">New</p>
+              <p className="font-mono text-xs sm:text-sm truncate" title={data.newWallet}>{truncate(data.newWallet)}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Sync-style log panel */}
+        <div className="px-4 sm:px-5 pb-4">
+          <div className="rounded-lg border border-[var(--border)] bg-[var(--background)] overflow-hidden">
+            {/* Log header */}
+            <div className="flex items-center gap-2 px-3 py-2 border-b border-[var(--border)] bg-[var(--card)]">
+              <span className="w-2 h-2 rounded-full bg-[var(--error)] animate-pulse" />
+              <span className="text-[10px] sm:text-xs font-medium text-[var(--text-secondary)] uppercase tracking-wider">Payment Sync Status</span>
+            </div>
+
+            {/* Log rows */}
+            <div className="divide-y divide-[var(--border)]/50 font-mono text-[11px] sm:text-xs">
+              {/* Total */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-[var(--text-secondary)]">Total Pending</span>
+                <span className="font-semibold text-[var(--error)]">{data.total}</span>
+              </div>
+
+              {/* Unclaimed */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-gray-400" />
+                  <span className="text-[var(--text-secondary)]">Unclaimed</span>
+                </div>
+                <span className={data.unclaimed > 0 ? 'text-amber-400 font-semibold' : 'text-[var(--text-secondary)]'}>{data.unclaimed}</span>
+              </div>
+
+              {/* Pending Approval */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400" />
+                  <span className="text-[var(--text-secondary)]">Pending Approval</span>
+                </div>
+                <span className={data.pendingApproval > 0 ? 'text-amber-400 font-semibold' : 'text-[var(--text-secondary)]'}>{data.pendingApproval}</span>
+              </div>
+
+              {/* Total SUI */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <span className="text-[var(--text-secondary)]">Total SUI at Risk</span>
+                <span className="font-semibold text-[var(--accent)]">{data.totalSUI} SUI</span>
+              </div>
+
+              {/* Unique Senders */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <Users className="w-3 h-3 text-[var(--text-secondary)]" />
+                  <span className="text-[var(--text-secondary)]">Unique Senders</span>
+                </div>
+                <span>{data.uniqueSenders}</span>
+              </div>
+
+              {/* Date Range */}
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[var(--text-secondary)]" />
+                  <span className="text-[var(--text-secondary)]">Oldest TX</span>
+                </div>
+                <span className="text-[10px] sm:text-xs">{formatDate(data.oldestTx)}</span>
+              </div>
+              <div className="flex items-center justify-between px-3 py-2">
+                <div className="flex items-center gap-1.5">
+                  <Clock className="w-3 h-3 text-[var(--text-secondary)]" />
+                  <span className="text-[var(--text-secondary)]">Newest TX</span>
+                </div>
+                <span className="text-[10px] sm:text-xs">{formatDate(data.newestTx)}</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Warning message */}
+          <div className="mt-3 flex items-start gap-2 p-2.5 rounded-lg bg-[var(--error)]/5 border border-[var(--error)]/20">
+            <AlertCircle className="w-3.5 h-3.5 text-[var(--error)] shrink-0 mt-0.5" />
+            <p className="text-[10px] sm:text-xs text-[var(--error)]/80 leading-relaxed">
+              Forcing this change may prevent {data.uniqueSenders} user(s) from claiming {data.totalSUI} SUI in payments. Existing records will still use the stored wallet for verification.
+            </p>
+          </div>
+        </div>
+
+        {/* Actions */}
+        <div className="flex gap-2 sm:gap-3 p-4 sm:p-5 border-t border-[var(--border)] bg-[var(--card)]">
+          <button onClick={onClose} className="btn btn-ghost flex-1 text-sm" disabled={saving}>
+            Cancel
+          </button>
+          <button onClick={onForce} className="btn btn-danger flex-1 text-sm" disabled={saving}>
+            {saving ? <RefreshCw className="w-3.5 h-3.5 animate-spin" /> : <AlertTriangle className="w-3.5 h-3.5" />}
+            Force Change
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// ============================================
 // Page Component
 // ============================================
 
@@ -69,8 +213,10 @@ export default function AdminConfigPage() {
     isLoading,
     isSaving,
     error: storeError,
+    walletConflict,
     fetchConfig,
     updateConfig: saveConfig,
+    clearWalletConflict,
   } = useAdminConfigStore()
 
   // Local editing state
@@ -128,17 +274,22 @@ export default function AdminConfigPage() {
   // Handlers
   // ============================================
 
-  const handleSave = async () => {
+  const handleSave = async (force = false) => {
     if (!config) return
     setError(null)
     setSuccess(null)
 
-    const result = await saveConfig(config as any)
+    const payload = force ? { ...(config as any), force: true } : (config as any)
+    const result = await saveConfig(payload)
     if (result) {
       setSuccess('Configuration saved successfully!')
       setTimeout(() => setSuccess(null), 3000)
     } else {
-      setError(storeError || 'Failed to save config')
+      const state = useAdminConfigStore.getState()
+      // If wallet conflict returned, the modal will open via walletConflict state
+      if (!state.walletConflict) {
+        setError(state.error || 'Failed to save config')
+      }
     }
   }
 
@@ -213,7 +364,7 @@ export default function AdminConfigPage() {
           <h2 className="text-xl sm:text-2xl font-bold">Configuration</h2>
           <p className="text-text-secondary text-sm sm:text-base">Manage prize table and game settings</p>
         </div>
-        <button onClick={handleSave} disabled={saving} className="btn btn-primary self-start sm:self-auto text-sm sm:text-base">
+        <button onClick={() => handleSave()} disabled={saving} className="btn btn-primary self-start sm:self-auto text-sm sm:text-base">
           {saving ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
           <span className="hidden sm:inline">Save Changes</span><span className="sm:hidden">Save</span>
         </button>
@@ -473,6 +624,19 @@ export default function AdminConfigPage() {
             </div>
           </div>
         </>
+      )}
+
+      {/* Wallet change confirmation modal */}
+      {walletConflict && (
+        <WalletChangeModal
+          data={walletConflict}
+          saving={saving}
+          onClose={clearWalletConflict}
+          onForce={() => {
+            clearWalletConflict()
+            handleSave(true)
+          }}
+        />
       )}
     </>
   )

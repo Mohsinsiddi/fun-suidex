@@ -59,6 +59,12 @@ const VARIANTS: Record<string, { dot: string; text: string; bg: string; border: 
     bg: 'bg-yellow-400/10',
     border: 'border-yellow-400/30',
   },
+  rejected: {
+    dot: 'bg-red-400',
+    text: 'text-red-400',
+    bg: 'bg-red-400/10',
+    border: 'border-red-400/30',
+  },
   manual: {
     dot: 'bg-purple-400',
     text: 'text-purple-400',

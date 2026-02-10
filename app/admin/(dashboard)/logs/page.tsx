@@ -74,6 +74,11 @@ const ACTION_COLORS: Record<string, { bg: string; text: string; border: string }
     text: 'text-[var(--success)]',
     border: 'border-[var(--success)]/30',
   },
+  wallet_change: {
+    bg: 'bg-[var(--error)]/10',
+    text: 'text-[var(--error)]',
+    border: 'border-[var(--error)]/30',
+  },
 }
 
 const DEFAULT_ACTION_COLOR = {
@@ -277,6 +282,7 @@ const FILTER_CONFIGS: FilterConfig[] = [
       { value: 'reject_payment', label: 'Reject Payment' },
       { value: 'award_badge', label: 'Award Badge' },
       { value: 'mark_affiliates_paid', label: 'Mark Affiliates Paid' },
+      { value: 'wallet_change', label: 'Wallet Change' },
     ],
   },
   {
