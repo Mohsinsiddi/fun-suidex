@@ -233,7 +233,7 @@ export default function UserSpinHistory() {
 
                     {spin.distributedTxHash && (
                       <a
-                        href={`https://suiscan.xyz/mainnet/tx/${spin.distributedTxHash}`}
+                        href={`https://suiscan.xyz/${process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet'}/tx/${spin.distributedTxHash}`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="p-1 rounded text-accent/60 hover:text-accent hover:bg-white/5 transition-colors"

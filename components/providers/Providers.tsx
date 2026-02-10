@@ -25,7 +25,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networks} defaultNetwork="mainnet">
+      <SuiClientProvider networks={networks} defaultNetwork={(process.env.NEXT_PUBLIC_SUI_NETWORK as 'mainnet' | 'testnet') || 'testnet'}>
         <WalletProvider
           autoConnect={true}
           preferredWallets={['Sui Wallet', 'Suiet', 'Ethos Wallet']}

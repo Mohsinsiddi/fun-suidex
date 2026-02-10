@@ -1,8 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Save, RefreshCw, AlertCircle, CheckCircle } from 'lucide-react'
+import { Save, RefreshCw, AlertCircle, CheckCircle, Wallet, Check } from 'lucide-react'
 import { useAdminConfigStore } from '@/lib/stores/admin'
 
 interface PrizeSlot {
@@ -17,6 +17,7 @@ interface PrizeSlot {
 interface AdminConfig {
   spinRateSUI: number
   adminWalletAddress: string
+  distributorWalletAddress: string | null
   autoApprovalLimitSUI: number
   paymentLookbackHours: number
   referralCommissionPercent: number
@@ -42,6 +43,23 @@ const LOCK_DURATIONS = [
   { value: '3_year', label: '3 Years' },
 ]
 
+// ============================================
+// SUI address validation helper
+// ============================================
+
+function isValidSuiAddress(address: string): boolean {
+  return /^0x[a-fA-F0-9]{64}$/.test(address)
+}
+
+function getAddressValidation(address: string): 'empty' | 'valid' | 'invalid' {
+  if (!address || address.trim() === '') return 'empty'
+  return isValidSuiAddress(address) ? 'valid' : 'invalid'
+}
+
+// ============================================
+// Page Component
+// ============================================
+
 export default function AdminConfigPage() {
   const router = useRouter()
 
@@ -60,6 +78,9 @@ export default function AdminConfigPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // "Same as recipient" toggle
+  const [sameAsRecipient, setSameAsRecipient] = useState(false)
+
   // Fetch config on mount
   useEffect(() => {
     fetchConfig().then((success) => {
@@ -72,21 +93,48 @@ export default function AdminConfigPage() {
   // Sync store config to local state when loaded
   useEffect(() => {
     if (storeConfig) {
-      // Cast entire store config since it has the same structure at runtime
-      setConfig(storeConfig as unknown as AdminConfig)
+      const loadedConfig = storeConfig as unknown as AdminConfig
+      // Handle null distributorWalletAddress from API
+      const normalizedConfig: AdminConfig = {
+        ...loadedConfig,
+        distributorWalletAddress: loadedConfig.distributorWalletAddress || '',
+      }
+      setConfig(normalizedConfig)
+
+      // Detect if distributor matches recipient on load
+      if (
+        normalizedConfig.distributorWalletAddress &&
+        normalizedConfig.distributorWalletAddress === normalizedConfig.adminWalletAddress
+      ) {
+        setSameAsRecipient(true)
+      }
     }
   }, [storeConfig])
 
   const loading = isLoading
   const saving = isSaving
 
+  // Wallet validation states
+  const recipientValidation = useMemo(
+    () => getAddressValidation(config?.adminWalletAddress || ''),
+    [config?.adminWalletAddress]
+  )
+  const distributorValidation = useMemo(
+    () => getAddressValidation(config?.distributorWalletAddress || ''),
+    [config?.distributorWalletAddress]
+  )
+
+  // ============================================
+  // Handlers
+  // ============================================
+
   const handleSave = async () => {
     if (!config) return
     setError(null)
     setSuccess(null)
 
-    const success = await saveConfig(config as any)
-    if (success) {
+    const result = await saveConfig(config as any)
+    if (result) {
       setSuccess('Configuration saved successfully!')
       setTimeout(() => setSuccess(null), 3000)
     } else {
@@ -100,6 +148,54 @@ export default function AdminConfigPage() {
     newPrizeTable[index] = { ...newPrizeTable[index], [field]: value }
     setConfig({ ...config, prizeTable: newPrizeTable })
   }
+
+  const handleRecipientChange = (value: string) => {
+    if (!config) return
+    const updates: Partial<AdminConfig> = { adminWalletAddress: value }
+    if (sameAsRecipient) {
+      updates.distributorWalletAddress = value
+    }
+    setConfig({ ...config, ...updates })
+  }
+
+  const handleDistributorChange = (value: string) => {
+    if (!config) return
+    setConfig({ ...config, distributorWalletAddress: value })
+  }
+
+  const handleSameAsRecipientToggle = (checked: boolean) => {
+    setSameAsRecipient(checked)
+    if (!config) return
+    if (checked) {
+      setConfig({ ...config, distributorWalletAddress: config.adminWalletAddress })
+    }
+  }
+
+  // ============================================
+  // Validation indicator component
+  // ============================================
+
+  const ValidationIndicator = ({ status }: { status: 'empty' | 'valid' | 'invalid' }) => {
+    if (status === 'empty') return null
+    if (status === 'valid') {
+      return (
+        <span className="inline-flex items-center gap-1 text-[var(--success)] text-[10px] sm:text-xs">
+          <Check className="w-3 h-3" />
+          Valid
+        </span>
+      )
+    }
+    return (
+      <span className="inline-flex items-center gap-1 text-[var(--error)] text-[10px] sm:text-xs">
+        <AlertCircle className="w-3 h-3" />
+        Invalid (0x + 64 hex chars)
+      </span>
+    )
+  }
+
+  // ============================================
+  // Render
+  // ============================================
 
   if (loading) {
     return (
@@ -137,6 +233,91 @@ export default function AdminConfigPage() {
 
       {config && (
         <>
+          {/* Wallet Configuration */}
+          <div className="card p-4 sm:p-6 mb-4 sm:mb-6 border border-[var(--accent)]/20 bg-gradient-to-br from-[var(--card)] to-[var(--accent)]/[0.03]">
+            <div className="flex items-center gap-2.5 mb-4 sm:mb-5">
+              <div className="p-2 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)]">
+                <Wallet className="w-4 h-4 sm:w-5 sm:h-5" />
+              </div>
+              <div>
+                <h3 className="text-base sm:text-lg font-semibold">Wallet Configuration</h3>
+                <p className="text-[var(--text-secondary)] text-[10px] sm:text-xs">
+                  Configure wallets for receiving payments and distributing prizes
+                </p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+              {/* Recipient Wallet */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm text-[var(--text-secondary)]">
+                    Recipient Wallet
+                  </label>
+                  <ValidationIndicator status={recipientValidation} />
+                </div>
+                <input
+                  type="text"
+                  value={config.adminWalletAddress}
+                  onChange={(e) => handleRecipientChange(e.target.value)}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--background)] border rounded-lg font-mono text-xs sm:text-sm transition-colors focus:outline-none focus:border-[var(--accent)] ${
+                    recipientValidation === 'valid'
+                      ? 'border-[var(--success)]/40'
+                      : recipientValidation === 'invalid'
+                      ? 'border-[var(--error)]/40'
+                      : 'border-[var(--border)]'
+                  }`}
+                  placeholder="0x..."
+                />
+                <p className="mt-1 text-[10px] sm:text-xs text-[var(--text-secondary)] opacity-60">
+                  Receives SUI payments for spin purchases
+                </p>
+              </div>
+
+              {/* Distributor Wallet */}
+              <div>
+                <div className="flex items-center justify-between mb-1.5 sm:mb-2">
+                  <label className="block text-xs sm:text-sm text-[var(--text-secondary)]">
+                    Distributor Wallet
+                  </label>
+                  {!sameAsRecipient && <ValidationIndicator status={distributorValidation} />}
+                </div>
+                <input
+                  type="text"
+                  value={config.distributorWalletAddress || ''}
+                  onChange={(e) => handleDistributorChange(e.target.value)}
+                  disabled={sameAsRecipient}
+                  className={`w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--background)] border rounded-lg font-mono text-xs sm:text-sm transition-colors focus:outline-none focus:border-[var(--accent)] ${
+                    sameAsRecipient
+                      ? 'border-[var(--border)] opacity-50 cursor-not-allowed'
+                      : distributorValidation === 'valid'
+                      ? 'border-[var(--success)]/40'
+                      : distributorValidation === 'invalid'
+                      ? 'border-[var(--error)]/40'
+                      : 'border-[var(--border)]'
+                  }`}
+                  placeholder="0x..."
+                />
+                <div className="flex items-center justify-between mt-1.5">
+                  <p className="text-[10px] sm:text-xs text-[var(--text-secondary)] opacity-60">
+                    Sends prize distributions to winners
+                  </p>
+                  <label className="flex items-center gap-1.5 cursor-pointer select-none">
+                    <input
+                      type="checkbox"
+                      checked={sameAsRecipient}
+                      onChange={(e) => handleSameAsRecipientToggle(e.target.checked)}
+                      className="w-3.5 h-3.5 sm:w-4 sm:h-4 rounded bg-[var(--background)] border-[var(--border)] accent-[var(--accent)]"
+                    />
+                    <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]">
+                      Same as recipient
+                    </span>
+                  </label>
+                </div>
+              </div>
+            </div>
+          </div>
+
           {/* General Settings */}
           <div className="card p-4 sm:p-6 mb-4 sm:mb-6">
             <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">General Settings</h3>
@@ -149,16 +330,6 @@ export default function AdminConfigPage() {
                   onChange={(e) => setConfig({ ...config, spinRateSUI: parseFloat(e.target.value) || 0 })}
                   className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
                   step="0.1"
-                />
-              </div>
-              <div className="sm:col-span-2 lg:col-span-1">
-                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Admin Wallet Address</label>
-                <input
-                  type="text"
-                  value={config.adminWalletAddress}
-                  onChange={(e) => setConfig({ ...config, adminWalletAddress: e.target.value })}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg font-mono text-xs sm:text-sm"
-                  placeholder="0x..."
                 />
               </div>
               <div>

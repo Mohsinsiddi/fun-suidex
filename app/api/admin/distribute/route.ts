@@ -1,5 +1,5 @@
 // ============================================
-// Admin Distribute API
+// Admin Distribute API (Enhanced)
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,11 +7,12 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { SpinModel, AdminModel, AdminLogModel, UserModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
-import { parsePaginationParams } from '@/lib/utils/pagination'
+import { parsePaginationParams, parseSortParams } from '@/lib/utils/pagination'
 import { isValidObjectId, isValidTxHash, extractTxHash, escapeRegex } from '@/lib/utils/validation'
+import { verifyDistributionTx } from '@/lib/sui/client'
 import { sendPrizeDistributedPush } from '@/lib/push/webPush'
 
-// GET - Get pending prizes with pagination
+// GET - Get prizes with pagination, status tabs, filters
 export async function GET(request: NextRequest) {
   try {
     const cookieStore = await cookies()
@@ -23,42 +24,86 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Parse pagination params
     const { page, limit, skip } = parsePaginationParams(request)
+    const { sortField, sortOrder } = parseSortParams(
+      request,
+      ['createdAt', 'prizeAmount', 'prizeValueUSD', 'distributedAt'],
+      'createdAt'
+    )
 
-    // Parse filter params
     const url = new URL(request.url)
+    const status = url.searchParams.get('status') || 'pending'
     const prizeType = url.searchParams.get('prizeType')
     const walletSearch = url.searchParams.get('wallet')?.toLowerCase().trim()
+    const dateFrom = url.searchParams.get('dateFrom')
+    const dateTo = url.searchParams.get('dateTo')
 
     // Build query
     const query: Record<string, unknown> = {
-      status: 'pending',
       prizeType: { $ne: 'no_prize' },
+    }
+
+    if (status !== 'all') {
+      query.status = status
     }
     if (prizeType && prizeType !== 'all') {
       query.prizeType = prizeType
     }
-    // Filter by wallet address (partial match) - escape regex to prevent injection
     if (walletSearch) {
       query.wallet = { $regex: escapeRegex(walletSearch), $options: 'i' }
     }
+    if (dateFrom || dateTo) {
+      const dateQuery: Record<string, Date> = {}
+      if (dateFrom) dateQuery.$gte = new Date(dateFrom)
+      if (dateTo) dateQuery.$lte = new Date(dateTo + 'T23:59:59.999Z')
+      query.createdAt = dateQuery
+    }
 
-    // Get pending prizes with pagination (newest first)
-    const [pendingPrizes, total] = await Promise.all([
+    // Select fields based on status
+    const selectFields =
+      status === 'distributed'
+        ? 'wallet prizeType prizeAmount prizeValueUSD lockDuration createdAt status distributedAt distributedBy distributedTxHash'
+        : status === 'failed'
+          ? 'wallet prizeType prizeAmount prizeValueUSD lockDuration createdAt status failureReason distributedTxHash'
+          : 'wallet prizeType prizeAmount prizeValueUSD lockDuration createdAt status'
+
+    // Parallel: items + total + per-status counts
+    const [items, total, statusCounts] = await Promise.all([
       SpinModel.find(query)
-        .select('wallet prizeType prizeAmount prizeValueUSD lockDuration createdAt')
-        .sort({ createdAt: -1 })
+        .select(selectFields)
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
         .lean(),
       SpinModel.countDocuments(query),
+      // Aggregate counts per status (excluding no_prize)
+      SpinModel.aggregate([
+        { $match: { prizeType: { $ne: 'no_prize' } } },
+        {
+          $group: {
+            _id: '$status',
+            count: { $sum: 1 },
+            totalValue: { $sum: '$prizeValueUSD' },
+          },
+        },
+      ]),
     ])
+
+    // Build stats from aggregation
+    const stats: Record<string, { count: number; totalValue: number }> = {}
+    for (const sc of statusCounts) {
+      stats[sc._id] = { count: sc.count, totalValue: sc.totalValue }
+    }
 
     return NextResponse.json({
       success: true,
       data: {
-        items: pendingPrizes,
+        items,
+        stats: {
+          pending: stats.pending || { count: 0, totalValue: 0 },
+          distributed: stats.distributed || { count: 0, totalValue: 0 },
+          failed: stats.failed || { count: 0, totalValue: 0 },
+        },
       },
       pagination: {
         page,
@@ -71,11 +116,11 @@ export async function GET(request: NextRequest) {
     })
   } catch (error) {
     console.error('Admin distribute GET error:', error)
-    return NextResponse.json({ success: false, error: 'Failed to get pending prizes' }, { status: 500 })
+    return NextResponse.json({ success: false, error: 'Failed to get prizes' }, { status: 500 })
   }
 }
 
-// POST - Mark prize as distributed
+// POST - Mark prize as distributed (with on-chain verification)
 export async function POST(request: NextRequest) {
   try {
     const cookieStore = await cookies()
@@ -87,7 +132,6 @@ export async function POST(request: NextRequest) {
 
     await connectDB()
 
-    // Check permission
     const admin = await AdminModel.findOne({ username: payload.username })
       .select('permissions role')
       .lean()
@@ -99,7 +143,6 @@ export async function POST(request: NextRequest) {
     const body = await request.json()
     const { spinId, txHash: rawTxHash } = body
 
-    // Validate inputs
     if (!spinId || !isValidObjectId(spinId)) {
       return NextResponse.json({ success: false, error: 'Invalid spinId' }, { status: 400 })
     }
@@ -108,7 +151,6 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ success: false, error: 'Invalid txHash' }, { status: 400 })
     }
 
-    // Extract clean hash from URL if needed
     const txHash = extractTxHash(rawTxHash)
 
     const spin = await SpinModel.findById(spinId)
@@ -118,6 +160,15 @@ export async function POST(request: NextRequest) {
 
     if (spin.status !== 'pending') {
       return NextResponse.json({ success: false, error: 'Spin already processed' }, { status: 400 })
+    }
+
+    // Verify TX on-chain
+    const verification = await verifyDistributionTx(txHash)
+    if (!verification.valid) {
+      return NextResponse.json({
+        success: false,
+        error: `TX verification failed: ${verification.reason || 'Invalid transaction'}`,
+      }, { status: 400 })
     }
 
     // Update spin
@@ -133,11 +184,11 @@ export async function POST(request: NextRequest) {
       adminUsername: payload.username,
       targetType: 'spin',
       targetId: spinId,
-      after: { txHash, wallet: spin.wallet, amount: spin.prizeAmount },
+      after: { txHash, wallet: spin.wallet, amount: spin.prizeAmount, verified: true },
       ip: request.headers.get('x-forwarded-for') || 'unknown',
     })
 
-    // Send push notification if user has PWA push enabled (non-blocking)
+    // Send push notification (non-blocking)
     UserModel.findOne({ wallet: spin.wallet.toLowerCase() })
       .select('pwaPushSubscription')
       .lean()
@@ -151,7 +202,6 @@ export async function POST(request: NextRequest) {
             prizeSymbol
           )
           if (!result.success && result.error === 'subscription_expired') {
-            // Clean up expired subscription
             await UserModel.updateOne(
               { wallet: spin.wallet.toLowerCase() },
               { $set: { pwaPushSubscription: null } }
@@ -161,7 +211,7 @@ export async function POST(request: NextRequest) {
       })
       .catch((err) => console.error('Push notification error:', err))
 
-    return NextResponse.json({ success: true, message: 'Prize marked as distributed' })
+    return NextResponse.json({ success: true, message: 'Prize marked as distributed (verified on-chain)' })
   } catch (error) {
     console.error('Admin distribute POST error:', error)
     return NextResponse.json({ success: false, error: 'Failed to distribute prize' }, { status: 500 })

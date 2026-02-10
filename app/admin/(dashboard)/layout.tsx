@@ -11,6 +11,7 @@ import {
   Gift,
   LogOut,
   UserPlus,
+  FileText,
   Menu,
   X,
 } from 'lucide-react'
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/config', icon: Settings, label: 'Config' },
   { href: '/admin/affiliates', icon: UserPlus, label: 'Affiliates' },
+  { href: '/admin/logs', icon: FileText, label: 'Audit Logs' },
 ]
 
 export default function AdminDashboardLayout({ children }: { children: React.ReactNode }) {

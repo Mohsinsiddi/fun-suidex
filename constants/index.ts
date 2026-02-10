@@ -45,6 +45,7 @@ export const DEFAULT_ADMIN_CONFIG: Omit<AdminConfig, 'updatedAt' | 'updatedBy'> 
   
   // Admin Wallet (placeholder - must be set)
   adminWalletAddress: '',
+  distributorWalletAddress: null,
   
   // Payment Verification
   paymentLookbackHours: 48,
@@ -214,8 +215,6 @@ export const SPIN_UI = {
 export const SUI = {
   MIST_PER_SUI: 1_000_000_000,
   DECIMALS: 9,
-  MAINNET_RPC: 'https://fullnode.mainnet.sui.io:443',
-  TESTNET_RPC: 'https://fullnode.testnet.sui.io:443',
 }
 
 // ----------------------------------------

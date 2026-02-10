@@ -441,7 +441,7 @@ export function BuySpinsModal({ isOpen, onClose, onSuccess }: BuySpinsModalProps
             </div>
 
             <a
-              href="https://suiscan.xyz/mainnet/account/txs"
+              href={`https://suiscan.xyz/${process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet'}/account/txs`}
               target="_blank"
               rel="noopener noreferrer"
               className="flex items-center gap-2 text-sm text-accent hover:underline mb-6"

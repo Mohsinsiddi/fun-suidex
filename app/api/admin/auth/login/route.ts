@@ -74,19 +74,20 @@ export async function POST(request: NextRequest) {
     const ip = request.headers.get('x-forwarded-for') || 'unknown'
     const userAgent = request.headers.get('user-agent') || 'unknown'
 
-    // Add session to admin (limit to 5 sessions)
-    admin.sessions = [
+    // Atomically update sessions (avoids VersionError on concurrent logins)
+    await AdminModel.findOneAndUpdate(
+      { _id: admin._id },
       {
-        sessionId,
-        createdAt: new Date(),
-        expiresAt,
-        ip,
-        userAgent,
-      },
-      ...admin.sessions.slice(0, 4), // Keep only 4 previous sessions
-    ]
-    admin.lastLoginAt = new Date()
-    await admin.save()
+        $set: { lastLoginAt: new Date() },
+        $push: {
+          sessions: {
+            $each: [{ sessionId, createdAt: new Date(), expiresAt, ip, userAgent }],
+            $position: 0,
+            $slice: 5,
+          },
+        },
+      }
+    )
 
     // Create JWT token
     const token = await createAdminToken(admin.username, admin.role, sessionId)

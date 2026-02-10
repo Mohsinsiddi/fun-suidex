@@ -1,5 +1,5 @@
 // ============================================
-// Admin Revenue API
+// Admin Revenue API (Enhanced with filters)
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,7 +7,7 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { PaymentModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
-import { parsePaginationParams } from '@/lib/utils/pagination'
+import { parsePaginationParams, parseSortParams } from '@/lib/utils/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,19 +20,45 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Parse pagination for recent payments
     const { page, limit, skip } = parsePaginationParams(request)
+    const { sortField, sortOrder } = parseSortParams(
+      request,
+      ['createdAt', 'amountSUI', 'claimedAt', 'spinsCredited'],
+      'createdAt'
+    )
+
+    const url = new URL(request.url)
+    const status = url.searchParams.get('status')
+    const dateFrom = url.searchParams.get('dateFrom')
+    const dateTo = url.searchParams.get('dateTo')
+    const minAmount = url.searchParams.get('minAmount')
+
+    // Build payments query
+    const paymentsQuery: Record<string, unknown> = {}
+    if (status && status !== 'all') {
+      paymentsQuery.claimStatus = status
+    }
+    if (dateFrom || dateTo) {
+      const dateQ: Record<string, Date> = {}
+      if (dateFrom) dateQ.$gte = new Date(dateFrom)
+      if (dateTo) dateQ.$lte = new Date(dateTo + 'T23:59:59.999Z')
+      paymentsQuery.createdAt = dateQ
+    }
+    if (minAmount) {
+      const min = parseFloat(minAmount)
+      if (!isNaN(min) && min > 0) {
+        paymentsQuery.amountSUI = { $gte: min }
+      }
+    }
 
     const now = new Date()
     const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate())
     const weekStart = new Date(todayStart.getTime() - 7 * 24 * 60 * 60 * 1000)
 
-    // Optimized: Single aggregation pipeline for all stats
     const [statsResult, recentPayments, totalPayments] = await Promise.all([
       PaymentModel.aggregate([
         {
           $facet: {
-            // Total stats (all claimed payments)
             total: [
               { $match: { claimStatus: 'claimed' } },
               {
@@ -43,7 +69,6 @@ export async function GET(request: NextRequest) {
                 },
               },
             ],
-            // Today stats
             today: [
               { $match: { claimStatus: 'claimed', claimedAt: { $gte: todayStart } } },
               {
@@ -54,7 +79,6 @@ export async function GET(request: NextRequest) {
                 },
               },
             ],
-            // Week stats
             week: [
               { $match: { claimStatus: 'claimed', claimedAt: { $gte: weekStart } } },
               {
@@ -65,7 +89,6 @@ export async function GET(request: NextRequest) {
                 },
               },
             ],
-            // Pending count
             pending: [
               { $match: { claimStatus: 'pending_approval' } },
               { $count: 'count' },
@@ -73,15 +96,13 @@ export async function GET(request: NextRequest) {
           },
         },
       ]),
-      // Recent payments with pagination
-      PaymentModel.find({})
+      PaymentModel.find(paymentsQuery)
         .select('txHash senderWallet amountSUI claimStatus claimedAt createdAt spinsCredited')
-        .sort({ createdAt: -1 })
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
         .lean(),
-      // Total count for pagination
-      PaymentModel.countDocuments({}),
+      PaymentModel.countDocuments(paymentsQuery),
     ])
 
     const stats = statsResult[0] || {}

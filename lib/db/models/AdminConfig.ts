@@ -69,10 +69,17 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
       min: 1,
     },
     
-    // Admin Wallet
+    // Admin Wallet (receives payments)
     adminWalletAddress: {
       type: String,
       required: true,
+      lowercase: true,
+    },
+
+    // Distributor Wallet (sends prize distributions, nullable = same as admin)
+    distributorWalletAddress: {
+      type: String,
+      default: null,
       lowercase: true,
     },
     

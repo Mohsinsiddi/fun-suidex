@@ -279,6 +279,49 @@ a:hover {
   background: var(--accent-muted);
 }
 
+/* Success Button */
+.btn-success {
+  background: var(--success);
+  color: #fff;
+}
+
+.btn-success:hover:not(:disabled) {
+  background: #16a34a;
+  box-shadow: 0 0 12px rgba(34, 197, 94, 0.3);
+}
+
+/* Warning Button */
+.btn-warning {
+  background: var(--warning);
+  color: #1a1a1a;
+}
+
+.btn-warning:hover:not(:disabled) {
+  background: #e09900;
+}
+
+/* Danger Button */
+.btn-danger {
+  background: var(--error);
+  color: #fff;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background: #cc3333;
+  box-shadow: 0 0 12px rgba(255, 68, 68, 0.3);
+}
+
+/* Info Button */
+.btn-info {
+  background: var(--info);
+  color: #fff;
+}
+
+.btn-info:hover:not(:disabled) {
+  background: #3b82f6;
+  box-shadow: 0 0 12px rgba(77, 162, 255, 0.3);
+}
+
 /* Ghost Button */
 .btn-ghost {
   background: transparent;

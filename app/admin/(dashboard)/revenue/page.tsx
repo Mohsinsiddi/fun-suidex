@@ -1,9 +1,11 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, DollarSign, TrendingUp, Calendar, CreditCard } from 'lucide-react'
 import { SkeletonCardGrid, SkeletonTable, EmptyState, Pagination, PaginationInfo } from '@/components/ui'
+import { AdminTable, FilterBar, StatusBadge } from '@/components/admin'
+import type { Column, FilterConfig } from '@/components/admin'
 // Note: Revenue page uses a combined stats+payments API response that doesn't fit the paginated store pattern
 
 interface RevenueStats {
@@ -18,10 +20,12 @@ interface RevenueStats {
 
 interface Payment {
   _id: string
+  txHash: string
   senderWallet: string
   amountSUI: number
   spinsCredited: number
   claimStatus: string
+  claimedAt: string
   createdAt: string
 }
 
@@ -29,6 +33,40 @@ interface RevenueData {
   stats: RevenueStats
   recentPayments: Payment[]
 }
+
+// Filter configuration
+const FILTER_CONFIGS: FilterConfig[] = [
+  {
+    key: 'status',
+    type: 'select',
+    label: 'Status',
+    options: [
+      { value: '', label: 'All Statuses' },
+      { value: 'claimed', label: 'Claimed' },
+      { value: 'pending_approval', label: 'Pending Approval' },
+      { value: 'unclaimed', label: 'Unclaimed' },
+    ],
+  },
+  {
+    key: 'date',
+    type: 'date-range',
+    labelFrom: 'From',
+    labelTo: 'To',
+  },
+  {
+    key: 'minAmount',
+    type: 'text',
+    label: 'Min Amount (SUI)',
+    placeholder: 'e.g. 5',
+  },
+]
+
+// Status pill options for quick filter
+const STATUS_PILLS = [
+  { value: '', label: 'All' },
+  { value: 'claimed', label: 'Claimed' },
+  { value: 'pending_approval', label: 'Pending' },
+] as const
 
 export default function AdminRevenuePage() {
   const router = useRouter()
@@ -41,12 +79,20 @@ export default function AdminRevenuePage() {
   const [total, setTotal] = useState(0)
   const limit = 20
 
+  // Sorting
+  const [sortBy, setSortBy] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Filters
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({})
+  const [activeStatusPill, setActiveStatusPill] = useState('')
+
   // Deduplication refs
   const fetchingRef = useRef(false)
   const lastFetchRef = useRef('')
 
-  const fetchRevenue = async (force = false) => {
-    const fetchKey = `${page}`
+  const fetchRevenue = useCallback(async (force = false) => {
+    const fetchKey = `${page}-${sortBy}-${sortOrder}-${JSON.stringify(filterValues)}`
 
     // Prevent duplicate fetches
     if (fetchingRef.current) return
@@ -57,7 +103,19 @@ export default function AdminRevenuePage() {
     setLoading(true)
 
     try {
-      const params = new URLSearchParams({ page: String(page), limit: String(limit) })
+      const params = new URLSearchParams({
+        page: String(page),
+        limit: String(limit),
+        sortBy,
+        sortOrder,
+      })
+
+      // Add filter params
+      if (filterValues.status) params.set('status', filterValues.status)
+      if (filterValues.dateFrom) params.set('dateFrom', filterValues.dateFrom)
+      if (filterValues.dateTo) params.set('dateTo', filterValues.dateTo)
+      if (filterValues.minAmount) params.set('minAmount', filterValues.minAmount)
+
       const res = await fetch(`/api/admin/revenue?${params}`)
       if (res.status === 401) { router.push('/admin/login'); return }
       const json = await res.json()
@@ -69,9 +127,92 @@ export default function AdminRevenuePage() {
     } catch (err) { console.error(err) }
     setLoading(false)
     fetchingRef.current = false
-  }
+  }, [page, sortBy, sortOrder, filterValues, router])
 
-  useEffect(() => { fetchRevenue() }, [page])
+  useEffect(() => { fetchRevenue() }, [fetchRevenue])
+
+  // Handle sort toggle
+  const handleSort = useCallback((key: string) => {
+    setSortOrder((prev) => (sortBy === key ? (prev === 'asc' ? 'desc' : 'asc') : 'desc'))
+    setSortBy(key)
+    setPage(1)
+    lastFetchRef.current = '' // Reset dedup
+  }, [sortBy])
+
+  // Handle filter changes
+  const handleFilterChange = useCallback((values: Record<string, string>) => {
+    setFilterValues(values)
+    // Sync status pill with filter
+    setActiveStatusPill(values.status || '')
+    setPage(1)
+    lastFetchRef.current = ''
+  }, [])
+
+  // Handle filter clear
+  const handleFilterClear = useCallback(() => {
+    setFilterValues({})
+    setActiveStatusPill('')
+    setPage(1)
+    lastFetchRef.current = ''
+  }, [])
+
+  // Handle status pill click
+  const handleStatusPill = useCallback((status: string) => {
+    setActiveStatusPill(status)
+    setFilterValues((prev) => ({ ...prev, status }))
+    setPage(1)
+    lastFetchRef.current = ''
+  }, [])
+
+  // Handle page change
+  const handlePageChange = useCallback((newPage: number) => {
+    setPage(newPage)
+    lastFetchRef.current = ''
+  }, [])
+
+  // Table columns
+  const columns = useMemo<Column<Payment>[]>(() => [
+    {
+      key: 'senderWallet',
+      header: 'Wallet',
+      render: (p) => (
+        <span className="font-mono text-xs sm:text-sm">
+          {p.senderWallet.slice(0, 8)}...{p.senderWallet.slice(-4)}
+        </span>
+      ),
+    },
+    {
+      key: 'amountSUI',
+      header: 'Amount',
+      sortable: true,
+      render: (p) => (
+        <span className="text-[var(--accent)] font-medium">{p.amountSUI} SUI</span>
+      ),
+    },
+    {
+      key: 'spinsCredited',
+      header: 'Spins',
+      render: (p) => (
+        <span className="text-[var(--warning)]">{p.spinsCredited}</span>
+      ),
+    },
+    {
+      key: 'claimStatus',
+      header: 'Status',
+      sortable: true,
+      render: (p) => <StatusBadge status={p.claimStatus} />,
+    },
+    {
+      key: 'createdAt',
+      header: 'Date',
+      sortable: true,
+      render: (p) => (
+        <span className="text-[var(--text-secondary)] whitespace-nowrap">
+          {new Date(p.createdAt).toLocaleDateString()}
+        </span>
+      ),
+    },
+  ], [])
 
   return (
     <>
@@ -81,12 +222,17 @@ export default function AdminRevenuePage() {
           <h2 className="text-xl sm:text-2xl font-bold">Revenue</h2>
           <p className="text-text-secondary text-sm sm:text-base">Track payments and spin purchases</p>
         </div>
-        <button onClick={() => { lastFetchRef.current = ''; fetchRevenue() }} disabled={loading} className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base">
-          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
+        <button
+          onClick={() => { lastFetchRef.current = ''; fetchRevenue(true) }}
+          disabled={loading}
+          className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base"
+        >
+          <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+          <span className="hidden sm:inline">Refresh</span>
         </button>
       </div>
 
-      {loading ? (
+      {loading && !data ? (
         <>
           {/* Stats Skeleton */}
           <div className="mb-6 sm:mb-8">
@@ -108,91 +254,131 @@ export default function AdminRevenuePage() {
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Total Revenue</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 text-[var(--accent)] truncate">{data.stats?.totalRevenueSUI?.toFixed(2) || 0} SUI</p>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">{data.stats?.totalPayments || 0} payments</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 text-[var(--accent)] truncate">
+                    {data.stats?.totalRevenueSUI?.toFixed(2) || 0} SUI
+                  </p>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+                    {data.stats?.totalPayments || 0} payments
+                  </p>
                 </div>
-                <div className="p-2 sm:p-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] flex-shrink-0"><DollarSign className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+                <div className="p-2 sm:p-3 rounded-lg bg-[var(--accent)]/10 text-[var(--accent)] flex-shrink-0">
+                  <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
               </div>
             </div>
             <div className="card p-3 sm:p-4 md:p-6">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Today</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 truncate">{data.stats?.todayRevenueSUI?.toFixed(2) || 0} SUI</p>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">{data.stats?.todayPayments || 0} payments</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 truncate">
+                    {data.stats?.todayRevenueSUI?.toFixed(2) || 0} SUI
+                  </p>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+                    {data.stats?.todayPayments || 0} payments
+                  </p>
                 </div>
-                <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] text-[var(--text-secondary)] flex-shrink-0"><Calendar className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+                <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] text-[var(--text-secondary)] flex-shrink-0">
+                  <Calendar className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
               </div>
             </div>
             <div className="card p-3 sm:p-4 md:p-6">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[var(--text-secondary)] text-xs sm:text-sm">This Week</p>
-                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 truncate">{data.stats?.weekRevenueSUI?.toFixed(2) || 0} SUI</p>
-                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">{data.stats?.weekPayments || 0} payments</p>
+                  <p className="text-lg sm:text-xl md:text-2xl font-bold mt-1 truncate">
+                    {data.stats?.weekRevenueSUI?.toFixed(2) || 0} SUI
+                  </p>
+                  <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">
+                    {data.stats?.weekPayments || 0} payments
+                  </p>
                 </div>
-                <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] text-[var(--text-secondary)] flex-shrink-0"><TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+                <div className="p-2 sm:p-3 rounded-lg bg-[var(--card)] text-[var(--text-secondary)] flex-shrink-0">
+                  <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
               </div>
             </div>
             <div className="card p-3 sm:p-4 md:p-6">
               <div className="flex items-start justify-between gap-2">
                 <div className="min-w-0 flex-1">
                   <p className="text-[var(--text-secondary)] text-xs sm:text-sm">Pending</p>
-                  <p className={`text-lg sm:text-xl md:text-2xl font-bold mt-1 ${(data.stats?.pendingApproval || 0) > 0 ? 'text-[var(--warning)]' : ''}`}>{data.stats?.pendingApproval || 0}</p>
+                  <p className={`text-lg sm:text-xl md:text-2xl font-bold mt-1 ${
+                    (data.stats?.pendingApproval || 0) > 0 ? 'text-[var(--warning)]' : ''
+                  }`}>
+                    {data.stats?.pendingApproval || 0}
+                  </p>
                   <p className="text-xs sm:text-sm text-[var(--text-secondary)] mt-1">awaiting</p>
                 </div>
-                <div className={`p-2 sm:p-3 rounded-lg flex-shrink-0 ${(data.stats?.pendingApproval || 0) > 0 ? 'bg-[var(--warning)]/10 text-[var(--warning)]' : 'bg-[var(--card)] text-[var(--text-secondary)]'}`}><RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" /></div>
+                <div className={`p-2 sm:p-3 rounded-lg flex-shrink-0 ${
+                  (data.stats?.pendingApproval || 0) > 0
+                    ? 'bg-[var(--warning)]/10 text-[var(--warning)]'
+                    : 'bg-[var(--card)] text-[var(--text-secondary)]'
+                }`}>
+                  <RefreshCw className="w-4 h-4 sm:w-5 sm:h-5" />
+                </div>
               </div>
             </div>
           </div>
 
-          {/* Recent Payments */}
-          <div className="card">
-            <div className="p-3 sm:p-4 border-b border-[var(--border)]">
+          {/* Status Pills */}
+          <div className="flex flex-wrap items-center gap-2 mb-4">
+            {STATUS_PILLS.map((pill) => (
+              <button
+                key={pill.value}
+                onClick={() => handleStatusPill(pill.value)}
+                className={`px-3 py-1.5 rounded-full text-xs sm:text-sm font-medium transition-colors ${
+                  activeStatusPill === pill.value
+                    ? 'bg-[var(--accent)] text-[var(--background)]'
+                    : 'bg-[var(--card)] text-[var(--text-secondary)] hover:bg-[var(--card-hover)] border border-[var(--border)]'
+                }`}
+              >
+                {pill.label}
+              </button>
+            ))}
+          </div>
+
+          {/* Filter Bar */}
+          <FilterBar
+            filters={FILTER_CONFIGS}
+            values={filterValues}
+            onChange={handleFilterChange}
+            onClear={handleFilterClear}
+          />
+
+          {/* Payments Table */}
+          <div className="card overflow-hidden">
+            <div className="p-3 sm:p-4 border-b border-[var(--border)] flex items-center justify-between">
               <h3 className="text-base sm:text-lg font-semibold">Recent Payments</h3>
+              {loading && (
+                <RefreshCw className="w-4 h-4 animate-spin text-[var(--text-secondary)]" />
+              )}
             </div>
-            {(!data.recentPayments || data.recentPayments.length === 0) ? (
-              <EmptyState
-                title="No payments yet"
-                message="Payments will appear here once users purchase spins."
-                icon={CreditCard}
-              />
-            ) : (
-              <>
-                <div className="overflow-x-auto">
-                  <table className="w-full min-w-[550px]">
-                    <thead>
-                      <tr className="border-b border-[var(--border)]">
-                        <th className="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Wallet</th>
-                        <th className="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Amount</th>
-                        <th className="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Spins</th>
-                        <th className="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Status</th>
-                        <th className="px-3 sm:px-6 py-2.5 sm:py-3 text-left text-[10px] sm:text-xs text-[var(--text-secondary)]">Date</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data.recentPayments.map((p) => (
-                        <tr key={p._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 font-mono text-xs sm:text-sm">{p.senderWallet.slice(0, 8)}...{p.senderWallet.slice(-4)}</td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--accent)] text-xs sm:text-sm">{p.amountSUI} SUI</td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--warning)] text-xs sm:text-sm">{p.spinsCredited}</td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4">
-                            <span className={`px-1.5 sm:px-2 py-0.5 sm:py-1 rounded text-[10px] sm:text-xs whitespace-nowrap ${p.claimStatus === 'claimed' ? 'bg-[var(--success)]/20 text-[var(--success)]' : p.claimStatus === 'pending_approval' ? 'bg-[var(--warning)]/20 text-[var(--warning)]' : 'bg-[var(--card)] text-[var(--text-secondary)]'}`}>{p.claimStatus}</span>
-                          </td>
-                          <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--text-secondary)] text-xs sm:text-sm whitespace-nowrap">{new Date(p.createdAt).toLocaleDateString()}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-                {/* Pagination */}
-                {totalPages > 1 && (
-                  <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
-                    <PaginationInfo page={page} limit={limit} total={total} />
-                    <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
-                  </div>
-                )}
-              </>
+
+            <AdminTable<Payment>
+              columns={columns}
+              data={data.recentPayments || []}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+              emptyState={
+                <EmptyState
+                  title="No payments found"
+                  message={
+                    Object.values(filterValues).some(Boolean)
+                      ? 'No payments match your current filters. Try adjusting or clearing them.'
+                      : 'Payments will appear here once users purchase spins.'
+                  }
+                  icon={CreditCard}
+                />
+              }
+            />
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 border-t border-[var(--border)]">
+                <PaginationInfo page={page} limit={limit} total={total} />
+                <Pagination page={page} totalPages={totalPages} onPageChange={handlePageChange} />
+              </div>
             )}
           </div>
         </>

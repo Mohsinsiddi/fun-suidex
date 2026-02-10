@@ -96,7 +96,7 @@ export default function ReferralEarningsTable() {
                       <TweetToClaimButton reward={r} onComplete={() => handleTweetComplete(r._id)} />
                     )}
                     {r.payoutStatus === 'paid' && r.paidTxHash && (
-                      <a href={`https://suiscan.xyz/tx/${r.paidTxHash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--accent)] hover:underline">
+                      <a href={`https://suiscan.xyz/${process.env.NEXT_PUBLIC_SUI_NETWORK || 'testnet'}/tx/${r.paidTxHash}`} target="_blank" rel="noopener noreferrer" className="text-xs text-[var(--accent)] hover:underline">
                         View TX
                       </a>
                     )}

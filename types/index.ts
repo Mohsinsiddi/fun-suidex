@@ -267,6 +267,7 @@ export interface AdminConfig {
 
   // Admin Wallet
   adminWalletAddress: string
+  distributorWalletAddress: string | null
 
   // Payment Verification
   paymentLookbackHours: number

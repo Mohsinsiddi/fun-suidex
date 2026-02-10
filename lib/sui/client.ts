@@ -4,6 +4,7 @@
 
 import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
 import { SUI } from '@/constants'
+import { getSuiNetwork } from './network'
 
 // ----------------------------------------
 // SUI Client Singleton
@@ -13,7 +14,7 @@ let suiClient: SuiClient | null = null
 
 export function getSuiClient(): SuiClient {
   if (!suiClient) {
-    const rpcUrl = process.env.SUI_RPC_URL || getFullnodeUrl('mainnet')
+    const rpcUrl = getFullnodeUrl(getSuiNetwork())
     suiClient = new SuiClient({ url: rpcUrl })
   }
   return suiClient
@@ -201,6 +202,111 @@ export async function verifyPayment(
   }
   
   return tx
+}
+
+// ----------------------------------------
+// Distribution Verification
+// ----------------------------------------
+
+export interface DistributionVerifyResult {
+  valid: boolean
+  sender: string
+  recipient: string
+  amount: number
+  reason?: string
+}
+
+/**
+ * Verify a distribution TX on-chain
+ * Checks that the TX exists, succeeded, and was a SUI transfer
+ */
+export async function verifyDistributionTx(
+  txHash: string
+): Promise<DistributionVerifyResult> {
+  const client = getSuiClient()
+
+  try {
+    const tx = await client.getTransactionBlock({
+      digest: txHash,
+      options: {
+        showInput: true,
+        showEffects: true,
+        showBalanceChanges: true,
+      },
+    })
+
+    if (!tx) {
+      return { valid: false, sender: '', recipient: '', amount: 0, reason: 'Transaction not found' }
+    }
+
+    if (tx.effects?.status?.status !== 'success') {
+      return { valid: false, sender: '', recipient: '', amount: 0, reason: 'Transaction failed on-chain' }
+    }
+
+    const sender = (tx.transaction?.data?.sender || '').toLowerCase()
+
+    // Find positive SUI balance change (recipient side)
+    const balanceChanges = tx.balanceChanges || []
+    const recipientChange = balanceChanges.find(
+      (change) =>
+        change.coinType === '0x2::sui::SUI' &&
+        BigInt(change.amount) > 0 &&
+        change.owner &&
+        typeof change.owner === 'object' &&
+        'AddressOwner' in change.owner &&
+        change.owner.AddressOwner.toLowerCase() !== sender
+    )
+
+    const recipient = recipientChange?.owner &&
+      typeof recipientChange.owner === 'object' &&
+      'AddressOwner' in recipientChange.owner
+        ? recipientChange.owner.AddressOwner.toLowerCase()
+        : ''
+
+    const amount = recipientChange
+      ? parseFloat(recipientChange.amount) / SUI.MIST_PER_SUI
+      : 0
+
+    return { valid: true, sender, recipient, amount }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error'
+    return { valid: false, sender: '', recipient: '', amount: 0, reason: message }
+  }
+}
+
+/**
+ * Batch verify distribution TXs on-chain
+ * Uses Promise.allSettled for parallel verification (max 50)
+ */
+export async function batchVerifyDistributions(
+  txHashes: string[]
+): Promise<Map<string, DistributionVerifyResult>> {
+  const results = new Map<string, DistributionVerifyResult>()
+  const batch = txHashes.slice(0, 50)
+
+  const settled = await Promise.allSettled(
+    batch.map(async (hash) => {
+      const result = await verifyDistributionTx(hash)
+      return { hash, result }
+    })
+  )
+
+  for (const outcome of settled) {
+    if (outcome.status === 'fulfilled') {
+      results.set(outcome.value.hash, outcome.value.result)
+    } else {
+      const hash = batch[settled.indexOf(outcome)]
+      results.set(hash, {
+        valid: false,
+        sender: '',
+        recipient: '',
+        amount: 0,
+        reason: 'Verification request failed',
+      })
+    }
+  }
+
+  return results
 }
 
 // ----------------------------------------

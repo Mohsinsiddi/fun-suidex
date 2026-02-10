@@ -1,25 +1,52 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { RefreshCw, Search, Plus, AlertCircle, CheckCircle, Award, X, Trophy, Flame } from 'lucide-react'
-import { Pagination, PaginationInfo, SkeletonTable, ErrorState } from '@/components/ui'
+import { Pagination, PaginationInfo, SkeletonTable, EmptyState, ErrorState } from '@/components/ui'
+import { AdminTable, FilterBar, ConfirmModal } from '@/components/admin'
+import type { Column, FilterConfig } from '@/components/admin'
 import type { Badge, UserBadge } from '@/types/badge'
 import { useUsersStore } from '@/lib/stores/admin'
 
 interface User {
   _id: string
   wallet: string
+  profileSlug?: string
   purchasedSpins: number
   bonusSpins: number
   totalSpins: number
   totalWinsUSD: number
   createdAt: string
   lastActiveAt: string
+  referralCode?: string
+  totalReferred?: number
   currentStreak?: number
   longestStreak?: number
   badgeCount?: number
 }
+
+// Filter configuration
+const FILTER_CONFIGS: FilterConfig[] = [
+  {
+    key: 'date',
+    type: 'date-range',
+    labelFrom: 'Joined From',
+    labelTo: 'Joined To',
+  },
+  {
+    key: 'minSpins',
+    type: 'text',
+    label: 'Min Spins',
+    placeholder: 'e.g. 10',
+  },
+  {
+    key: 'maxSpins',
+    type: 'text',
+    label: 'Max Spins',
+    placeholder: 'e.g. 100',
+  },
+]
 
 export default function AdminUsersPage() {
   const router = useRouter()
@@ -36,6 +63,7 @@ export default function AdminUsersPage() {
     fetch: fetchUsers,
     setPage,
     setFilters,
+    filters: storeFilters,
     refresh,
   } = useUsersStore()
 
@@ -43,13 +71,21 @@ export default function AdminUsersPage() {
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
 
+  // Sorting
+  const [sortBy, setSortBy] = useState<string>('createdAt')
+  const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc')
+
+  // Filter bar values (separate from store filters to include date range + min/max spins)
+  const [filterValues, setFilterValues] = useState<Record<string, string>>({})
+
+  // Credit modal state (using ConfirmModal)
   const [showCreditModal, setShowCreditModal] = useState(false)
   const [creditWallet, setCreditWallet] = useState('')
-  const [creditAmount, setCreditAmount] = useState(1)
+  const [creditAmount, setCreditAmount] = useState('1')
   const [creditType, setCreditType] = useState<'purchased' | 'bonus'>('purchased')
   const [crediting, setCrediting] = useState(false)
 
-  // Badge modal state
+  // Badge modal state (kept as-is per instructions)
   const [showBadgeModal, setShowBadgeModal] = useState(false)
   const [badgeModalWallet, setBadgeModalWallet] = useState('')
   const [userBadges, setUserBadges] = useState<UserBadge[]>([])
@@ -72,7 +108,6 @@ export default function AdminUsersPage() {
   }, [storeError, router])
 
   // Debounced search - only trigger when user actually types
-  // Track if user has interacted with search
   const hasSearched = useRef(false)
 
   const handleSearchChange = (value: string) => {
@@ -85,33 +120,115 @@ export default function AdminUsersPage() {
     if (!hasSearched.current) return
 
     const timeout = setTimeout(() => {
-      setFilters({ search: searchInput })
+      syncFiltersToStore({ search: searchInput })
     }, 300)
     return () => clearTimeout(timeout)
-  }, [searchInput, setFilters])
+  }, [searchInput])
 
+  // Sync all local filter state (search, filterBar, sorting) into the store
+  const syncFiltersToStore = useCallback((overrides: Record<string, string> = {}) => {
+    const merged: Record<string, string> = {
+      ...storeFilters,
+      sortBy,
+      sortOrder,
+    }
+
+    // Add search
+    if (searchInput || overrides.search !== undefined) {
+      merged.search = overrides.search ?? searchInput
+    }
+
+    // Add filter bar values
+    if (filterValues.dateFrom) merged.dateFrom = filterValues.dateFrom
+    if (filterValues.dateTo) merged.dateTo = filterValues.dateTo
+    if (filterValues.minSpins) merged.minSpins = filterValues.minSpins
+    if (filterValues.maxSpins) merged.maxSpins = filterValues.maxSpins
+
+    // Apply overrides
+    Object.entries(overrides).forEach(([k, v]) => {
+      if (v) merged[k] = v
+      else delete merged[k]
+    })
+
+    setFilters(merged)
+  }, [storeFilters, sortBy, sortOrder, searchInput, filterValues, setFilters])
+
+  // Handle sort toggle
+  const handleSort = useCallback((key: string) => {
+    const newOrder = sortBy === key ? (sortOrder === 'asc' ? 'desc' : 'asc') : 'desc'
+    setSortBy(key)
+    setSortOrder(newOrder)
+
+    // Push sort params into the store filters
+    setFilters({
+      ...storeFilters,
+      sortBy: key,
+      sortOrder: newOrder,
+    })
+  }, [sortBy, sortOrder, storeFilters, setFilters])
+
+  // Handle filter bar changes
+  const handleFilterChange = useCallback((values: Record<string, string>) => {
+    setFilterValues(values)
+
+    const merged: Record<string, string> = {
+      sortBy,
+      sortOrder,
+    }
+    if (searchInput) merged.search = searchInput
+    if (values.dateFrom) merged.dateFrom = values.dateFrom
+    if (values.dateTo) merged.dateTo = values.dateTo
+    if (values.minSpins) merged.minSpins = values.minSpins
+    if (values.maxSpins) merged.maxSpins = values.maxSpins
+
+    setFilters(merged)
+  }, [sortBy, sortOrder, searchInput, setFilters])
+
+  // Handle filter clear
+  const handleFilterClear = useCallback(() => {
+    setFilterValues({})
+
+    const merged: Record<string, string> = {
+      sortBy,
+      sortOrder,
+    }
+    if (searchInput) merged.search = searchInput
+
+    setFilters(merged)
+  }, [sortBy, sortOrder, searchInput, setFilters])
+
+  // Credit spins handler
   const handleCredit = async () => {
-    if (!creditWallet || creditAmount <= 0) return
+    const amount = parseInt(creditAmount) || 0
+    if (!creditWallet || amount <= 0) return
     setCrediting(true)
     setError(null)
     try {
       const res = await fetch('/api/admin/spins/credit', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: creditWallet, amount: creditAmount, type: creditType }),
+        body: JSON.stringify({ wallet: creditWallet, amount, type: creditType }),
       })
       const data = await res.json()
       if (data.success) {
-        setSuccess(`Credited ${creditAmount} ${creditType} spins to ${creditWallet.slice(0, 10)}...`)
+        setSuccess(`Credited ${amount} ${creditType} spins to ${creditWallet.slice(0, 10)}...`)
         setShowCreditModal(false)
         setCreditWallet('')
-        setCreditAmount(1)
+        setCreditAmount('1')
         fetchUsers(page) // Refresh current page
         setTimeout(() => setSuccess(null), 3000)
       } else setError(data.error)
     } catch (err) { setError('Failed to credit spins') }
     setCrediting(false)
   }
+
+  // Open credit modal for a specific user
+  const openCreditModal = useCallback((wallet: string) => {
+    setCreditWallet(wallet)
+    setCreditAmount('1')
+    setCreditType('purchased')
+    setShowCreditModal(true)
+  }, [])
 
   // Fetch user badges for modal
   const fetchUserBadges = async (wallet: string) => {
@@ -125,14 +242,11 @@ export default function AdminUsersPage() {
       const allBadgesData = await allBadgesRes.json()
 
       if (userBadgesData.success) {
-        // API returns { user, earned, progress, stats }
         setUserBadges(userBadgesData.data?.earned || [])
       }
       if (allBadgesData.success) {
-        // API returns { badges, byCategory, summary }
         const badges = allBadgesData.data?.badges || []
         setAllBadges(badges)
-        // Filter for special badges that can be awarded
         const special = badges.filter((b: Badge) => b.category === 'special')
         setSpecialBadges(special)
       }
@@ -187,6 +301,99 @@ export default function AdminUsersPage() {
     }
   }
 
+  // Table columns
+  const columns = useMemo<Column<User>[]>(() => [
+    {
+      key: 'wallet',
+      header: 'Wallet',
+      render: (user) => (
+        <span className="font-mono text-xs sm:text-sm">
+          {user.wallet.slice(0, 8)}...{user.wallet.slice(-4)}
+        </span>
+      ),
+    },
+    {
+      key: 'totalSpins',
+      header: 'Spins',
+      sortable: true,
+      render: (user) => (
+        <div className="flex flex-col">
+          <span className="text-[var(--text-secondary)]">{user.totalSpins}</span>
+          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/60">
+            {user.purchasedSpins}p/{user.bonusSpins}b
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'totalWinsUSD',
+      header: 'Wins',
+      sortable: true,
+      render: (user) => (
+        <span className="text-[var(--success)]">
+          ${user.totalWinsUSD?.toFixed(2) || '0.00'}
+        </span>
+      ),
+    },
+    {
+      key: 'badgeCount',
+      header: 'Badges',
+      sortable: true,
+      render: (user) => (
+        <div className="flex items-center gap-1">
+          <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400" />
+          <span className="text-[var(--text-secondary)]">{user.badgeCount || 0}</span>
+        </div>
+      ),
+    },
+    {
+      key: 'currentStreak',
+      header: 'Streak',
+      render: (user) => (
+        <div className="flex items-center gap-1">
+          <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
+          <span className="text-[var(--text-secondary)]">{user.currentStreak || 0}</span>
+          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/50">
+            /{user.longestStreak || 0}
+          </span>
+        </div>
+      ),
+    },
+    {
+      key: 'lastActiveAt',
+      header: 'Active',
+      sortable: true,
+      render: (user) => (
+        <span className="text-[var(--text-secondary)] whitespace-nowrap">
+          {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
+        </span>
+      ),
+    },
+    {
+      key: 'actions',
+      header: 'Actions',
+      render: (user) => (
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={(e) => { e.stopPropagation(); openBadgeModal(user.wallet) }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs sm:text-sm font-medium text-purple-400 hover:bg-purple-400/10 transition-colors"
+            title="Badges"
+          >
+            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Badges</span>
+          </button>
+          <button
+            onClick={(e) => { e.stopPropagation(); openCreditModal(user.wallet) }}
+            className="inline-flex items-center gap-1 px-2 py-1 rounded-md text-xs sm:text-sm font-medium text-green-400 hover:bg-green-400/10 transition-colors"
+          >
+            <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+            <span>Credit</span>
+          </button>
+        </div>
+      ),
+    },
+  ], [openCreditModal])
+
   return (
     <>
       {/* Header */}
@@ -196,11 +403,17 @@ export default function AdminUsersPage() {
           <p className="text-text-secondary text-sm sm:text-base">Manage users and credit spins</p>
         </div>
         <div className="flex gap-2 sm:gap-3">
-          <button onClick={() => setShowCreditModal(true)} className="btn btn-primary text-sm sm:text-base">
-            <Plus className="w-4 h-4" /><span className="hidden sm:inline">Credit Spins</span><span className="sm:hidden">Credit</span>
+          <button
+            onClick={() => { setCreditWallet(''); setCreditAmount('1'); setCreditType('purchased'); setShowCreditModal(true) }}
+            className="btn btn-success text-sm sm:text-base"
+          >
+            <Plus className="w-4 h-4" />
+            <span className="hidden sm:inline">Credit Spins</span>
+            <span className="sm:hidden">Credit</span>
           </button>
           <button onClick={refresh} disabled={loading} className="btn btn-ghost text-sm sm:text-base">
-            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} /><span className="hidden sm:inline">Refresh</span>
+            <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
       </div>
@@ -208,12 +421,14 @@ export default function AdminUsersPage() {
       {/* Messages */}
       {error && !loading && (
         <div className="mb-4 sm:mb-6 flex items-start gap-2 p-3 sm:p-4 bg-[var(--error)]/10 border border-[var(--error)]/20 rounded-lg text-[var(--error)] text-sm sm:text-base">
-          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" /><span>{error}</span>
+          <AlertCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
+          <span>{error}</span>
         </div>
       )}
       {success && (
         <div className="mb-4 sm:mb-6 flex items-start gap-2 p-3 sm:p-4 bg-[var(--success)]/10 border border-[var(--success)]/20 rounded-lg text-[var(--success)] text-sm sm:text-base">
-          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" /><span>{success}</span>
+          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5 flex-shrink-0 mt-0.5" />
+          <span>{success}</span>
         </div>
       )}
 
@@ -231,84 +446,36 @@ export default function AdminUsersPage() {
         </div>
       </div>
 
+      {/* Filter Bar */}
+      <FilterBar
+        filters={FILTER_CONFIGS}
+        values={filterValues}
+        onChange={handleFilterChange}
+        onClear={handleFilterClear}
+      />
+
       {/* Users Table */}
       <div className="card overflow-hidden">
         {loading ? (
           <SkeletonTable rows={10} columns={7} />
         ) : users.length === 0 ? (
-          <ErrorState
+          <EmptyState
             title="No users found"
             message={searchInput ? `No users matching "${searchInput}"` : 'No users have signed up yet.'}
-            onRetry={() => fetchUsers()}
+            icon={Search}
           />
         ) : (
           <>
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[800px]">
-                <thead>
-                  <tr className="border-b border-[var(--border)]">
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Wallet</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Spins</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Wins</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Badges</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Streak</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Active</th>
-                    <th className="px-3 sm:px-6 py-3 sm:py-4 text-left text-[10px] sm:text-xs text-[var(--text-secondary)] uppercase">Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {users.map((user) => (
-                    <tr key={user._id} className="border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)]">
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 font-mono text-xs sm:text-sm">{user.wallet.slice(0, 8)}...{user.wallet.slice(-4)}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <div className="flex flex-col">
-                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.totalSpins}</span>
-                          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/60">{user.purchasedSpins}p/{user.bonusSpins}b</span>
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--success)] text-xs sm:text-sm">${user.totalWinsUSD?.toFixed(2) || '0.00'}</td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <div className="flex items-center gap-1">
-                          <Trophy className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-yellow-400" />
-                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.badgeCount || 0}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <div className="flex items-center gap-1">
-                          <Flame className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-orange-400" />
-                          <span className="text-[var(--text-secondary)] text-xs sm:text-sm">{user.currentStreak || 0}</span>
-                          <span className="text-[10px] sm:text-xs text-[var(--text-secondary)]/50">/{user.longestStreak || 0}</span>
-                        </div>
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4 text-[var(--text-secondary)] text-xs sm:text-sm whitespace-nowrap">
-                        {user.lastActiveAt ? new Date(user.lastActiveAt).toLocaleDateString() : '-'}
-                      </td>
-                      <td className="px-3 sm:px-6 py-3 sm:py-4">
-                        <div className="flex items-center gap-2 sm:gap-3">
-                          <button
-                            onClick={() => openBadgeModal(user.wallet)}
-                            className="text-xs sm:text-sm text-purple-400 hover:text-purple-300 flex items-center gap-1"
-                            title="Badges"
-                          >
-                            <Award className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                            <span>Badges</span>
-                          </button>
-                          <button
-                            onClick={() => { setCreditWallet(user.wallet); setShowCreditModal(true) }}
-                            className="text-xs sm:text-sm text-[var(--accent)] hover:text-[var(--accent)]/80"
-                          >
-                            Credit
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+            <AdminTable<User>
+              columns={columns}
+              data={users as User[]}
+              sortBy={sortBy}
+              sortOrder={sortOrder}
+              onSort={handleSort}
+            />
 
             {/* Pagination */}
-            <div className="flex items-center justify-between p-3 sm:p-4 border-t border-[var(--border)]">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-3 p-3 sm:p-4 border-t border-[var(--border)]">
               <PaginationInfo page={page} limit={limit} total={total} />
               <Pagination page={page} totalPages={totalPages} onPageChange={setPage} />
             </div>
@@ -316,41 +483,56 @@ export default function AdminUsersPage() {
         )}
       </div>
 
-      {/* Credit Modal */}
+      {/* Credit Spins Modal */}
       {showCreditModal && (
-        <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 sm:p-4">
-          <div className="card p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
-            <h3 className="text-lg sm:text-xl font-bold mb-4">Credit Spins</h3>
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowCreditModal(false)} />
+          <div className="relative card p-4 sm:p-6 w-full max-w-md max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between mb-3 sm:mb-4">
+              <h3 className="text-lg sm:text-xl font-bold pr-8">Credit Spins</h3>
+              <button
+                onClick={() => setShowCreditModal(false)}
+                className="absolute top-3 right-3 sm:top-4 sm:right-4 p-1.5 hover:bg-white/10 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
 
             <div className="space-y-3 sm:space-y-4">
               <div>
-                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Wallet Address</label>
+                <label className="block text-xs sm:text-sm text-[var(--text-secondary)] mb-1.5 sm:mb-2">
+                  Wallet Address
+                </label>
                 <input
                   type="text"
                   value={creditWallet}
                   onChange={(e) => setCreditWallet(e.target.value)}
                   placeholder="0x..."
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg font-mono text-xs sm:text-sm"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg font-mono text-xs sm:text-sm focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Amount</label>
+                <label className="block text-xs sm:text-sm text-[var(--text-secondary)] mb-1.5 sm:mb-2">
+                  Amount
+                </label>
                 <input
                   type="number"
                   value={creditAmount}
-                  onChange={(e) => setCreditAmount(parseInt(e.target.value) || 1)}
+                  onChange={(e) => setCreditAmount(e.target.value)}
                   min="1"
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm sm:text-base focus:outline-none focus:border-[var(--accent)]"
                 />
               </div>
 
               <div>
-                <label className="block text-xs sm:text-sm text-text-secondary mb-1.5 sm:mb-2">Type</label>
+                <label className="block text-xs sm:text-sm text-[var(--text-secondary)] mb-1.5 sm:mb-2">
+                  Type
+                </label>
                 <select
                   value={creditType}
                   onChange={(e) => setCreditType(e.target.value as 'purchased' | 'bonus')}
-                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
+                  className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm sm:text-base focus:outline-none focus:border-[var(--accent)]"
                 >
                   <option value="purchased">Purchased Spins</option>
                   <option value="bonus">Bonus Spins</option>
@@ -359,11 +541,13 @@ export default function AdminUsersPage() {
             </div>
 
             <div className="flex gap-2 sm:gap-3 mt-5 sm:mt-6">
-              <button onClick={() => setShowCreditModal(false)} className="btn btn-ghost flex-1 text-sm sm:text-base">Cancel</button>
+              <button onClick={() => setShowCreditModal(false)} className="btn btn-ghost flex-1 text-sm sm:text-base">
+                Cancel
+              </button>
               <button
                 onClick={handleCredit}
-                disabled={crediting || !creditWallet}
-                className="btn btn-primary flex-1 disabled:opacity-50 text-sm sm:text-base"
+                disabled={crediting || !creditWallet || (parseInt(creditAmount) || 0) <= 0}
+                className="btn btn-success flex-1 disabled:opacity-50 text-sm sm:text-base"
               >
                 {crediting ? 'Crediting...' : 'Credit Spins'}
               </button>
@@ -372,14 +556,16 @@ export default function AdminUsersPage() {
         </div>
       )}
 
-      {/* Badge Modal */}
+      {/* Badge Modal (kept as-is - complex functionality) */}
       {showBadgeModal && (
         <div className="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-3 sm:p-4">
           <div className="card p-4 sm:p-6 w-full max-w-2xl max-h-[85vh] overflow-hidden flex flex-col">
             <div className="flex items-start justify-between mb-3 sm:mb-4 gap-2">
               <div className="min-w-0 flex-1">
                 <h3 className="text-lg sm:text-xl font-bold">User Badges</h3>
-                <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-mono truncate">{badgeModalWallet.slice(0, 12)}...{badgeModalWallet.slice(-6)}</p>
+                <p className="text-xs sm:text-sm text-[var(--text-secondary)] font-mono truncate">
+                  {badgeModalWallet.slice(0, 12)}...{badgeModalWallet.slice(-6)}
+                </p>
               </div>
               <button onClick={() => setShowBadgeModal(false)} className="p-2 hover:bg-white/10 rounded-lg transition-colors flex-shrink-0">
                 <X className="w-4 h-4 sm:w-5 sm:h-5" />
@@ -430,7 +616,7 @@ export default function AdminUsersPage() {
                       <select
                         value={selectedBadge}
                         onChange={(e) => setSelectedBadge(e.target.value)}
-                        className="flex-1 px-3 sm:px-4 py-2 bg-background border border-border rounded-lg text-sm"
+                        className="flex-1 px-3 sm:px-4 py-2 bg-[var(--background)] border border-[var(--border)] rounded-lg text-sm focus:outline-none focus:border-[var(--accent)]"
                       >
                         <option value="">Select a special badge...</option>
                         {specialBadges.map((badge) => {
