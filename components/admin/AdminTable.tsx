@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import React, { useState, useCallback, useMemo } from 'react'
 import { ChevronUp, ChevronDown, ChevronsUpDown } from 'lucide-react'
 
 // ============================================
@@ -26,6 +26,8 @@ interface AdminTableProps<T extends { _id: string }> {
   onSort?: (key: string) => void
   emptyState?: React.ReactNode
   onRowClick?: (item: T) => void
+  /** Render expanded content below a row. Return null to collapse. */
+  renderRowExpansion?: (item: T) => React.ReactNode | null
 }
 
 export function AdminTable<T extends { _id: string }>({
@@ -39,6 +41,7 @@ export function AdminTable<T extends { _id: string }>({
   onSort,
   emptyState,
   onRowClick,
+  renderRowExpansion,
 }: AdminTableProps<T>) {
   const allSelected = data.length > 0 && data.every((item) => selectedIds.includes(item._id))
   const someSelected = data.some((item) => selectedIds.includes(item._id))
@@ -113,37 +116,49 @@ export function AdminTable<T extends { _id: string }>({
           </tr>
         </thead>
         <tbody>
-          {data.map((item, idx) => (
-            <tr
-              key={item._id}
-              className={`border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)] transition-colors ${
-                selectedIds.includes(item._id) ? 'bg-[var(--accent)]/5' : ''
-              } ${onRowClick ? 'cursor-pointer' : ''}`}
-              onClick={onRowClick ? () => onRowClick(item) : undefined}
-            >
-              {selectable && (
-                <td className="px-3 sm:px-4 py-2.5 sm:py-3">
-                  <input
-                    type="checkbox"
-                    checked={selectedIds.includes(item._id)}
-                    onChange={(e) => {
-                      e.stopPropagation()
-                      handleSelect(item._id)
-                    }}
-                    onClick={(e) => e.stopPropagation()}
-                    className="w-3.5 h-3.5 sm:w-4 sm:h-4 accent-[var(--accent)]"
-                  />
-                </td>
-              )}
-              {columns.map((col) => (
-                <td key={col.key} className="px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm">
-                  {col.render
-                    ? col.render(item, idx)
-                    : String((item as Record<string, unknown>)[col.key] ?? '')}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {data.map((item, idx) => {
+            const expansion = renderRowExpansion ? renderRowExpansion(item) : null
+            const colSpan = columns.length + (selectable ? 1 : 0)
+            return (
+              <React.Fragment key={item._id}>
+                <tr
+                  className={`border-b border-[var(--border)]/50 hover:bg-[var(--card-hover)] transition-colors ${
+                    selectedIds.includes(item._id) ? 'bg-[var(--accent)]/5' : ''
+                  } ${onRowClick ? 'cursor-pointer' : ''}`}
+                  onClick={onRowClick ? () => onRowClick(item) : undefined}
+                >
+                  {selectable && (
+                    <td className="px-3 sm:px-4 py-2.5 sm:py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.includes(item._id)}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          handleSelect(item._id)
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        className="w-3.5 h-3.5 sm:w-4 sm:h-4 accent-[var(--accent)]"
+                      />
+                    </td>
+                  )}
+                  {columns.map((col) => (
+                    <td key={col.key} className="px-3 sm:px-4 py-2.5 sm:py-3 text-xs sm:text-sm">
+                      {col.render
+                        ? col.render(item, idx)
+                        : String((item as Record<string, unknown>)[col.key] ?? '')}
+                    </td>
+                  ))}
+                </tr>
+                {expansion && (
+                  <tr>
+                    <td colSpan={colSpan} className="p-0">
+                      {expansion}
+                    </td>
+                  </tr>
+                )}
+              </React.Fragment>
+            )
+          })}
         </tbody>
       </table>
     </div>

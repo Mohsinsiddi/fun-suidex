@@ -24,7 +24,7 @@ export function BulkActionBar({ count, actions, onClear }: BulkActionBarProps) {
   if (count === 0) return null
 
   return (
-    <div className="sticky bottom-0 z-30 mt-3">
+    <div className="sticky top-0 z-30 mb-3">
       <div className="bg-[var(--card)] border border-[var(--accent)]/30 rounded-lg p-3 sm:p-4 shadow-lg flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3">
         <div className="flex items-center gap-2 text-sm">
           <span className="px-2 py-0.5 bg-[var(--accent)]/20 text-[var(--accent)] rounded-full text-xs font-bold">

@@ -97,48 +97,162 @@ function ActionBadge({ action }: { action: string }) {
 // JSON Diff Viewer
 // ============================================
 
+function formatScalar(val: unknown): string {
+  if (val === null || val === undefined) return 'null'
+  if (typeof val === 'object') return JSON.stringify(val)
+  return String(val)
+}
+
+// Find the best identifier key for an array item
+function getItemLabel(item: Record<string, unknown>, index: number): string {
+  if (item.slotIndex !== undefined) return `slot ${item.slotIndex}`
+  if (item.name) return String(item.name)
+  if (item._id) return String(item._id).slice(0, 8)
+  return `[${index}]`
+}
+
+interface Change {
+  path: string       // e.g. "prizeTable → slot 15 → weight"
+  from: string
+  to: string
+  type: 'modified' | 'added' | 'removed'
+}
+
+function diffDeep(
+  before: unknown,
+  after: unknown,
+  path: string,
+  changes: Change[]
+): void {
+  const bStr = JSON.stringify(before)
+  const aStr = JSON.stringify(after)
+  if (bStr === aStr) return
+
+  // Both are arrays — compare element by element
+  if (Array.isArray(before) && Array.isArray(after)) {
+    const maxLen = Math.max(before.length, after.length)
+    for (let i = 0; i < maxLen; i++) {
+      const bItem = before[i]
+      const aItem = after[i]
+      const label = aItem && typeof aItem === 'object' && !Array.isArray(aItem)
+        ? getItemLabel(aItem as Record<string, unknown>, i)
+        : bItem && typeof bItem === 'object' && !Array.isArray(bItem)
+          ? getItemLabel(bItem as Record<string, unknown>, i)
+          : `[${i}]`
+      const childPath = path ? `${path} → ${label}` : label
+
+      if (i >= before.length) {
+        changes.push({ path: childPath, from: '', to: formatScalar(aItem), type: 'added' })
+      } else if (i >= after.length) {
+        changes.push({ path: childPath, from: formatScalar(bItem), to: '', type: 'removed' })
+      } else {
+        diffDeep(bItem, aItem, childPath, changes)
+      }
+    }
+    return
+  }
+
+  // Both are objects — compare key by key
+  if (
+    before && after &&
+    typeof before === 'object' && typeof after === 'object' &&
+    !Array.isArray(before) && !Array.isArray(after)
+  ) {
+    const bObj = before as Record<string, unknown>
+    const aObj = after as Record<string, unknown>
+    const allKeys = Array.from(new Set([...Object.keys(bObj), ...Object.keys(aObj)]))
+    for (const key of allKeys) {
+      const childPath = path ? `${path} → ${key}` : key
+      if (!(key in bObj)) {
+        changes.push({ path: childPath, from: '', to: formatScalar(aObj[key]), type: 'added' })
+      } else if (!(key in aObj)) {
+        changes.push({ path: childPath, from: formatScalar(bObj[key]), to: '', type: 'removed' })
+      } else {
+        diffDeep(bObj[key], aObj[key], childPath, changes)
+      }
+    }
+    return
+  }
+
+  // Leaf values differ
+  changes.push({ path, from: formatScalar(before), to: formatScalar(after), type: 'modified' })
+}
+
 function JsonDiff({ before, after }: { before: Record<string, unknown> | null; after: Record<string, unknown> | null }) {
   if (!before && !after) {
     return <p className="text-[var(--text-secondary)] text-xs italic">No detail data available.</p>
   }
 
-  const allKeys = new Set([
-    ...Object.keys(before || {}),
-    ...Object.keys(after || {}),
-  ])
+  // Only "after" = new entry, only "before" = deletion
+  if (!before && after) {
+    return (
+      <div>
+        <p className="text-[10px] sm:text-xs font-semibold text-[var(--success)] uppercase tracking-wider mb-1.5">New Entry</p>
+        <pre className="p-3 bg-[var(--background)] border border-[var(--success)]/20 rounded-lg text-[10px] sm:text-xs overflow-x-auto max-h-64 overflow-y-auto text-[var(--success)]/80">
+          {JSON.stringify(after, null, 2)}
+        </pre>
+      </div>
+    )
+  }
+  if (before && !after) {
+    return (
+      <div>
+        <p className="text-[10px] sm:text-xs font-semibold text-[var(--error)] uppercase tracking-wider mb-1.5">Deleted</p>
+        <pre className="p-3 bg-[var(--background)] border border-[var(--error)]/20 rounded-lg text-[10px] sm:text-xs overflow-x-auto max-h-64 overflow-y-auto text-[var(--error)]/80">
+          {JSON.stringify(before, null, 2)}
+        </pre>
+      </div>
+    )
+  }
+
+  const changes: Change[] = []
+  diffDeep(before, after, '', changes)
+
+  if (changes.length === 0) {
+    return <p className="text-[var(--text-secondary)] text-xs italic">No field changes detected.</p>
+  }
 
   return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-      {/* Before */}
-      <div>
-        <p className="text-[10px] sm:text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-          Before
-        </p>
-        {before ? (
-          <pre className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[10px] sm:text-xs overflow-x-auto max-h-64 overflow-y-auto text-[var(--error)]/80">
-            {JSON.stringify(before, null, 2)}
-          </pre>
-        ) : (
-          <p className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[10px] sm:text-xs text-[var(--text-secondary)] italic">
-            N/A (new entry)
-          </p>
-        )}
-      </div>
-
-      {/* After */}
-      <div>
-        <p className="text-[10px] sm:text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-1.5">
-          After
-        </p>
-        {after ? (
-          <pre className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[10px] sm:text-xs overflow-x-auto max-h-64 overflow-y-auto text-[var(--success)]/80">
-            {JSON.stringify(after, null, 2)}
-          </pre>
-        ) : (
-          <p className="p-3 bg-[var(--background)] border border-[var(--border)] rounded-lg text-[10px] sm:text-xs text-[var(--text-secondary)] italic">
-            N/A (deleted)
-          </p>
-        )}
+    <div>
+      <p className="text-[10px] sm:text-xs font-semibold text-[var(--text-secondary)] uppercase tracking-wider mb-2">
+        {changes.length} Change{changes.length !== 1 ? 's' : ''}
+      </p>
+      <div className="space-y-1.5">
+        {changes.map((c, i) => (
+          <div
+            key={i}
+            className={`flex items-start gap-2 text-[10px] sm:text-xs p-2 rounded-lg ${
+              c.type === 'added'
+                ? 'bg-[var(--success)]/5 border border-[var(--success)]/20'
+                : c.type === 'removed'
+                  ? 'bg-[var(--error)]/5 border border-[var(--error)]/20'
+                  : 'bg-[var(--accent)]/5 border border-[var(--accent)]/20'
+            }`}
+          >
+            <span className={`px-1.5 py-0.5 rounded font-mono font-medium shrink-0 ${
+              c.type === 'added'
+                ? 'bg-[var(--success)]/15 text-[var(--success)]'
+                : c.type === 'removed'
+                  ? 'bg-[var(--error)]/15 text-[var(--error)]'
+                  : 'bg-[var(--accent)]/15 text-[var(--accent)]'
+            }`}>
+              {c.type === 'added' ? '+ ' : c.type === 'removed' ? '- ' : ''}{c.path}
+            </span>
+            {c.type === 'modified' && (
+              <>
+                <span className="text-[var(--error)]/80 line-through font-mono break-all">{c.from}</span>
+                <span className="text-[var(--text-secondary)] shrink-0">&rarr;</span>
+                <span className="text-[var(--success)] font-mono break-all">{c.to}</span>
+              </>
+            )}
+            {c.type === 'added' && (
+              <span className="text-[var(--success)] font-mono break-all">{c.to}</span>
+            )}
+            {c.type === 'removed' && (
+              <span className="text-[var(--error)]/80 font-mono break-all">{c.from}</span>
+            )}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -447,6 +561,28 @@ export default function AuditLogsPage() {
               sortOrder={sortOrder}
               onSort={handleSort}
               onRowClick={handleRowClick}
+              renderRowExpansion={(item) => {
+                if (expandedId !== item._id) return null
+                return (
+                  <div className="border-t border-[var(--border)] bg-[var(--card-hover)] p-4 sm:p-6">
+                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs sm:text-sm">
+                      <span className="text-[var(--text-secondary)]">
+                        IP: <span className="font-mono text-[var(--text-primary)]">{item.ip || 'N/A'}</span>
+                      </span>
+                      <span className="text-[var(--text-secondary)]">
+                        Target ID: <span className="font-mono text-[var(--text-primary)]">{item.targetId}</span>
+                      </span>
+                      <span className="text-[var(--text-secondary)]">
+                        Full Timestamp:{' '}
+                        <span className="text-[var(--text-primary)]">
+                          {new Date(item.createdAt).toLocaleString()}
+                        </span>
+                      </span>
+                    </div>
+                    <JsonDiff before={item.before} after={item.after} />
+                  </div>
+                )
+              }}
               emptyState={
                 <EmptyState
                   title="No audit logs found"
@@ -455,33 +591,6 @@ export default function AuditLogsPage() {
                 />
               }
             />
-
-            {/* Expanded Row Details */}
-            {expandedId && (
-              (() => {
-                const expandedLog = logs.find((l) => l._id === expandedId)
-                if (!expandedLog) return null
-                return (
-                  <div className="border-t border-[var(--border)] bg-[var(--card-hover)] p-4 sm:p-6">
-                    <div className="mb-3 flex flex-wrap items-center gap-3 text-xs sm:text-sm">
-                      <span className="text-[var(--text-secondary)]">
-                        IP: <span className="font-mono text-[var(--text-primary)]">{expandedLog.ip || 'N/A'}</span>
-                      </span>
-                      <span className="text-[var(--text-secondary)]">
-                        Target ID: <span className="font-mono text-[var(--text-primary)]">{expandedLog.targetId}</span>
-                      </span>
-                      <span className="text-[var(--text-secondary)]">
-                        Full Timestamp:{' '}
-                        <span className="text-[var(--text-primary)]">
-                          {new Date(expandedLog.createdAt).toLocaleString()}
-                        </span>
-                      </span>
-                    </div>
-                    <JsonDiff before={expandedLog.before} after={expandedLog.after} />
-                  </div>
-                )
-              })()
-            )}
           </>
         )}
       </div>

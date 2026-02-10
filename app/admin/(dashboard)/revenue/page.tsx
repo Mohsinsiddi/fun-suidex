@@ -225,10 +225,10 @@ export default function AdminRevenuePage() {
         <button
           onClick={() => { lastFetchRef.current = ''; fetchRevenue(true) }}
           disabled={loading}
-          className="btn btn-ghost self-start sm:self-auto text-sm sm:text-base"
+          className="btn btn-primary self-start sm:self-auto text-sm sm:text-base"
         >
           <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-          <span className="hidden sm:inline">Refresh</span>
+          Refresh
         </button>
       </div>
 

@@ -909,6 +909,22 @@ export default function AdminDistributePage() {
         onClear={handleFilterClear}
       />
 
+      {/* Bulk Action Bar (pending tab only) */}
+      {activeTab === 'pending' && (
+        <BulkActionBar
+          count={selectedIds.length}
+          actions={[
+            {
+              label: `Mark as Distributed (${selectedIds.length})`,
+              onClick: openBulkModal,
+              variant: 'success',
+              disabled: selectedIds.length === 0,
+            },
+          ]}
+          onClear={() => setSelectedIds([])}
+        />
+      )}
+
       {/* Table Card */}
       <div className="card">
         <div className="p-3 sm:p-4 border-b border-[var(--border)] flex items-center justify-between">
@@ -971,22 +987,6 @@ export default function AdminDistributePage() {
           </>
         )}
       </div>
-
-      {/* Bulk Action Bar (pending tab only) */}
-      {activeTab === 'pending' && (
-        <BulkActionBar
-          count={selectedIds.length}
-          actions={[
-            {
-              label: `Mark as Distributed (${selectedIds.length})`,
-              onClick: openBulkModal,
-              variant: 'success',
-              disabled: selectedIds.length === 0,
-            },
-          ]}
-          onClear={() => setSelectedIds([])}
-        />
-      )}
 
       {/* Single Distribute Modal */}
       <ConfirmModal
