@@ -35,18 +35,26 @@ export interface TransactionInfo {
   success: boolean
 }
 
+export interface IncomingTxPage {
+  transactions: TransactionInfo[]
+  nextCursor: string | null
+  hasNextPage: boolean
+}
+
 /**
  * Get transactions sent to an address within a time range
- * Used to verify spin payments
+ * Supports SUI RPC cursor-based pagination
  */
 export async function getIncomingTransactions(
   recipientAddress: string,
   fromTimestamp: Date,
-  toTimestamp: Date = new Date()
-): Promise<TransactionInfo[]> {
+  toTimestamp: Date = new Date(),
+  cursor?: string | null,
+  limit: number = 50
+): Promise<IncomingTxPage> {
   const client = getSuiClient()
   const transactions: TransactionInfo[] = []
-  
+
   try {
     // Query transactions to the recipient address
     const txns = await client.queryTransactionBlocks({
@@ -58,20 +66,26 @@ export async function getIncomingTransactions(
         showEffects: true,
         showBalanceChanges: true,
       },
-      limit: 50,
+      limit: Math.min(limit, 50),
       order: 'descending',
+      ...(cursor ? { cursor } : {}),
     })
-    
+
     for (const tx of txns.data) {
       // Parse timestamp
       const timestampMs = tx.timestampMs ? parseInt(tx.timestampMs) : 0
       const txTimestamp = new Date(timestampMs)
-      
-      // Skip if outside time range
-      if (txTimestamp < fromTimestamp || txTimestamp > toTimestamp) {
+
+      // Stop paginating once transactions fall before fromTimestamp
+      if (txTimestamp < fromTimestamp) {
+        return { transactions, nextCursor: null, hasNextPage: false }
+      }
+
+      // Skip if after toTimestamp
+      if (txTimestamp > toTimestamp) {
         continue
       }
-      
+
       // Find SUI balance changes
       const balanceChanges = tx.balanceChanges || []
       const suiChange = balanceChanges.find(
@@ -83,12 +97,12 @@ export async function getIncomingTransactions(
           change.owner.AddressOwner.toLowerCase() === recipientAddress.toLowerCase() &&
           BigInt(change.amount) > 0
       )
-      
+
       if (!suiChange) continue
-      
+
       // Get sender from transaction input
       const sender = tx.transaction?.data?.sender || ''
-      
+
       transactions.push({
         txHash: tx.digest,
         sender: sender.toLowerCase(),
@@ -100,11 +114,16 @@ export async function getIncomingTransactions(
         success: tx.effects?.status?.status === 'success',
       })
     }
+
+    return {
+      transactions,
+      nextCursor: txns.nextCursor ?? null,
+      hasNextPage: txns.hasNextPage,
+    }
   } catch (error) {
     console.error('Error fetching transactions:', error)
+    return { transactions, nextCursor: null, hasNextPage: false }
   }
-  
-  return transactions
 }
 
 /**

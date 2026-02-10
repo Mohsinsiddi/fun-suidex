@@ -101,7 +101,7 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     }
 
     // Calculate spins
-    const spinsCredited = Math.floor(tx.amountSUI / config.spinRateSUI)
+    const spinsCredited = Math.floor(+(tx.amountSUI / config.spinRateSUI).toFixed(6))
 
     if (spinsCredited <= 0) {
       return errors.badRequest(
@@ -197,7 +197,7 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
     const fromDate = new Date(Date.now() - lookbackMs)
 
     // Get transactions from chain
-    const transactions = await getIncomingTransactions(config.adminWalletAddress, fromDate)
+    const { transactions } = await getIncomingTransactions(config.adminWalletAddress, fromDate)
 
     // Filter for this user's transactions
     const userTxs = transactions.filter(
@@ -217,7 +217,7 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
       .map((tx) => ({
         txHash: tx.txHash,
         amountSUI: tx.amountSUI,
-        suggestedSpins: Math.floor(tx.amountSUI / config.spinRateSUI),
+        suggestedSpins: Math.floor(+(tx.amountSUI / config.spinRateSUI).toFixed(6)),
         timestamp: tx.timestamp,
         requiresApproval: tx.amountSUI > config.autoApprovalLimitSUI,
       }))

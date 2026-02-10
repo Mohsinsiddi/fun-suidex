@@ -108,7 +108,7 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
   }
 
   // Calculate spins
-  const spinsCredited = Math.floor(payment.amountSUI / config.spinRateSUI)
+  const spinsCredited = Math.floor(+(payment.amountSUI / config.spinRateSUI).toFixed(6))
 
   if (spinsCredited <= 0) {
     return NextResponse.json(
