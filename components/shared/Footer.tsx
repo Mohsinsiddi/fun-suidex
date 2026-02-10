@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { MessageCircle, ExternalLink, Gamepad2, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
+import { MessageCircle, ExternalLink, ChevronRight } from 'lucide-react'
 
 // X (Twitter) icon component
 const XIcon = ({ className }: { className?: string }) => (
@@ -20,17 +21,8 @@ export function Footer() {
           <div className="grid grid-cols-2 md:grid-cols-12 gap-8 lg:gap-12">
             {/* Brand - Spans 5 cols on md+ */}
             <div className="col-span-2 md:col-span-5">
-              <Link href="/" className="inline-flex items-center gap-2.5 group mb-4">
-                <div className="w-9 h-9 bg-gradient-to-br from-accent to-cyan-400 rounded-lg flex items-center justify-center shadow-lg shadow-accent/20 group-hover:shadow-accent/30 transition-shadow">
-                  <Gamepad2 className="w-5 h-5 text-black" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-display text-lg font-bold leading-tight">
-                    <span className="text-accent">Sui</span>
-                    <span className="text-white">Dex</span>
-                  </span>
-                  <span className="text-[9px] text-text-muted uppercase tracking-widest">Games</span>
-                </div>
+              <Link href="/" className="inline-flex items-center group mb-4">
+                <Image src="/logo-full.png" alt="SuiDex Games" width={160} height={50} className="h-10 w-auto" />
               </Link>
               <p className="text-text-secondary text-sm leading-relaxed max-w-xs mb-6">
                 Win Victory tokens, SuiTrump, and more! Part of the SuiDex ecosystem on Sui Network.
