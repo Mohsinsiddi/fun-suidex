@@ -38,8 +38,8 @@ interface ConfigState {
   invalidate: () => void
 }
 
-// Cache duration: 1 hour
-const CACHE_DURATION = 60 * 60 * 1000
+// Cache duration: 5 minutes
+const CACHE_DURATION = 5 * 60 * 1000
 
 const initialState = {
   isLoaded: false,
