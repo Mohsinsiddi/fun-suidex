@@ -9,10 +9,16 @@ import { persist } from 'zustand/middleware'
 
 export interface PrizeSlot {
   type: 'liquid_victory' | 'locked_victory' | 'suitrump' | 'no_prize'
-  valueUSD: number
   amount: number
   lockDuration?: '1_week' | '3_month' | '1_year' | '3_year'
   probability: number
+}
+
+interface TokenPrices {
+  vict: number
+  trump: number
+  victChange24h?: number
+  trumpChange24h?: number
 }
 
 interface ConfigState {
@@ -29,6 +35,7 @@ interface ConfigState {
   referralEnabled: boolean
   referralCommissionPercent: number
   freeSpinMinStakeUSD: number
+  tokenPrices: TokenPrices
 
   // Cache tracking
   lastFetched: number | null
@@ -52,6 +59,7 @@ const initialState = {
   referralEnabled: false,
   referralCommissionPercent: 10,
   freeSpinMinStakeUSD: 20,
+  tokenPrices: { vict: 0, trump: 0 },
   lastFetched: null,
 }
 
@@ -71,7 +79,9 @@ export const useConfigStore = create<ConfigState>()(
         if (state.isLoading || fetchInProgress) return
 
         // Check if already loaded and cache is still valid
-        if (state.isLoaded && state.lastFetched) {
+        // Force refresh if tokenPrices are missing (pre-migration cache)
+        const hasPrices = state.tokenPrices.vict > 0 || state.tokenPrices.trump > 0
+        if (state.isLoaded && state.lastFetched && hasPrices) {
           const cacheAge = Date.now() - state.lastFetched
           if (cacheAge < CACHE_DURATION) {
             return // Use cached data
@@ -107,6 +117,7 @@ export const useConfigStore = create<ConfigState>()(
             referralEnabled: config.referralEnabled ?? false,
             referralCommissionPercent: config.referralCommissionPercent || 10,
             freeSpinMinStakeUSD: config.freeSpinMinStakeUSD || 20,
+            tokenPrices: config.tokenPrices || { vict: 0, trump: 0, victChange24h: 0, trumpChange24h: 0 },
             lastFetched: Date.now(),
             error: null,
           })
@@ -136,6 +147,7 @@ export const useConfigStore = create<ConfigState>()(
         referralEnabled: state.referralEnabled,
         referralCommissionPercent: state.referralCommissionPercent,
         freeSpinMinStakeUSD: state.freeSpinMinStakeUSD,
+        tokenPrices: state.tokenPrices,
         lastFetched: state.lastFetched,
       }),
     }
@@ -152,33 +164,48 @@ export interface WheelSlot {
   sublabel: string
   color: string
   amount: string
+  rawAmount: number
   type: string
   valueUSD: number
   lockType: string
   tokenSymbol: string
+  tokenPrice: number
+  tokenChange24h: number
 }
 
-export function formatPrizeTableForWheel(prizeTable: PrizeSlot[]): WheelSlot[] {
-  return prizeTable.map((prize, index) => ({
-    index,
-    label: formatLabel(prize.valueUSD),
-    sublabel: formatSublabel(prize.type, prize.lockDuration),
-    color: getSlotColor(prize.type, prize.valueUSD, index),
-    amount: formatAmount(prize.amount, prize.type),
-    type: prize.type,
-    valueUSD: prize.valueUSD,
-    lockType: getLockType(prize.type, prize.lockDuration),
-    tokenSymbol: getTokenSymbol(prize.type),
-  }))
+export function formatPrizeTableForWheel(
+  prizeTable: PrizeSlot[],
+  tokenPrices: TokenPrices = { vict: 0, trump: 0 }
+): WheelSlot[] {
+  return prizeTable.map((prize, index) => {
+    const isTrump = prize.type === 'suitrump'
+    const price = isTrump ? tokenPrices.trump : tokenPrices.vict
+    const change24h = isTrump ? (tokenPrices.trumpChange24h || 0) : (tokenPrices.victChange24h || 0)
+    const estimatedUSD = prize.type === 'no_prize' ? 0 : prize.amount * price
+    return {
+      index,
+      label: formatTokenLabel(prize.amount, prize.type),
+      sublabel: formatSublabel(prize.type, prize.lockDuration),
+      color: getSlotColor(prize.type, prize.amount, index),
+      amount: formatAmount(prize.amount, prize.type),
+      rawAmount: prize.amount,
+      type: prize.type,
+      valueUSD: estimatedUSD,
+      lockType: getLockType(prize.type, prize.lockDuration),
+      tokenSymbol: getTokenSymbol(prize.type),
+      tokenPrice: price,
+      tokenChange24h: change24h,
+    }
+  })
 }
 
-function formatLabel(v: number): string {
-  if (v === 0) return 'NONE'
-  if (v >= 1000) {
-    const k = v / 1000
-    return `$${k % 1 === 0 ? k.toFixed(0) : k.toFixed(1)}K`
-  }
-  return `$${v}`
+function formatTokenLabel(amount: number, type: string): string {
+  if (type === 'no_prize' || amount === 0) return 'NONE'
+  if (type === 'suitrump') return String(amount)
+  // VICT amounts — compact format
+  if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}M`
+  if (amount >= 1_000) return `${(amount / 1_000).toFixed(amount % 1_000 === 0 ? 0 : 1)}K`
+  return String(amount)
 }
 
 function formatSublabel(type: string, lock?: string): string {
@@ -194,16 +221,22 @@ function formatSublabel(type: string, lock?: string): string {
 
 function formatAmount(amt: number, type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return `$${amt.toLocaleString()}`
+  if (type === 'suitrump') return `${amt.toLocaleString()} TRUMP`
   if (amt >= 1000000) return `${(amt / 1000000).toFixed(amt % 1000000 === 0 ? 0 : 1)}M VICT`
-  if (amt >= 1000) return `${Math.round(amt / 1000).toLocaleString()}K VICT`
+  if (amt >= 1000) return `${(amt / 1000).toFixed(amt % 1000 === 0 ? 0 : 1)}K VICT`
   return `${amt.toLocaleString()} VICT`
 }
 
-function getSlotColor(type: string, val: number, idx: number): string {
+function getSlotColor(type: string, amount: number, idx: number): string {
   if (type === 'no_prize') return '#546E7A'
   if (type === 'suitrump') return ['#EF5350', '#F44336', '#E53935', '#D32F2F'][idx % 4]
-  if (type === 'liquid_victory') return ['#FFD700', '#FFC107', '#FFA500', '#FF8C00'][Math.min(Math.floor(val / 200), 3)]
+  // Liquid victory: tier by token amount
+  if (type === 'liquid_victory') {
+    if (amount >= 100000) return '#FF8C00'
+    if (amount >= 10000) return '#FFA500'
+    if (amount >= 1000) return '#FFC107'
+    return '#FFD700'
+  }
   return ['#4FC3F7', '#29B6F6', '#03A9F4', '#039BE5', '#0288D1', '#0277BD', '#01579B', '#7B1FA2', '#8E24AA', '#9C27B0', '#AB47BC'][idx % 11]
 }
 

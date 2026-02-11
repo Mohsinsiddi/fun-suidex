@@ -8,27 +8,27 @@ import type { PrizeSlot, AdminConfig, AdminPermissions } from '@/types'
 // Default Prize Table (16 slots)
 // ----------------------------------------
 
-// Prize Table - EV optimized (~$8-10/spin)
-// Total weight: 1000, no_prize: 550 (55%)
+// Prize Table - Adjusted for VICT @ $0.00126 (Feb 2026)
+// Total weight: 1000, no_prize: 665 (66.5%)
 export const DEFAULT_PRIZE_TABLE: PrizeSlot[] = [
-  { slotIndex: 0, type: 'liquid_victory', amount: 1667, valueUSD: 5, weight: 80, lockDuration: null },      // 8% → $0.40
-  { slotIndex: 1, type: 'liquid_victory', amount: 16667, valueUSD: 50, weight: 20, lockDuration: null },    // 2% → $1.00
-  { slotIndex: 2, type: 'liquid_victory', amount: 333333, valueUSD: 1000, weight: 1, lockDuration: null },  // 0.1% → $1.00
-  { slotIndex: 3, type: 'locked_victory', amount: 1667, valueUSD: 5, weight: 70, lockDuration: '1_week' },  // 7% → $0.35
-  { slotIndex: 4, type: 'locked_victory', amount: 6667, valueUSD: 20, weight: 40, lockDuration: '1_week' }, // 4% → $0.80
-  { slotIndex: 5, type: 'locked_victory', amount: 8333, valueUSD: 25, weight: 30, lockDuration: '3_month' }, // 3% → $0.75
-  { slotIndex: 6, type: 'locked_victory', amount: 16667, valueUSD: 50, weight: 20, lockDuration: '3_month' }, // 2% → $1.00
-  { slotIndex: 7, type: 'locked_victory', amount: 33333, valueUSD: 100, weight: 10, lockDuration: '1_year' }, // 1% → $1.00
-  { slotIndex: 8, type: 'locked_victory', amount: 83333, valueUSD: 250, weight: 4, lockDuration: '1_year' },  // 0.4% → $1.00
-  { slotIndex: 9, type: 'locked_victory', amount: 166667, valueUSD: 500, weight: 2, lockDuration: '3_year' }, // 0.2% → $1.00
-  { slotIndex: 10, type: 'locked_victory', amount: 666666, valueUSD: 2000, weight: 1, lockDuration: '3_year' }, // 0.1% → $2.00
-  { slotIndex: 11, type: 'locked_victory', amount: 1000000, valueUSD: 3500, weight: 1, lockDuration: '3_year' }, // 0.1% → $3.50 (jackpot)
-  { slotIndex: 12, type: 'suitrump', amount: 10, valueUSD: 10, weight: 40, lockDuration: null },            // 4% → $0.40
-  { slotIndex: 13, type: 'suitrump', amount: 50, valueUSD: 50, weight: 15, lockDuration: null },            // 1.5% → $0.75
-  { slotIndex: 14, type: 'suitrump', amount: 500, valueUSD: 500, weight: 1, lockDuration: null },           // 0.1% → $0.50
-  { slotIndex: 15, type: 'no_prize', amount: 0, valueUSD: 0, weight: 665, lockDuration: null },             // 66.5% → $0
+  { slotIndex: 0, type: 'liquid_victory', amount: 4000, weight: 80, lockDuration: null },        // 8%  ~$5
+  { slotIndex: 1, type: 'liquid_victory', amount: 40000, weight: 20, lockDuration: null },       // 2%  ~$50
+  { slotIndex: 2, type: 'liquid_victory', amount: 800000, weight: 1, lockDuration: null },       // 0.1% ~$1,000
+  { slotIndex: 3, type: 'locked_victory', amount: 4000, weight: 70, lockDuration: '1_week' },    // 7%  ~$5
+  { slotIndex: 4, type: 'locked_victory', amount: 16000, weight: 40, lockDuration: '1_week' },   // 4%  ~$20
+  { slotIndex: 5, type: 'locked_victory', amount: 20000, weight: 30, lockDuration: '3_month' },  // 3%  ~$25
+  { slotIndex: 6, type: 'locked_victory', amount: 40000, weight: 20, lockDuration: '3_month' },  // 2%  ~$50
+  { slotIndex: 7, type: 'locked_victory', amount: 80000, weight: 10, lockDuration: '1_year' },   // 1%  ~$100
+  { slotIndex: 8, type: 'locked_victory', amount: 200000, weight: 4, lockDuration: '1_year' },   // 0.4% ~$250
+  { slotIndex: 9, type: 'locked_victory', amount: 400000, weight: 2, lockDuration: '3_year' },   // 0.2% ~$500
+  { slotIndex: 10, type: 'locked_victory', amount: 1600000, weight: 1, lockDuration: '3_year' }, // 0.1% ~$2,000
+  { slotIndex: 11, type: 'locked_victory', amount: 2400000, weight: 1, lockDuration: '3_year' }, // 0.1% ~$3,000 (jackpot)
+  { slotIndex: 12, type: 'suitrump', amount: 10, weight: 40, lockDuration: null },               // 4%
+  { slotIndex: 13, type: 'suitrump', amount: 50, weight: 15, lockDuration: null },               // 1.5%
+  { slotIndex: 14, type: 'suitrump', amount: 500, weight: 1, lockDuration: null },               // 0.1%
+  { slotIndex: 15, type: 'no_prize', amount: 0, weight: 665, lockDuration: null },               // 66.5%
 ]
-// New EV: ~$15.45/spin (down from ~$43.80)
+// EV: ~$12.40/spin at VICT=$0.00126
 
 // ----------------------------------------
 // Default Admin Config

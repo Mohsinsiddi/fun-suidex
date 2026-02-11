@@ -8,23 +8,23 @@ import { SPIN_UI } from '@/constants'
 import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw } from 'lucide-react'
 import Link from 'next/link'
 
-const DEFAULT_WHEEL_SLOTS = [
-  { index: 0, label: "$5", sublabel: "Liquid", color: "#FFD700", amount: "1,667 VICT", type: "liquid_victory", valueUSD: 5, lockType: "LIQUID", tokenSymbol: "VICT" },
-  { index: 1, label: "$50", sublabel: "Liquid", color: "#FFA500", amount: "16,667 VICT", type: "liquid_victory", valueUSD: 50, lockType: "LIQUID", tokenSymbol: "VICT" },
-  { index: 2, label: "$1K", sublabel: "Liquid", color: "#FF8C00", amount: "333,333 VICT", type: "liquid_victory", valueUSD: 1000, lockType: "LIQUID", tokenSymbol: "VICT" },
-  { index: 3, label: "$5", sublabel: "1W Lock", color: "#4FC3F7", amount: "1,667 VICT", type: "locked_victory", valueUSD: 5, lockType: "1W LOCK", tokenSymbol: "VICT" },
-  { index: 4, label: "$20", sublabel: "1W Lock", color: "#29B6F6", amount: "6,667 VICT", type: "locked_victory", valueUSD: 20, lockType: "1W LOCK", tokenSymbol: "VICT" },
-  { index: 5, label: "$25", sublabel: "3M Lock", color: "#03A9F4", amount: "8,333 VICT", type: "locked_victory", valueUSD: 25, lockType: "3M LOCK", tokenSymbol: "VICT" },
-  { index: 6, label: "$50", sublabel: "3M Lock", color: "#039BE5", amount: "16,667 VICT", type: "locked_victory", valueUSD: 50, lockType: "3M LOCK", tokenSymbol: "VICT" },
-  { index: 7, label: "$100", sublabel: "1Y Lock", color: "#0288D1", amount: "33,333 VICT", type: "locked_victory", valueUSD: 100, lockType: "1Y LOCK", tokenSymbol: "VICT" },
-  { index: 8, label: "$250", sublabel: "1Y Lock", color: "#0277BD", amount: "83,333 VICT", type: "locked_victory", valueUSD: 250, lockType: "1Y LOCK", tokenSymbol: "VICT" },
-  { index: 9, label: "$500", sublabel: "3Y Lock", color: "#7B1FA2", amount: "166,667 VICT", type: "locked_victory", valueUSD: 500, lockType: "3Y LOCK", tokenSymbol: "VICT" },
-  { index: 10, label: "$2K", sublabel: "3Y Lock", color: "#8E24AA", amount: "666,666 VICT", type: "locked_victory", valueUSD: 2000, lockType: "3Y LOCK", tokenSymbol: "VICT" },
-  { index: 11, label: "$3.5K", sublabel: "3Y Lock", color: "#9C27B0", amount: "1M VICT", type: "locked_victory", valueUSD: 3500, lockType: "3Y LOCK", tokenSymbol: "VICT" },
-  { index: 12, label: "$10", sublabel: "Trump", color: "#EF5350", amount: "$10", type: "suitrump", valueUSD: 10, lockType: "MEME", tokenSymbol: "TRUMP" },
-  { index: 13, label: "$50", sublabel: "Trump", color: "#F44336", amount: "$50", type: "suitrump", valueUSD: 50, lockType: "MEME", tokenSymbol: "TRUMP" },
-  { index: 14, label: "$500", sublabel: "Trump", color: "#E53935", amount: "$500", type: "suitrump", valueUSD: 500, lockType: "MEME", tokenSymbol: "TRUMP" },
-  { index: 15, label: "NONE", sublabel: "No Prize", color: "#546E7A", amount: "", type: "no_prize", valueUSD: 0, lockType: "NONE", tokenSymbol: "" },
+const DEFAULT_WHEEL_SLOTS: WheelSlot[] = [
+  { index: 0, label: "4K", sublabel: "Liquid", color: "#FFD700", amount: "4K VICT", rawAmount: 4000, type: "liquid_victory", valueUSD: 0, lockType: "LIQUID", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 1, label: "40K", sublabel: "Liquid", color: "#FFA500", amount: "40K VICT", rawAmount: 40000, type: "liquid_victory", valueUSD: 0, lockType: "LIQUID", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 2, label: "800K", sublabel: "Liquid", color: "#FF8C00", amount: "800K VICT", rawAmount: 800000, type: "liquid_victory", valueUSD: 0, lockType: "LIQUID", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 3, label: "4K", sublabel: "1W Lock", color: "#4FC3F7", amount: "4K VICT", rawAmount: 4000, type: "locked_victory", valueUSD: 0, lockType: "1W LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 4, label: "16K", sublabel: "1W Lock", color: "#29B6F6", amount: "16K VICT", rawAmount: 16000, type: "locked_victory", valueUSD: 0, lockType: "1W LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 5, label: "20K", sublabel: "3M Lock", color: "#03A9F4", amount: "20K VICT", rawAmount: 20000, type: "locked_victory", valueUSD: 0, lockType: "3M LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 6, label: "40K", sublabel: "3M Lock", color: "#039BE5", amount: "40K VICT", rawAmount: 40000, type: "locked_victory", valueUSD: 0, lockType: "3M LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 7, label: "80K", sublabel: "1Y Lock", color: "#0288D1", amount: "80K VICT", rawAmount: 80000, type: "locked_victory", valueUSD: 0, lockType: "1Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 8, label: "200K", sublabel: "1Y Lock", color: "#0277BD", amount: "200K VICT", rawAmount: 200000, type: "locked_victory", valueUSD: 0, lockType: "1Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 9, label: "400K", sublabel: "3Y Lock", color: "#7B1FA2", amount: "400K VICT", rawAmount: 400000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 10, label: "1.6M", sublabel: "3Y Lock", color: "#8E24AA", amount: "1.6M VICT", rawAmount: 1600000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 11, label: "2.4M", sublabel: "3Y Lock", color: "#9C27B0", amount: "2.4M VICT", rawAmount: 2400000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 12, label: "10", sublabel: "Trump", color: "#EF5350", amount: "10 TRUMP", rawAmount: 10, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 13, label: "50", sublabel: "Trump", color: "#F44336", amount: "50 TRUMP", rawAmount: 50, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 14, label: "500", sublabel: "Trump", color: "#E53935", amount: "500 TRUMP", rawAmount: 500, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 15, label: "NONE", sublabel: "No Prize", color: "#546E7A", amount: "", rawAmount: 0, type: "no_prize", valueUSD: 0, lockType: "NONE", tokenSymbol: "", tokenPrice: 0, tokenChange24h: 0 },
 ]
 
 interface WheelSlot {
@@ -33,10 +33,13 @@ interface WheelSlot {
   sublabel: string
   color: string
   amount: string
+  rawAmount: number
   type: string
   valueUSD: number
   lockType: string
   tokenSymbol: string
+  tokenPrice: number
+  tokenChange24h: number
 }
 
 type TabType = 'wheel' | 'spins' | 'prizes'
@@ -55,6 +58,7 @@ export default function PWAGamePage() {
 
   const {
     prizeTable,
+    tokenPrices,
     isLoaded: configLoaded,
     fetchConfig
   } = useConfigStore()
@@ -68,6 +72,8 @@ export default function PWAGamePage() {
   const [result, setResult] = useState<WheelSlot | null>(null)
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [hoveredSlot, setHoveredSlot] = useState<WheelSlot | null>(null)
+  const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
   const [autoSpin, setAutoSpin] = useState(false)
   const [countdown, setCountdown] = useState<number | null>(null)
   const [modalPaused, setModalPaused] = useState(false)
@@ -101,9 +107,9 @@ export default function PWAGamePage() {
   // Update wheel slots when config loads
   useEffect(() => {
     if (prizeTable.length > 0) {
-      setWheelSlots(formatPrizeTableForWheel(prizeTable))
+      setWheelSlots(formatPrizeTableForWheel(prizeTable, tokenPrices))
     }
-  }, [prizeTable])
+  }, [prizeTable, tokenPrices])
 
   // Load auto-spin preference from localStorage
   useEffect(() => {
@@ -182,6 +188,7 @@ export default function PWAGamePage() {
     setResult(null)
     setShowConfetti(false)
     setError(null)
+    setHoveredSlot(null)
     setActiveTab('wheel')
 
     // Store the captured slot to avoid flicker from state changes during animation
@@ -228,7 +235,11 @@ export default function PWAGamePage() {
         setSpins(data.data.spins, data.data.stats)
       }
       // Capture the slot at API response time to avoid flicker
-      const capturedSlot = wheelSlots[data.data.slotIndex]
+      // Use server-calculated prizeValueUSD (live price at spin time)
+      const capturedSlot = { ...wheelSlots[data.data.slotIndex] }
+      if (data.data.prizeValueUSD != null) {
+        capturedSlot.valueUSD = data.data.prizeValueUSD
+      }
       spinWheel(data.data.slotIndex, capturedSlot)
     } catch (err: any) {
       setError(err.message || 'Network error')
@@ -283,6 +294,12 @@ export default function PWAGamePage() {
     }
   }
 
+  const handleSliceHover = (e: React.MouseEvent, slot: WheelSlot) => {
+    if (isSpinning) return
+    setHoveredSlot(slot)
+    setTooltipPos({ x: e.clientX, y: e.clientY })
+  }
+
   const closeResultModal = useCallback(() => {
     setResult(null)
     setIsSubmitting(false)
@@ -299,18 +316,18 @@ export default function PWAGamePage() {
     if (!result || result.type === 'no_prize') return
     pauseModal() // Pause auto-close when sharing
 
-    const tokenName = result.tokenSymbol === 'TRUMP' ? 'SuiTrump' : 'VICT'
     const lockInfo = result.lockType !== 'LIQUID' && result.lockType !== 'MEME' ? ` (${result.lockType})` : ''
     const hashtags = SPIN_UI.TWEET_HASHTAGS.map(h => `#${h}`).join(' ')
+    const estUSD = result.valueUSD > 0 ? ` (~$${result.valueUSD.toFixed(2)})` : ''
 
     // Include referral link if user has a referral code
     const shareUrl = referralCode
       ? `${SPIN_UI.TWEET_BASE_URL}/r/${referralCode}`
       : `${SPIN_UI.TWEET_BASE_URL}/wheel`
 
-    const tweetText = `🎉 I just won ${result.label} worth of ${tokenName}${lockInfo} on @suidexHQ Wheel of Victory! 🎡
+    const tweetText = `🎉 I just won ${result.amount}${lockInfo}${estUSD} on @suidexHQ Wheel of Victory! 🎡
 
-Spin to win up to $3,500! 🔥
+Spin to win up to 1M VICT! 🔥
 
 🔗 ${shareUrl}
 ${hashtags}`
@@ -452,7 +469,7 @@ ${hashtags}`
                   const subTextColor = isDark ? 'rgba(255,255,255,0.7)' : 'rgba(0,0,0,0.6)'
 
                   return (
-                    <g key={i}>
+                    <g key={i} onMouseMove={(e) => handleSliceHover(e, slot)} onMouseLeave={() => setHoveredSlot(null)} style={{ cursor: isSpinning ? 'default' : 'pointer' }}>
                       <path d={createSlicePath(i)} fill={slot.color} stroke="#0a0f0a" strokeWidth="1.5" />
                       <text fontSize={fonts.lockType} fontWeight="700" fill={subTextColor}>
                         <textPath href={`#lockArc${i}`} startOffset="50%" textAnchor="middle">{slot.lockType}</textPath>
@@ -525,6 +542,72 @@ ${hashtags}`
                 <RotateCw className={`w-3.5 h-3.5 ${autoSpin ? 'animate-spin' : ''}`} style={{ animationDuration: '2s' }} />
                 Auto-spin {autoSpin ? 'ON' : 'OFF'}
               </button>
+            </div>
+          </div>
+        )}
+
+        {/* Tooltip with full details */}
+        {hoveredSlot && !isSpinning && activeTab === 'wheel' && (
+          <div
+            className="fixed z-50 pointer-events-none"
+            style={{
+              left: Math.min(tooltipPos.x + 12, (typeof window !== 'undefined' ? window.innerWidth : 400) - 210),
+              top: Math.min(tooltipPos.y + 12, (typeof window !== 'undefined' ? window.innerHeight : 400) - 160)
+            }}
+          >
+            <div
+              className="rounded-xl p-3 shadow-2xl w-[200px] border backdrop-blur-md"
+              style={{
+                backgroundColor: `${hoveredSlot.color}30`,
+                borderColor: `${hoveredSlot.color}60`,
+              }}
+            >
+              {/* Header */}
+              <div className="flex items-center gap-2.5 mb-2.5 pb-2 border-b border-white/15">
+                <div
+                  className="w-9 h-9 rounded-lg flex items-center justify-center text-xs font-bold"
+                  style={{ backgroundColor: hoveredSlot.color, color: hoveredSlot.type === 'no_prize' ? '#fff' : '#000' }}
+                >
+                  #{hoveredSlot.index + 1}
+                </div>
+                <div>
+                  <div className="font-black text-white text-xl leading-tight">{hoveredSlot.label}</div>
+                  <div className="text-[10px] text-text-muted">{hoveredSlot.lockType}</div>
+                </div>
+              </div>
+
+              {/* Details */}
+              <div className="space-y-1.5 text-xs">
+                {hoveredSlot.amount && (
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Token Amount</span>
+                    <span className="text-white font-bold font-mono text-[11px]">{hoveredSlot.rawAmount.toLocaleString()} {hoveredSlot.tokenSymbol}</span>
+                  </div>
+                )}
+                {hoveredSlot.valueUSD > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-text-muted">Est. Value</span>
+                    <span className="text-accent font-bold">~${hoveredSlot.valueUSD < 1 ? hoveredSlot.valueUSD.toFixed(4) : hoveredSlot.valueUSD.toFixed(2)}</span>
+                  </div>
+                )}
+                {hoveredSlot.tokenPrice > 0 && (
+                  <div className="flex justify-between items-center">
+                    <span className="text-text-muted">{hoveredSlot.tokenSymbol} Price</span>
+                    <div className="flex items-center gap-1.5">
+                      <span className="text-white font-mono text-[11px]">${hoveredSlot.tokenPrice < 0.01 ? hoveredSlot.tokenPrice.toFixed(6) : hoveredSlot.tokenPrice.toFixed(4)}</span>
+                      {hoveredSlot.tokenChange24h !== 0 && (
+                        <span className={`text-[10px] font-bold ${hoveredSlot.tokenChange24h > 0 ? 'text-green-400' : 'text-red-400'}`}>
+                          {hoveredSlot.tokenChange24h > 0 ? '+' : ''}{hoveredSlot.tokenChange24h.toFixed(1)}%
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+                <div className="flex items-center gap-1.5 pt-1.5 mt-1 border-t border-white/15">
+                  {getTypeIcon(hoveredSlot.type, "w-3.5 h-3.5")}
+                  <span className="text-text-secondary text-[11px]">{hoveredSlot.sublabel}</span>
+                </div>
+              </div>
             </div>
           </div>
         )}
@@ -659,19 +742,21 @@ ${hashtags}`
               <div className="p-4 text-center">
                 <div className="text-3xl mb-1">🎉</div>
                 <p className="text-accent font-medium text-[10px] mb-1 tracking-wider uppercase">Congratulations!</p>
-                <div className="text-4xl font-black mb-1" style={{ color: result.color, textShadow: `0 0 20px ${result.color}40` }}>{result.label}</div>
+                <div className="text-3xl font-black mb-1" style={{ color: result.color, textShadow: `0 0 20px ${result.color}40` }}>{result.amount}</div>
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-white/10 text-white">
                   <span>{result.lockType}</span>
                   <span className="opacity-50">•</span>
                   <span>{result.tokenSymbol}</span>
                 </div>
-                {result.amount && <div className="text-white/80 font-mono text-sm mt-2">{result.amount}</div>}
+                {result.valueUSD > 0 ? (
+                  <div className="text-white/70 text-sm font-semibold mt-2">Est. ~${result.valueUSD < 1 ? result.valueUSD.toFixed(4) : result.valueUSD.toFixed(2)}</div>
+                ) : result.type !== 'no_prize' && result.rawAmount > 0 ? (
+                  <div className="text-white/40 text-xs mt-2">Price loading...</div>
+                ) : null}
 
-                <div className="bg-black/30 rounded-lg p-3 mt-3 text-[11px]">
-                  <div className="flex justify-between mb-1.5"><span className="text-text-muted">Slot</span><span className="text-white font-medium">#{result.index + 1}</span></div>
-                  <div className="flex justify-between"><span className="text-text-muted">Value</span><span className="text-accent font-bold">${result.valueUSD.toLocaleString()}</span></div>
-                  <div className="flex items-center justify-center gap-1 text-text-secondary mt-2 pt-2 border-t border-white/10 text-[10px]">
-                    <Clock className="w-3 h-3" /><span>Distributed within <strong className="text-white">48h</strong></span>
+                <div className="bg-black/30 rounded-lg p-2.5 mt-3 text-[10px]">
+                  <div className="flex items-center justify-center gap-1 text-text-secondary">
+                    <Clock className="w-3 h-3" /><span>Price may vary — distributed within <strong className="text-white">48h</strong></span>
                   </div>
                 </div>
 

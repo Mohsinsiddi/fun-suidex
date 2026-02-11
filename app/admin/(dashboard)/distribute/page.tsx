@@ -503,10 +503,10 @@ export default function AdminDistributePage() {
       },
       {
         key: 'prizeValueUSD',
-        header: 'Value (USD)',
+        header: 'Est. USD',
         sortable: true,
         render: (item) => (
-          <span className="text-[var(--success)]">${item.prizeValueUSD.toFixed(2)}</span>
+          <span className="text-[var(--success)]">~${item.prizeValueUSD.toFixed(2)}</span>
         ),
       },
       {
@@ -587,10 +587,10 @@ export default function AdminDistributePage() {
       },
       {
         key: 'prizeValueUSD',
-        header: 'Value (USD)',
+        header: 'Est. USD',
         sortable: true,
         render: (item) => (
-          <span className="text-[var(--success)]">${item.prizeValueUSD.toFixed(2)}</span>
+          <span className="text-[var(--success)]">~${item.prizeValueUSD.toFixed(2)}</span>
         ),
       },
       {
@@ -690,10 +690,10 @@ export default function AdminDistributePage() {
       },
       {
         key: 'prizeValueUSD',
-        header: 'Value (USD)',
+        header: 'Est. USD',
         sortable: true,
         render: (item) => (
-          <span className="text-[var(--success)]">${item.prizeValueUSD.toFixed(2)}</span>
+          <span className="text-[var(--success)]">~${item.prizeValueUSD.toFixed(2)}</span>
         ),
       },
       {

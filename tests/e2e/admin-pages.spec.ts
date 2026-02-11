@@ -18,12 +18,24 @@ let page: Page
 // ------------------------------------------
 
 async function adminLogin(p: Page) {
-  await p.goto('/admin/login')
-  await p.waitForLoadState('networkidle')
-  await p.locator('input').first().fill(ADMIN_USERNAME)
-  await p.locator('input[type="password"]').fill(ADMIN_PASSWORD)
-  await p.click('button[type="submit"]')
-  await p.waitForURL('**/admin/dashboard**', { timeout: 20000 })
+  // Retry login up to 3 times (handles rate-limiting from other test suites)
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) {
+      await p.waitForTimeout(5000) // wait for rate limit to clear
+    }
+    await p.goto('/admin/login')
+    await p.waitForLoadState('networkidle')
+    await p.locator('input').first().fill(ADMIN_USERNAME)
+    await p.locator('input[type="password"]').fill(ADMIN_PASSWORD)
+    await p.click('button[type="submit"]')
+    try {
+      await p.waitForURL('**/admin/dashboard**', { timeout: 20000 })
+      return // success
+    } catch {
+      // May be rate-limited, retry
+    }
+  }
+  throw new Error('Admin login failed after 3 attempts (possibly rate-limited)')
 }
 
 /** Wait for table/data to load (no skeleton visible) */
@@ -81,6 +93,7 @@ test.describe('Admin Pages', () => {
   test.setTimeout(180000)
 
   test.beforeAll(async ({ browser }) => {
+    test.setTimeout(90000) // allow time for login retries if rate-limited
     const ctx = await browser.newContext()
     page = await ctx.newPage()
     await adminLogin(page)
@@ -203,8 +216,11 @@ test.describe('Admin Pages', () => {
     })
 
     test('has filter controls', async () => {
-      // Look for filter elements
+      // Wait for page to fully render filters
+      await waitForDataLoad(page)
       const filterElements = page.locator('select, input[type="date"], button:has-text("Filter"), [class*="filter"]')
+      // Wait briefly for dynamic filter elements
+      await filterElements.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
       expect(await filterElements.count()).toBeGreaterThan(0)
     })
 
@@ -326,6 +342,8 @@ test.describe('Admin Pages', () => {
 
     test('has save button', async () => {
       const saveBtn = page.locator('button:has-text("Save"), button:has-text("Update")')
+      // Wait for save button to appear (config page may still be loading)
+      await saveBtn.first().waitFor({ state: 'visible', timeout: 10000 }).catch(() => {})
       expect(await saveBtn.count()).toBeGreaterThan(0)
     })
 

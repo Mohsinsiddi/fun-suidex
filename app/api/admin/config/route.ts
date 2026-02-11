@@ -8,6 +8,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { AdminModel, AdminConfigModel, AdminLogModel, ChainTransactionModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { DEFAULT_ADMIN_CONFIG } from '@/constants'
+import { getTokenPrices } from '@/lib/utils/prices'
 
 // GET - Get full config (admin only)
 export async function GET(request: NextRequest) {
@@ -39,6 +40,15 @@ export async function GET(request: NextRequest) {
       })
     }
 
+    // Fetch live token prices
+    let tokenPrices = { vict: 0, trump: 0 }
+    try {
+      const prices = await getTokenPrices()
+      tokenPrices = { vict: prices.vict, trump: prices.trump }
+    } catch (e) {
+      console.error('Failed to fetch token prices:', e)
+    }
+
     return NextResponse.json({
       success: true,
       data: {
@@ -52,7 +62,14 @@ export async function GET(request: NextRequest) {
         spinPurchaseEnabled: config.spinPurchaseEnabled,
         freeSpinMinStakeUSD: config.freeSpinMinStakeUSD,
         freeSpinCooldownHours: config.freeSpinCooldownHours,
-        prizeTable: config.prizeTable,
+        prizeTable: config.prizeTable.map((s: any) => ({
+          slotIndex: s.slotIndex,
+          type: s.type,
+          amount: s.amount,
+          weight: s.weight,
+          lockDuration: s.lockDuration || null,
+        })),
+        tokenPrices,
       },
     })
   } catch (error) {
@@ -99,13 +116,6 @@ export async function PUT(request: NextRequest) {
         if (slot.amount !== undefined) {
           if (typeof slot.amount !== 'number' || !Number.isFinite(slot.amount) || slot.amount < 0) {
             return NextResponse.json({ success: false, error: `Invalid amount at slot ${i}: must be a non-negative number` }, { status: 400 })
-          }
-        }
-
-        // Validate valueUSD (must be non-negative finite number)
-        if (slot.valueUSD !== undefined) {
-          if (typeof slot.valueUSD !== 'number' || !Number.isFinite(slot.valueUSD) || slot.valueUSD < 0) {
-            return NextResponse.json({ success: false, error: `Invalid valueUSD at slot ${i}: must be a non-negative number` }, { status: 400 })
           }
         }
 
@@ -226,7 +236,6 @@ export async function PUT(request: NextRequest) {
         slotIndex: i,
         type: slot.type || 'no_prize',
         amount: slot.amount || 0,
-        valueUSD: slot.valueUSD || 0,
         weight: slot.weight || 1,
         lockDuration: slot.lockDuration || null,
       }))

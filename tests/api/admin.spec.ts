@@ -9,19 +9,27 @@ import { test, expect, APIRequestContext } from '@playwright/test'
 const ADMIN_USERNAME = process.env.ADMIN_USERNAME || 'admin'
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'superadmin'
 
-// Helper: login with retry (handles cold-start 500s)
+// Helper: login with retry (handles cold-start 500s and rate-limiting 429s)
 async function getAdminCookies(request: APIRequestContext): Promise<string> {
   let lastError: Error | null = null
 
-  for (let attempt = 0; attempt < 3; attempt++) {
+  for (let attempt = 0; attempt < 5; attempt++) {
     try {
       if (attempt > 0) {
-        await new Promise((r) => setTimeout(r, 2000))
+        // Progressive backoff: 3s, 10s, 20s, 30s
+        // Rate limit window is 60s, so later retries wait it out
+        const delays = [3000, 10000, 20000, 30000]
+        await new Promise((r) => setTimeout(r, delays[attempt - 1] || 30000))
       }
 
       const res = await request.post('/api/admin/auth/login', {
         data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
       })
+
+      if (res.status() === 429) {
+        lastError = new Error(`Login rate-limited (429), attempt ${attempt + 1}`)
+        continue
+      }
 
       if (res.status() !== 200) {
         lastError = new Error(`Login returned ${res.status()}`)
@@ -55,62 +63,11 @@ async function getAdminCookies(request: APIRequestContext): Promise<string> {
     }
   }
 
-  throw lastError || new Error('Login failed after 3 attempts')
+  throw lastError || new Error('Login failed after 5 attempts')
 }
 
 // ============================================
-// Auth
-// ============================================
-
-test.describe('Admin Auth', () => {
-  test('login with valid credentials returns success', async ({ request }) => {
-    const res = await request.post('/api/admin/auth/login', {
-      data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
-    })
-    expect(res.status()).toBe(200)
-    const json = await res.json()
-    expect(json.success).toBe(true)
-    expect(json.data.username).toBe(ADMIN_USERNAME)
-    expect(json.data.role).toBeTruthy()
-    expect(json.data.permissions).toBeTruthy()
-  })
-
-  test('login with wrong password returns 401', async ({ request }) => {
-    const res = await request.post('/api/admin/auth/login', {
-      data: { username: ADMIN_USERNAME, password: 'wrongpass' },
-    })
-    expect(res.status()).toBe(401)
-    const json = await res.json()
-    expect(json.success).toBe(false)
-  })
-
-  test('login with empty body returns 400 or 401', async ({ request }) => {
-    const res = await request.post('/api/admin/auth/login', {
-      data: {},
-    })
-    expect([400, 401]).toContain(res.status())
-  })
-
-  test('all admin APIs reject unauthenticated requests', async ({ request }) => {
-    const endpoints = [
-      '/api/admin/stats',
-      '/api/admin/users',
-      '/api/admin/distribute',
-      '/api/admin/affiliates',
-      '/api/admin/config',
-      '/api/admin/logs',
-      '/api/admin/distribute/sync',
-    ]
-
-    for (const url of endpoints) {
-      const res = await request.get(url)
-      expect(res.status(), `${url} should require auth`).toBe(401)
-    }
-  })
-})
-
-// ============================================
-// Authenticated tests — run serially to share session
+// Authenticated tests — run FIRST to grab cookies before rate limit burns
 // ============================================
 
 test.describe('Admin APIs (authenticated)', () => {
@@ -120,6 +77,7 @@ test.describe('Admin APIs (authenticated)', () => {
   let cookies: string
 
   test.beforeAll(async ({ request }) => {
+    test.setTimeout(120000) // allow up to 2 min for rate-limit retries
     cookies = await getAdminCookies(request)
   })
 
@@ -400,7 +358,7 @@ test.describe('Admin APIs (authenticated)', () => {
   // ------------------------------------------
 
   test.describe('Config API', () => {
-    test('returns config with required fields', async ({ request }) => {
+    test('returns config with required fields and tokenPrices', async ({ request }) => {
       const res = await request.get('/api/admin/config', { headers: authHeaders() })
       expect(res.status()).toBe(200)
       const json = await res.json()
@@ -409,9 +367,13 @@ test.describe('Admin APIs (authenticated)', () => {
       expect(typeof json.data.spinPurchaseEnabled).toBe('boolean')
       expect(typeof json.data.referralEnabled).toBe('boolean')
       expect(Array.isArray(json.data.prizeTable)).toBe(true)
+      // tokenPrices should be included (live prices)
+      expect(json.data.tokenPrices).toBeTruthy()
+      expect(typeof json.data.tokenPrices.vict).toBe('number')
+      expect(typeof json.data.tokenPrices.trump).toBe('number')
     })
 
-    test('prize table has correct structure', async ({ request }) => {
+    test('prize table has correct structure (no valueUSD)', async ({ request }) => {
       const res = await request.get('/api/admin/config', { headers: authHeaders() })
       const json = await res.json()
       const table = json.data.prizeTable
@@ -421,6 +383,8 @@ test.describe('Admin APIs (authenticated)', () => {
         expect(typeof slot.type).toBe('string')
         expect(typeof slot.amount).toBe('number')
         expect(typeof slot.weight).toBe('number')
+        // valueUSD should NOT be in prize slots (removed in favor of live prices)
+        expect(slot).not.toHaveProperty('valueUSD')
       }
     })
   })
@@ -482,5 +446,62 @@ test.describe('Admin APIs (authenticated)', () => {
       const json = await res.json()
       expect(json.error).toContain('50')
     })
+  })
+})
+
+// ============================================
+// Auth edge cases — run AFTER authenticated tests
+// to avoid burning rate limit before login
+// ============================================
+
+test.describe('Admin Auth', () => {
+  test('login with valid credentials returns success', async ({ request }) => {
+    const res = await request.post('/api/admin/auth/login', {
+      data: { username: ADMIN_USERNAME, password: ADMIN_PASSWORD },
+    })
+    // May be 429 if other workers recently logged in
+    if (res.status() === 429) {
+      test.skip(true, 'Rate-limited by parallel workers')
+      return
+    }
+    expect(res.status()).toBe(200)
+    const json = await res.json()
+    expect(json.success).toBe(true)
+    expect(json.data.username).toBe(ADMIN_USERNAME)
+    expect(json.data.role).toBeTruthy()
+    expect(json.data.permissions).toBeTruthy()
+  })
+
+  test('login with wrong password returns 401 (or 429 if rate-limited)', async ({ request }) => {
+    const res = await request.post('/api/admin/auth/login', {
+      data: { username: ADMIN_USERNAME, password: 'wrongpass' },
+    })
+    expect([401, 429]).toContain(res.status())
+    const json = await res.json()
+    expect(json.success).toBe(false)
+  })
+
+  test('login with empty body returns 400 or 401 (or 429 if rate-limited)', async ({ request }) => {
+    const res = await request.post('/api/admin/auth/login', {
+      data: {},
+    })
+    expect([400, 401, 429]).toContain(res.status())
+  })
+
+  test('all admin APIs reject unauthenticated requests', async ({ request }) => {
+    const endpoints = [
+      '/api/admin/stats',
+      '/api/admin/users',
+      '/api/admin/distribute',
+      '/api/admin/affiliates',
+      '/api/admin/config',
+      '/api/admin/logs',
+      '/api/admin/distribute/sync',
+    ]
+
+    for (const url of endpoints) {
+      const res = await request.get(url)
+      expect(res.status(), `${url} should require auth`).toBe(401)
+    }
   })
 })

@@ -17,6 +17,7 @@ interface AdminConfig {
   profileShareMinSpins: number
   profileSharingEnabled: boolean
   prizeTable: PrizeSlot[]
+  tokenPrices?: { vict: number; trump: number }
 }
 
 export interface WalletConflict {

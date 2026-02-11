@@ -10,7 +10,6 @@ interface PrizeSlot {
   slotIndex: number
   type: 'liquid_victory' | 'locked_victory' | 'suitrump' | 'no_prize'
   amount: number
-  valueUSD: number
   weight: number
   lockDuration?: string
 }
@@ -27,6 +26,7 @@ interface AdminConfig {
   freeSpinMinStakeUSD: number
   freeSpinCooldownHours: number
   prizeTable: PrizeSlot[]
+  tokenPrices?: { vict: number; trump: number }
 }
 
 const PRIZE_TYPES = [
@@ -555,7 +555,7 @@ export default function AdminConfigPage() {
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">#</th>
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">Type</th>
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">Amount</th>
-                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">USD</th>
+                    <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">Est. USD</th>
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">Weight</th>
                     <th className="px-2 sm:px-3 py-2 sm:py-3 text-left text-[10px] sm:text-xs text-text-secondary">Lock</th>
                   </tr>
@@ -582,14 +582,12 @@ export default function AdminConfigPage() {
                           disabled={slot.type === 'no_prize'}
                         />
                       </td>
-                      <td className="px-2 sm:px-3 py-1.5 sm:py-2">
-                        <input
-                          type="number"
-                          value={slot.valueUSD}
-                          onChange={(e) => updatePrizeSlot(i, 'valueUSD', parseInt(e.target.value) || 0)}
-                          className="w-14 sm:w-20 px-1.5 sm:px-2 py-1 bg-background border border-border rounded text-xs sm:text-sm"
-                          disabled={slot.type === 'no_prize'}
-                        />
+                      <td className="px-2 sm:px-3 py-1.5 sm:py-2 text-xs sm:text-sm text-text-muted">
+                        {slot.type === 'no_prize' ? '—' : (() => {
+                          const price = slot.type === 'suitrump' ? (config?.tokenPrices?.trump || 0) : (config?.tokenPrices?.vict || 0)
+                          const est = slot.amount * price
+                          return est > 0 ? `~$${est < 1 ? est.toFixed(4) : est.toFixed(2)}` : '—'
+                        })()}
                       </td>
                       <td className="px-2 sm:px-3 py-1.5 sm:py-2">
                         <input

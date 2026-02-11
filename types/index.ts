@@ -212,7 +212,6 @@ export interface PrizeSlot {
   slotIndex: number
   type: PrizeType
   amount: number
-  valueUSD: number
   weight: number // Probability weight
   lockDuration?: LockDuration
 }

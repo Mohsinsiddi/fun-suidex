@@ -26,7 +26,6 @@ const PrizeSlotSchema = new Schema<PrizeSlot>(
       required: true,
     },
     amount: { type: Number, required: true, default: 0 },
-    valueUSD: { type: Number, required: true, default: 0 },
     weight: { type: Number, required: true, min: 0 },
     lockDuration: {
       type: String,
