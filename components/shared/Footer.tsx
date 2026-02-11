@@ -35,7 +35,7 @@ export function Footer() {
                   href="https://x.com/suidexHQ"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
+                  className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
                   aria-label="X (Twitter)"
                 >
                   <XIcon className="w-4 h-4" />
@@ -44,7 +44,7 @@ export function Footer() {
                   href="https://t.me/Suidexhq"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
+                  className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
                   aria-label="Telegram"
                 >
                   <MessageCircle className="w-4 h-4" />

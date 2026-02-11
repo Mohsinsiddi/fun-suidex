@@ -35,9 +35,9 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent" />
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent" />
 
-      <div className="bg-[#080a0f]/95 backdrop-blur-md border-b border-border/30">
+      <div className="bg-[#080a0f]/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
           <div className="flex items-center justify-between h-16 sm:h-18">
             {/* Logo */}
@@ -174,7 +174,7 @@ export function Header() {
 
         </div>
       </div>
-      <div className="h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
+      <div className="h-[1px] bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
 
       {/* Mobile Sidebar Overlay */}
       <div
