@@ -276,7 +276,7 @@ export default function ProfileSettingsPage() {
             </div>
           </div>
 
-          {loading || authLoading || !eligibilityDetermined ? (
+          {loading || !eligibilityDetermined ? (
             <div className="flex items-center justify-center py-16">
               <Loader2 className="w-8 h-8 animate-spin text-accent" />
             </div>
@@ -523,16 +523,16 @@ export default function ProfileSettingsPage() {
                 />
               </div>
 
-              {/* Spin History Section */}
+              {/* Activity Section */}
               <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
                 <div className="flex items-center gap-3 mb-4">
                   <div className="p-2 sm:p-2.5 rounded-xl bg-accent/10 border border-accent/30">
                     <History className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
                   </div>
                   <div>
-                    <h2 className="text-base sm:text-lg font-bold text-white">Spin History</h2>
+                    <h2 className="text-base sm:text-lg font-bold text-white">Activity</h2>
                     <p className="text-xs sm:text-sm text-text-secondary">
-                      Your complete spin record
+                      Your spins and purchase history
                     </p>
                   </div>
                 </div>

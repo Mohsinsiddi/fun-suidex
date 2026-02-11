@@ -103,6 +103,8 @@ const initialState = {
 
 // Track in-flight fetch to prevent duplicates (outside store to avoid race conditions)
 let fetchInProgress = false
+let fetchStartedAt = 0
+const FETCH_TIMEOUT = 15000
 
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -112,6 +114,11 @@ export const useAuthStore = create<AuthState>()(
       // Fetch current user data from /api/auth/me
       fetchUser: async (force = false, expectedWallet?: string) => {
         const state = get()
+
+        // Reset stale fetch lock (safety timeout)
+        if (fetchInProgress && Date.now() - fetchStartedAt > FETCH_TIMEOUT) {
+          fetchInProgress = false
+        }
 
         // Don't fetch if already loading or fetch in progress
         if (state.isLoading || fetchInProgress) return state.isAuthenticated
@@ -136,6 +143,7 @@ export const useAuthStore = create<AuthState>()(
         }
 
         fetchInProgress = true
+        fetchStartedAt = Date.now()
         set({ isLoading: true, error: null })
 
         try {
