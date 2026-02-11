@@ -1,5 +1,5 @@
 // ============================================
-// Admin Users API
+// Admin Users API (Enhanced with filters)
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,7 +7,7 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, UserBadgeModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
-import { parsePaginationParams, createPaginatedResponse } from '@/lib/utils/pagination'
+import { parsePaginationParams, parseSortParams, createPaginatedResponse } from '@/lib/utils/pagination'
 import { escapeRegex } from '@/lib/utils/validation'
 
 export async function GET(request: NextRequest) {
@@ -26,17 +26,21 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Parse pagination params
     const { page, limit, skip } = parsePaginationParams(request)
+    const { sortField, sortOrder } = parseSortParams(
+      request,
+      ['lastActiveAt', 'createdAt', 'totalSpins', 'totalWinsUSD', 'purchasedSpins'],
+      'lastActiveAt'
+    )
 
-    // Parse search/filter params
     const url = new URL(request.url)
     const search = url.searchParams.get('search')?.toLowerCase().trim()
-    const sortBy = url.searchParams.get('sortBy') || 'lastActiveAt'
-    const sortOrder = url.searchParams.get('sortOrder') === 'asc' ? 1 : -1
+    const dateFrom = url.searchParams.get('dateFrom')
+    const dateTo = url.searchParams.get('dateTo')
+    const minSpins = url.searchParams.get('minSpins')
+    const maxSpins = url.searchParams.get('maxSpins')
 
-    // Build query - search by wallet, profileSlug (username), or display name
-    // Escape regex to prevent NoSQL injection
+    // Build query
     const query: Record<string, unknown> = {}
     if (search) {
       const safeSearch = escapeRegex(search)
@@ -45,23 +49,30 @@ export async function GET(request: NextRequest) {
         { profileSlug: { $regex: safeSearch, $options: 'i' } },
       ]
     }
+    if (dateFrom || dateTo) {
+      const dateQ: Record<string, Date> = {}
+      if (dateFrom) dateQ.$gte = new Date(dateFrom)
+      if (dateTo) dateQ.$lte = new Date(dateTo + 'T23:59:59.999Z')
+      query.createdAt = dateQ
+    }
+    if (minSpins || maxSpins) {
+      const spinsQ: Record<string, number> = {}
+      if (minSpins) { const n = parseInt(minSpins); if (!isNaN(n)) spinsQ.$gte = n }
+      if (maxSpins) { const n = parseInt(maxSpins); if (!isNaN(n)) spinsQ.$lte = n }
+      if (Object.keys(spinsQ).length > 0) query.totalSpins = spinsQ
+    }
 
-    // Validate sort field
-    const allowedSortFields = ['lastActiveAt', 'createdAt', 'totalSpins', 'totalWinsUSD', 'purchasedSpins']
-    const safeSortBy = allowedSortFields.includes(sortBy) ? sortBy : 'lastActiveAt'
-
-    // Get users with pagination
     const [users, total] = await Promise.all([
       UserModel.find(query)
         .select('wallet profileSlug purchasedSpins bonusSpins totalSpins totalWinsUSD createdAt lastActiveAt referralCode totalReferred currentStreak longestStreak')
-        .sort({ [safeSortBy]: sortOrder })
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
         .lean(),
       UserModel.countDocuments(query),
     ])
 
-    // Get badge counts for users
+    // Badge counts
     const wallets = users.map((u: { wallet: string }) => u.wallet)
     const badgeCounts = await UserBadgeModel.aggregate([
       { $match: { wallet: { $in: wallets } } },
@@ -69,7 +80,6 @@ export async function GET(request: NextRequest) {
     ])
     const badgeCountMap = new Map(badgeCounts.map((b: { _id: string; count: number }) => [b._id, b.count]))
 
-    // Add badge count to users
     const usersWithBadges = users.map((user: { wallet: string }) => ({
       ...user,
       badgeCount: badgeCountMap.get(user.wallet) || 0,

@@ -26,7 +26,6 @@ const PrizeSlotSchema = new Schema<PrizeSlot>(
       required: true,
     },
     amount: { type: Number, required: true, default: 0 },
-    valueUSD: { type: Number, required: true, default: 0 },
     weight: { type: Number, required: true, min: 0 },
     lockDuration: {
       type: String,
@@ -69,10 +68,17 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
       min: 1,
     },
     
-    // Admin Wallet
+    // Admin Wallet (receives payments)
     adminWalletAddress: {
       type: String,
       required: true,
+      lowercase: true,
+    },
+
+    // Distributor Wallet (sends prize distributions, nullable = same as admin)
+    distributorWalletAddress: {
+      type: String,
+      default: null,
       lowercase: true,
     },
     
@@ -150,6 +156,27 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
     earlyBirdCutoffDate: {
       type: Date,
       default: null,  // Set by admin when launching
+    },
+
+    // LP Credit
+    lpCreditEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    lpSpinRateUSD: {
+      type: Number,
+      default: 20,
+      min: 1,
+    },
+
+    // Chain Sync (cursor-based incremental sync)
+    chainSyncCursor: {
+      type: String,
+      default: null,
+    },
+    chainSyncLastAt: {
+      type: Date,
+      default: null,
     },
 
     // Metadata

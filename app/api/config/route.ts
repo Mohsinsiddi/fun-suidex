@@ -6,6 +6,7 @@
 import { NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { AdminConfigModel } from '@/lib/db/models'
+import { getTokenPrices } from '@/lib/utils/prices'
 
 export async function GET() {
   try {
@@ -27,6 +28,15 @@ export async function GET() {
       })
     }
 
+    // Fetch live token prices (non-blocking if fails)
+    let tokenPrices: { vict: number; trump: number; victChange24h: number; trumpChange24h: number } = { vict: 0, trump: 0, victChange24h: 0, trumpChange24h: 0 }
+    try {
+      const prices = await getTokenPrices()
+      tokenPrices = { vict: prices.vict, trump: prices.trump, victChange24h: prices.victChange24h, trumpChange24h: prices.trumpChange24h }
+    } catch (e) {
+      console.error('Failed to fetch token prices for config:', e)
+    }
+
     // Return only public config (no sensitive data)
     return NextResponse.json({
       success: true,
@@ -37,7 +47,14 @@ export async function GET() {
         referralEnabled: config.referralEnabled,
         referralCommissionPercent: config.referralCommissionPercent,
         freeSpinMinStakeUSD: config.freeSpinMinStakeUSD,
-        prizeTable: config.prizeTable,
+        prizeTable: config.prizeTable.map((s: any) => ({
+          slotIndex: s.slotIndex,
+          type: s.type,
+          amount: s.amount,
+          weight: s.weight,
+          lockDuration: s.lockDuration || null,
+        })),
+        tokenPrices,
       },
     })
   } catch (error) {

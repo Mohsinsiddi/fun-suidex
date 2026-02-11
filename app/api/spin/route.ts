@@ -4,6 +4,7 @@ import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, SpinModel, AdminConfigModel, ReferralModel, AffiliateRewardModel, UserProfileModel } from '@/lib/db/models'
 import { verifyAccessToken, verifyPWAAccessToken } from '@/lib/auth/jwt'
 import { selectPrizeSlot, getWeekEndingDate, calculateReferralCommission } from '@/lib/utils/prizes'
+import { getTokenPrices, calculatePrizeValueUSD } from '@/lib/utils/prices'
 import { generateReferralLink } from '@/lib/referral'
 import { generateTweetIntentUrl } from '@/lib/twitter'
 import { updateStreak, checkAndAwardBadges } from '@/lib/badges'
@@ -89,6 +90,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
+      // No purchased spins, try free spins (from LP staking/swaps)
+      user = await UserModel.findOneAndUpdate(
+        { wallet: wallet, freeSpins: { $gt: 0 } },
+        { $inc: { freeSpins: -1 } },
+        { new: true }
+      )
+      spinType = 'free'
+    }
+
+    if (!user) {
       // Check if user exists but has no spins
       const existingUser = await UserModel.findOne({ wallet: wallet })
       if (!existingUser) {
@@ -98,6 +109,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { slot, serverSeed, randomValue } = selectPrizeSlot(config.prizeTable)
+
+    // Calculate prize value from live token prices
+    const prices = await getTokenPrices()
+    const liveValueUSD = calculatePrizeValueUSD(slot.amount, slot.type, prices)
 
     let referredBy: string | null = null
     let referralCommission: number | null = null
@@ -118,7 +133,7 @@ export async function POST(request: NextRequest) {
         slotIndex: slot.slotIndex,
         prizeType: slot.type,
         prizeAmount: slot.amount,
-        prizeValueUSD: slot.valueUSD,
+        prizeValueUSD: liveValueUSD,
         lockDuration: slot.lockDuration || null,
         status: slot.type === 'no_prize' ? 'distributed' : 'pending',
         referredBy,
@@ -129,7 +144,7 @@ export async function POST(request: NextRequest) {
     } catch (spinCreateError) {
       // Rollback: Restore the spin that was deducted
       console.error('Spin creation failed, rolling back spin deduction:', spinCreateError)
-      const rollbackField = spinType === 'bonus' ? 'bonusSpins' : 'purchasedSpins'
+      const rollbackField = spinType === 'bonus' ? 'bonusSpins' : spinType === 'free' ? 'freeSpins' : 'purchasedSpins'
       await UserModel.updateOne(
         { wallet: wallet },
         { $inc: { [rollbackField]: 1 } }
@@ -142,12 +157,12 @@ export async function POST(request: NextRequest) {
       $inc: { totalSpins: 1 },
       $set: { hasCompletedFirstSpin: true, lastActiveAt: new Date() },
     }
-    if (slot.valueUSD > 0) {
-      statsUpdate.$inc.totalWinsUSD = slot.valueUSD
+    if (liveValueUSD > 0) {
+      statsUpdate.$inc.totalWinsUSD = liveValueUSD
       // Update biggest win if this is larger
       await UserModel.updateOne(
-        { wallet: wallet, biggestWinUSD: { $lt: slot.valueUSD } },
-        { $set: { biggestWinUSD: slot.valueUSD } }
+        { wallet: wallet, biggestWinUSD: { $lt: liveValueUSD } },
+        { $set: { biggestWinUSD: liveValueUSD } }
       )
     }
     await UserModel.updateOne({ wallet: wallet }, statsUpdate)
@@ -160,16 +175,16 @@ export async function POST(request: NextRequest) {
       UserProfileModel.updateOne(
         { wallet: wallet },
         {
-          $inc: { 'stats.totalSpins': 1, 'stats.totalWinsUSD': slot.valueUSD || 0 },
+          $inc: { 'stats.totalSpins': 1, 'stats.totalWinsUSD': liveValueUSD || 0 },
           $set: { 'stats.lastActive': new Date() },
-          $max: { 'stats.biggestWinUSD': slot.valueUSD || 0 },
+          $max: { 'stats.biggestWinUSD': liveValueUSD || 0 },
         }
       ),
     ]).catch(err => console.error('Badge/streak/profile update error:', err))
 
     if (referredBy && referralCommission && referralCommission > 0) {
       const referralLink = generateReferralLink(referredBy)
-      const tweetIntentUrl = generateTweetIntentUrl({ prizeAmount: slot.amount, prizeUSD: slot.valueUSD, referralLink })
+      const tweetIntentUrl = generateTweetIntentUrl({ prizeAmount: slot.amount, prizeUSD: liveValueUSD, prizeTokenSymbol: slot.type === 'suitrump' ? 'TRUMP' : 'VICT', referralLink })
 
       await AffiliateRewardModel.create({
         referrerWallet: referredBy,
@@ -177,10 +192,10 @@ export async function POST(request: NextRequest) {
         fromSpinId: spin._id,
         fromWallet: wallet,
         originalPrizeVICT: slot.amount,
-        originalPrizeUSD: slot.valueUSD,
+        originalPrizeUSD: liveValueUSD,
         commissionRate: config.referralCommissionPercent / 100,
         rewardAmountVICT: referralCommission,
-        rewardValueUSD: referralCommission * config.victoryPriceUSD,
+        rewardValueUSD: referralCommission * prices.vict,
         tweetStatus: 'pending',
         tweetIntentUrl,
         weekEnding: getWeekEndingDate(),
@@ -202,9 +217,10 @@ export async function POST(request: NextRequest) {
       data: {
         spinId: String(spin._id),
         slotIndex: slot.slotIndex,
+        prizeValueUSD: liveValueUSD,
         // Include updated spin counts so client doesn't need to refetch
         spins: {
-          free: 0, // freeSpins are always 0 (no longer used)
+          free: updatedUser?.freeSpins ?? 0,
           purchased: updatedUser?.purchasedSpins ?? 0,
           bonus: updatedUser?.bonusSpins ?? 0,
         },
@@ -235,7 +251,8 @@ export async function GET(request: NextRequest) {
     const user = await UserModel.findOne({ wallet })
     if (!user) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
 
-    const canSpin = user.purchasedSpins > 0 || user.bonusSpins > 0
+    const freeSpins = user.freeSpins || 0
+    const canSpin = user.purchasedSpins > 0 || user.bonusSpins > 0 || freeSpins > 0
 
     return NextResponse.json({
       success: true,
@@ -243,7 +260,7 @@ export async function GET(request: NextRequest) {
         canSpin,
         purchasedSpins: user.purchasedSpins,
         bonusSpins: user.bonusSpins,
-        freeSpinsAvailable: 0,
+        freeSpinsAvailable: freeSpins,
         nextFreeSpinAt: null,
         totalSpins: user.totalSpins,
         totalWinsUSD: user.totalWinsUSD,

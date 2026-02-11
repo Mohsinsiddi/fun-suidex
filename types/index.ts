@@ -14,6 +14,7 @@ export interface User {
   sessions: UserSession[]
 
   // Spin balance
+  freeSpins: number
   purchasedSpins: number
   bonusSpins: number
 
@@ -172,45 +173,6 @@ export interface Spin {
 }
 
 // ----------------------------------------
-// Payment Types
-// ----------------------------------------
-
-export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'manual' | 'pending_approval'
-
-export interface Payment {
-  _id: string
-  
-  // TX Details
-  txHash: string
-  senderWallet: string
-  recipientWallet: string
-  amountMIST: string
-  amountSUI: number
-  
-  // Claim
-  claimStatus: PaymentClaimStatus
-  claimedBy: string | null
-  claimedAt: Date | null
-  
-  // Spins
-  spinsCredited: number
-  rateAtClaim: number
-  
-  // Manual credit
-  manualCredit: boolean
-  creditedByAdmin: string | null
-  adminNote: string | null
-  
-  // Blockchain
-  blockNumber: number
-  timestamp: Date
-  
-  // Processing
-  discoveredAt: Date
-  createdAt: Date
-}
-
-// ----------------------------------------
 // Referral Types
 // ----------------------------------------
 
@@ -244,6 +206,25 @@ export interface AffiliateReward {
 }
 
 // ----------------------------------------
+// LP Credit Types
+// ----------------------------------------
+
+export interface LPCredit {
+  _id: string
+  wallet: string
+  txHash: string
+  eventType: 'lp_stake' | 'swap' | 'other'
+  pair: string
+  amountUSD: number
+  spinsCredited: number
+  ratePerSpin: number
+  status: 'credited' | 'reversed'
+  creditedAt: Date
+  reversedAt: Date | null
+  metadata: Record<string, unknown>
+}
+
+// ----------------------------------------
 // Config Types
 // ----------------------------------------
 
@@ -251,7 +232,6 @@ export interface PrizeSlot {
   slotIndex: number
   type: PrizeType
   amount: number
-  valueUSD: number
   weight: number // Probability weight
   lockDuration?: LockDuration
 }
@@ -267,6 +247,7 @@ export interface AdminConfig {
 
   // Admin Wallet
   adminWalletAddress: string
+  distributorWalletAddress: string | null
 
   // Payment Verification
   paymentLookbackHours: number
@@ -291,6 +272,14 @@ export interface AdminConfig {
   profileSharingEnabled: boolean
   profileShareMinSpins: number
   earlyBirdCutoffDate: Date | null
+
+  // LP Credit
+  lpCreditEnabled: boolean
+  lpSpinRateUSD: number
+
+  // Chain Sync
+  chainSyncCursor: string | null
+  chainSyncLastAt: Date | null
 
   // Metadata
   updatedAt: Date

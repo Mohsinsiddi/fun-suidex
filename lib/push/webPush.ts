@@ -99,7 +99,7 @@ export async function sendPrizeDistributedPush(
 ): Promise<{ success: boolean; error?: string }> {
   return sendPushNotification(subscription, {
     title: '🎉 Prize Distributed!',
-    body: `Your $${prizeValueUSD} ${prizeTokenSymbol} prize has been sent to your wallet!`,
+    body: `Your ${prizeTokenSymbol} prize (~$${prizeValueUSD.toFixed(2)}) has been sent to your wallet!`,
     tag: 'prize-distributed',
     data: {
       type: 'prize_distributed',

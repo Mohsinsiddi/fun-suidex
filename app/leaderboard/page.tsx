@@ -189,7 +189,7 @@ export default function LeaderboardPage() {
               <button
                 key={tab.type}
                 onClick={() => handleTabChange(tab.type)}
-                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all ${
+                className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2.5 sm:py-2 rounded-lg sm:rounded-xl text-xs sm:text-sm font-medium transition-all min-h-[44px] ${
                   activeTab === tab.type
                     ? 'bg-accent text-black'
                     : 'bg-surface border border-border text-text-secondary hover:text-white hover:border-accent/50'

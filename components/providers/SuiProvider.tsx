@@ -106,7 +106,7 @@ export function SuiProvider({ children }: SuiProviderProps) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <SuiClientProvider networks={networkConfig} defaultNetwork="mainnet">
+      <SuiClientProvider networks={networkConfig} defaultNetwork={(process.env.NEXT_PUBLIC_SUI_NETWORK as 'mainnet' | 'testnet') || 'testnet'}>
         <WalletProvider
           autoConnect={true}
           preferredWallets={['Slush', 'Nightly', 'Phantom', 'Sui Wallet']}

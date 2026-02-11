@@ -1,5 +1,6 @@
 import Link from 'next/link'
-import { MessageCircle, ExternalLink, Gamepad2, ChevronRight } from 'lucide-react'
+import Image from 'next/image'
+import { MessageCircle, ExternalLink, ChevronRight } from 'lucide-react'
 
 // X (Twitter) icon component
 const XIcon = ({ className }: { className?: string }) => (
@@ -12,36 +13,29 @@ export function Footer() {
   return (
     <footer className="relative mt-auto overflow-hidden">
       {/* Top Gradient Line */}
-      <div className="h-px bg-gradient-to-r from-transparent via-accent/50 to-transparent" />
+      <div className="h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
 
       {/* Main Footer */}
-      <div className="bg-[#0a0c10]">
-        <div className="max-w-6xl mx-auto px-4 py-12 sm:py-16">
+      <div className="relative bg-gradient-to-b from-[#080a0f] to-[#050609]">
+        {/* Subtle radial glow */}
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_20%_0%,rgba(0,229,255,0.03),transparent_50%)] pointer-events-none" />
+        <div className="relative max-w-6xl mx-auto px-4 py-12 sm:py-16">
           <div className="grid grid-cols-2 md:grid-cols-12 gap-8 lg:gap-12">
             {/* Brand - Spans 5 cols on md+ */}
             <div className="col-span-2 md:col-span-5">
-              <Link href="/" className="inline-flex items-center gap-2.5 group mb-4">
-                <div className="w-9 h-9 bg-gradient-to-br from-accent to-cyan-400 rounded-lg flex items-center justify-center shadow-lg shadow-accent/20 group-hover:shadow-accent/30 transition-shadow">
-                  <Gamepad2 className="w-5 h-5 text-black" />
-                </div>
-                <div className="flex flex-col">
-                  <span className="font-display text-lg font-bold leading-tight">
-                    <span className="text-accent">Sui</span>
-                    <span className="text-white">Dex</span>
-                  </span>
-                  <span className="text-[9px] text-text-muted uppercase tracking-widest">Games</span>
-                </div>
+              <Link href="/" className="inline-flex items-center group mb-4">
+                <Image src="/logo-full.png" alt="SuiDex Games" width={160} height={50} className="h-10 w-auto" />
               </Link>
-              <p className="text-text-secondary text-sm leading-relaxed max-w-xs mb-6">
+              <p className="text-text-secondary text-sm leading-relaxed max-w-xs mb-5">
                 Win Victory tokens, SuiTrump, and more! Part of the SuiDex ecosystem on Sui Network.
               </p>
               {/* Social Icons */}
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2.5 mb-5">
                 <a
                   href="https://x.com/suidexHQ"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all"
+                  className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
                   aria-label="X (Twitter)"
                 >
                   <XIcon className="w-4 h-4" />
@@ -50,11 +44,16 @@ export function Footer() {
                   href="https://t.me/Suidexhq"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-9 h-9 rounded-lg bg-white/[0.03] border border-white/[0.06] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/5 transition-all"
+                  className="w-10 h-10 sm:w-9 sm:h-9 rounded-lg bg-white/[0.04] border border-white/[0.08] flex items-center justify-center text-text-secondary hover:text-accent hover:border-accent/30 hover:bg-accent/10 transition-all"
                   aria-label="Telegram"
                 >
                   <MessageCircle className="w-4 h-4" />
                 </a>
+              </div>
+              {/* Built on Sui badge */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#4da2ff]/10 border border-[#4da2ff]/20 text-[11px] font-medium text-[#4da2ff]">
+                <span className="w-1.5 h-1.5 rounded-full bg-[#4da2ff]" />
+                Built on Sui Network
               </div>
             </div>
 
@@ -168,17 +167,20 @@ export function Footer() {
         </div>
 
         {/* Bottom Bar */}
-        <div className="border-t border-white/[0.04]">
+        <div className="border-t border-white/[0.06]">
           <div className="max-w-6xl mx-auto px-4 py-5">
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3">
               <p className="text-text-muted text-xs">
                 © 2025 SuiDex Games. All rights reserved.
               </p>
-              <div className="flex items-center gap-4 text-xs text-text-muted">
+              <div className="flex items-center gap-5 text-xs text-text-muted">
                 <span className="flex items-center gap-1.5">
-                  <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.5)]"></span>
                   All systems operational
                 </span>
+                <a href="https://suidex.org" target="_blank" rel="noopener noreferrer" className="hover:text-accent transition-colors">
+                  suidex.org
+                </a>
               </div>
             </div>
           </div>

@@ -1,10 +1,19 @@
 import type { TweetIntentParams } from '@/types/referral'
 
 export function generateTweetIntentUrl(params: TweetIntentParams): string {
-  const { prizeUSD, referralLink } = params
-  const tweetText = `My friend just won $${prizeUSD.toFixed(2)} on the Wheel of Victory! 🎡🔥
+  const { prizeAmount, prizeUSD, prizeTokenSymbol, referralLink } = params
 
-I earned $${(prizeUSD * 0.1).toFixed(2)} in referral rewards!
+  // Format token amount for display
+  const tokenLabel = prizeAmount >= 1_000_000
+    ? `${(prizeAmount / 1_000_000).toFixed(prizeAmount % 1_000_000 === 0 ? 0 : 1)}M`
+    : prizeAmount >= 1_000
+      ? `${Math.round(prizeAmount / 1_000)}K`
+      : String(prizeAmount)
+  const symbol = prizeTokenSymbol || 'VICT'
+
+  const tweetText = `My friend just won ${tokenLabel} ${symbol} (~$${prizeUSD.toFixed(2)}) on the Wheel of Victory! 🎡🔥
+
+I earned ~$${(prizeUSD * 0.1).toFixed(2)} in referral rewards!
 
 Spin yours 👉 ${referralLink}
 

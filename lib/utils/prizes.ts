@@ -185,13 +185,23 @@ export function calculatePrizeProbabilities(prizeTable: PrizeSlot[]): {
 }
 
 /**
- * Calculate expected value per spin
+ * Calculate expected value per spin using live token prices.
+ * If no prices provided, returns 0.
  */
-export function calculateExpectedValue(prizeTable: PrizeSlot[]): number {
+export function calculateExpectedValue(
+  prizeTable: PrizeSlot[],
+  prices?: { vict: number; trump: number }
+): number {
+  if (!prices) return 0
   const totalWeight = prizeTable.reduce((sum, slot) => sum + slot.weight, 0)
-  
+
   return prizeTable.reduce((ev, slot) => {
     const probability = slot.weight / totalWeight
-    return ev + slot.valueUSD * probability
+    const usdValue = slot.type === 'suitrump'
+      ? slot.amount * prices.trump
+      : slot.type === 'no_prize'
+        ? 0
+        : slot.amount * prices.vict
+    return ev + usdValue * probability
   }, 0)
 }

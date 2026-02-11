@@ -127,7 +127,7 @@ export async function POST(request: NextRequest) {
 
     return success({
       wallet: user.wallet,
-      freeSpins: 0,
+      freeSpins: user.freeSpins || 0,
       purchasedSpins: user.purchasedSpins,
       bonusSpins: user.bonusSpins,
       referralCode: user.referralCode,

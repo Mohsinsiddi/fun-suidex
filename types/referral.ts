@@ -33,5 +33,6 @@ export interface AffiliateRewardType {
 export interface TweetIntentParams {
   prizeAmount: number
   prizeUSD: number
+  prizeTokenSymbol?: string
   referralLink: string
 }

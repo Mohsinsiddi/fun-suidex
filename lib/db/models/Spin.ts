@@ -135,6 +135,8 @@ SpinSchema.index({ createdAt: -1 }) // For general pagination
 SpinSchema.index({ status: 1, prizeAmount: 1 }) // For pending prizes with rewards query
 SpinSchema.index({ wallet: 1, status: 1 }) // For user spin history by status
 SpinSchema.index({ distributedAt: -1 }) // For distribution timeline
+SpinSchema.index({ distributedTxHash: 1 }) // For sync lookups
+SpinSchema.index({ status: 1, distributedAt: -1 }) // For distributed tab
 
 // ----------------------------------------
 // Model Export

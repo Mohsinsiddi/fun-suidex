@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import { usePathname } from 'next/navigation'
 import { ConnectButton } from '@mysten/dapp-kit'
 import { Menu, X, Gamepad2, Users, ChevronDown, Play, Clock, User, Trophy, FileText } from 'lucide-react'
@@ -34,25 +35,16 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-40">
-      <div className="h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent" />
+      <div className="h-[2px] bg-gradient-to-r from-transparent via-accent/80 to-transparent" />
 
-      <div className="bg-surface/95 backdrop-blur-md border-b border-border/50">
+      <div className="bg-[#080a0f]/95 backdrop-blur-md">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center justify-between h-16 sm:h-18">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2 sm:gap-3 group flex-shrink-0">
+            <Link href="/" className="flex items-center group flex-shrink-0">
               <div className="relative">
                 <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full group-hover:bg-accent/30 transition-colors" />
-                <div className="relative w-8 h-8 sm:w-10 sm:h-10 bg-gradient-to-br from-accent to-secondary rounded-lg sm:rounded-xl flex items-center justify-center shadow-lg shadow-accent/20">
-                  <Gamepad2 className="w-4 h-4 sm:w-5 sm:h-5 text-black" />
-                </div>
-              </div>
-              <div className="flex flex-col">
-                <span className="font-display text-base sm:text-lg md:text-xl font-bold leading-tight">
-                  <span className="text-accent">Sui</span>
-                  <span className="text-white">Dex</span>
-                </span>
-                <span className="text-[8px] sm:text-[10px] text-text-muted uppercase tracking-widest hidden sm:block">Games</span>
+                <Image src="/logo-full.png" alt="SuiDex Games" width={200} height={64} className="relative h-10 sm:h-14 w-auto" priority />
               </div>
             </Link>
 
@@ -182,6 +174,7 @@ export function Header() {
 
         </div>
       </div>
+      <div className="h-[1px] bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
 
       {/* Mobile Sidebar Overlay */}
       <div
@@ -203,17 +196,8 @@ export function Header() {
         >
           {/* Sidebar Header */}
           <div className="flex items-center justify-between p-4 border-b border-border">
-            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center gap-2">
-              <div className="w-9 h-9 bg-gradient-to-br from-accent to-secondary rounded-lg flex items-center justify-center">
-                <Gamepad2 className="w-5 h-5 text-black" />
-              </div>
-              <div className="flex flex-col">
-                <span className="font-bold text-lg leading-tight">
-                  <span className="text-accent">Sui</span>
-                  <span className="text-white">Dex</span>
-                </span>
-                <span className="text-[9px] text-text-muted uppercase tracking-widest">Games</span>
-              </div>
+            <Link href="/" onClick={() => setMobileMenuOpen(false)} className="flex items-center">
+              <Image src="/logo-full.png" alt="SuiDex Games" width={140} height={44} className="h-9 w-auto" />
             </Link>
             <button
               onClick={() => setMobileMenuOpen(false)}

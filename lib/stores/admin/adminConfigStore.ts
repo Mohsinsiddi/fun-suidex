@@ -17,6 +17,19 @@ interface AdminConfig {
   profileShareMinSpins: number
   profileSharingEnabled: boolean
   prizeTable: PrizeSlot[]
+  tokenPrices?: { vict: number; trump: number }
+}
+
+export interface WalletConflict {
+  oldWallet: string
+  newWallet: string
+  total: number
+  unclaimed: number
+  pendingApproval: number
+  totalSUI: number
+  uniqueSenders: number
+  oldestTx: string | null
+  newestTx: string | null
 }
 
 interface AdminConfigState {
@@ -24,6 +37,9 @@ interface AdminConfigState {
   isLoading: boolean
   isSaving: boolean
   error: string | null
+
+  // Wallet change conflict data (from 409)
+  walletConflict: WalletConflict | null
 
   // Config data
   config: AdminConfig | null
@@ -36,6 +52,7 @@ interface AdminConfigState {
   updateConfig: (updates: Partial<AdminConfig>) => Promise<boolean>
   updatePrizeTable: (prizeTable: PrizeSlot[]) => Promise<boolean>
   invalidate: () => void
+  clearWalletConflict: () => void
 }
 
 // Cache duration: 5 minutes
@@ -45,6 +62,7 @@ const initialState = {
   isLoading: false,
   isSaving: false,
   error: null,
+  walletConflict: null,
   config: null,
   lastFetched: null,
 }
@@ -104,7 +122,7 @@ export const useAdminConfigStore = create<AdminConfigState>((set, get) => ({
 
   // Update config settings
   updateConfig: async (updates: Partial<AdminConfig>) => {
-    set({ isSaving: true, error: null })
+    set({ isSaving: true, error: null, walletConflict: null })
 
     try {
       const res = await fetch('/api/admin/config', {
@@ -123,8 +141,19 @@ export const useAdminConfigStore = create<AdminConfigState>((set, get) => ({
           config: currentConfig ? { ...currentConfig, ...updates } : null,
           lastFetched: Date.now(),
           error: null,
+          walletConflict: null,
         })
         return true
+      }
+
+      // Surface wallet conflict detail from 409
+      if (res.status === 409 && data.walletConflict) {
+        set({
+          isSaving: false,
+          error: data.error || 'Wallet change blocked',
+          walletConflict: data.walletConflict,
+        })
+        return false
       }
 
       set({
@@ -182,5 +211,10 @@ export const useAdminConfigStore = create<AdminConfigState>((set, get) => ({
   // Force refresh on next fetch
   invalidate: () => {
     set({ lastFetched: null })
+  },
+
+  // Clear wallet conflict state
+  clearWalletConflict: () => {
+    set({ walletConflict: null })
   },
 }))

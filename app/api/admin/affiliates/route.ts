@@ -1,5 +1,5 @@
 // ============================================
-// Admin Affiliates API
+// Admin Affiliates API (Enhanced with filters)
 // ============================================
 
 import { NextRequest, NextResponse } from 'next/server'
@@ -7,7 +7,7 @@ import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import { AffiliateRewardModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
-import { parsePaginationParams } from '@/lib/utils/pagination'
+import { parsePaginationParams, parseSortParams } from '@/lib/utils/pagination'
 
 export async function GET(request: NextRequest) {
   try {
@@ -20,28 +20,42 @@ export async function GET(request: NextRequest) {
 
     await connectDB()
 
-    // Parse pagination params (max 50 enforced by utility)
     const { page, limit, skip } = parsePaginationParams(request)
+    const { sortField, sortOrder } = parseSortParams(
+      request,
+      ['createdAt', 'rewardValueUSD', 'rewardAmountVICT'],
+      'createdAt'
+    )
 
     const url = new URL(request.url)
     const statusFilter = url.searchParams.get('status') || 'all'
+    const tweetStatus = url.searchParams.get('tweetStatus')
+    const dateFrom = url.searchParams.get('dateFrom')
+    const dateTo = url.searchParams.get('dateTo')
 
     // Build query
     const query: Record<string, unknown> = {}
     if (statusFilter !== 'all') {
       query.payoutStatus = statusFilter
     }
+    if (tweetStatus && tweetStatus !== 'all') {
+      query.tweetStatus = tweetStatus
+    }
+    if (dateFrom || dateTo) {
+      const dateQ: Record<string, Date> = {}
+      if (dateFrom) dateQ.$gte = new Date(dateFrom)
+      if (dateTo) dateQ.$lte = new Date(dateTo + 'T23:59:59.999Z')
+      query.createdAt = dateQ
+    }
 
-    // Optimized: Single aggregation pipeline for stats instead of multiple queries
     const [rewards, total, statsResult] = await Promise.all([
       AffiliateRewardModel.find(query)
         .select('referrerWallet refereeWallet fromWallet rewardAmountVICT rewardValueUSD tweetStatus payoutStatus createdAt paidAt paidTxHash')
-        .sort({ createdAt: -1 })
+        .sort({ [sortField]: sortOrder })
         .skip(skip)
         .limit(limit)
         .lean(),
       AffiliateRewardModel.countDocuments(query),
-      // Single aggregation for all stats
       AffiliateRewardModel.aggregate([
         {
           $facet: {
@@ -68,7 +82,6 @@ export async function GET(request: NextRequest) {
       ]),
     ])
 
-    // Process stats from aggregation result
     const statusCounts = statsResult[0]?.statusCounts || []
     const pendingTotals = statsResult[0]?.pendingTotals[0] || { totalVICT: 0, totalUSD: 0 }
 

@@ -16,7 +16,6 @@ import { connectDB, disconnectDB } from '../lib/db/mongodb'
 import {
   UserModel,
   SpinModel,
-  PaymentModel,
   ReferralModel,
   AffiliateRewardModel,
   UserBadgeModel,
@@ -272,7 +271,6 @@ async function main() {
 
   // Calculate estimates
   const estSpins = Math.floor(userCount * 4) // ~4 spins per user average
-  const estPayments = Math.floor(userCount * 0.3)
   const estReferrals = Math.floor(userCount * 0.25)
   const estAffiliates = Math.floor(userCount * 0.5)
   const estProfiles = Math.floor(userCount * 0.15)
@@ -282,12 +280,11 @@ async function main() {
   console.log(`  - ${userCount.toLocaleString()} Users`)
   console.log(`    └ Distribution: 75% casual, 18% regular, 5% power, 2% whale`)
   console.log(`  - ${estSpins.toLocaleString()} Spins`)
-  console.log(`  - ${estPayments.toLocaleString()} Payments`)
   console.log(`  - ${estReferrals.toLocaleString()} Referrals`)
   console.log(`  - ${estAffiliates.toLocaleString()} Affiliate Rewards`)
   console.log(`  - ${estProfiles.toLocaleString()} User Profiles`)
   console.log(`  - ${estBadges.toLocaleString()} User Badges`)
-  console.log(`\n  Total: ~${(userCount + estSpins + estPayments + estReferrals + estAffiliates + estBadges).toLocaleString()} records`)
+  console.log(`\n  Total: ~${(userCount + estSpins + estReferrals + estAffiliates + estBadges).toLocaleString()} records`)
   console.log(`  Estimated time: ${Math.ceil(userCount / 5000)} minutes\n`)
 
   const proceed = await question('Do you want to continue? (y/N): ')
@@ -319,7 +316,6 @@ async function main() {
         await Promise.all([
           UserModel.deleteMany({}),
           SpinModel.deleteMany({}),
-          PaymentModel.deleteMany({}),
           ReferralModel.deleteMany({}),
           AffiliateRewardModel.deleteMany({}),
           UserBadgeModel.deleteMany({}),
@@ -333,7 +329,6 @@ async function main() {
           UserBadgeModel.deleteMany({ isSeedUser: true }),
           UserProfileModel.deleteMany({ isSeedUser: true }),
           SpinModel.deleteMany({ isSeedUser: true }),
-          PaymentModel.deleteMany({ isSeedUser: true }),
           ReferralModel.deleteMany({ isSeedUser: true }),
           AffiliateRewardModel.deleteMany({ isSeedUser: true }),
         ])
@@ -637,53 +632,7 @@ async function main() {
     console.log(' ✓')
 
     // ========================================
-    // Step 4: Generate Payments
-    // ========================================
-    const paymentCount = Math.floor(userCount * 0.3)
-    const paymentStartTime = Date.now()
-    const claimStatuses = ['unclaimed', 'claimed', 'manual', 'pending_approval'] as const
-    const paymentDocs = []
-
-    for (let i = 0; i < paymentCount; i++) {
-      const wallet = userWallets[Math.floor(Math.random() * userWallets.length)]
-      const amountSUI = randomBetween(1, 100)
-      const claimStatus = claimStatuses[Math.floor(Math.random() * claimStatuses.length)]
-      const timestamp = randomDate(90)
-
-      paymentDocs.push({
-        txHash: randomTxHash() + i,
-        senderWallet: wallet,
-        recipientWallet: adminWallet.toLowerCase(),
-        amountMIST: (amountSUI * 1_000_000_000).toString(),
-        amountSUI,
-        claimStatus,
-        claimedBy: claimStatus === 'claimed' ? wallet : null,
-        claimedAt: claimStatus === 'claimed' ? randomDate(60) : null,
-        spinsCredited: claimStatus === 'claimed' ? amountSUI : 0,
-        rateAtClaim: 1,
-        manualCredit: claimStatus === 'manual',
-        creditedByAdmin: claimStatus === 'manual' ? 'admin' : null,
-        adminNote: claimStatus === 'manual' ? 'Mock manual credit' : null,
-        blockNumber: randomBetween(1000000, 9999999),
-        timestamp,
-        discoveredAt: timestamp,
-        isSeedUser: true,
-        createdAt: timestamp,
-        updatedAt: now,
-      })
-
-      if (i % 500 === 0) progressBar(i, paymentCount, 'Payments', paymentStartTime)
-    }
-
-    for (let i = 0; i < paymentDocs.length; i += BATCH_SIZE) {
-      const batch = paymentDocs.slice(i, i + BATCH_SIZE)
-      await PaymentModel.insertMany(batch, { ordered: false }).catch(() => {})
-    }
-    progressBar(paymentCount, paymentCount, 'Payments', paymentStartTime)
-    console.log(' ✓')
-
-    // ========================================
-    // Step 5: Generate Affiliate Rewards
+    // Step 4: Generate Affiliate Rewards
     // ========================================
     const affiliateCount = Math.floor(userCount * 0.5)
     const affiliateStartTime = Date.now()
@@ -754,7 +703,6 @@ async function main() {
     const finalCounts = await Promise.all([
       UserModel.countDocuments({ isSeedUser: true }),
       SpinModel.countDocuments({ isSeedUser: true }),
-      PaymentModel.countDocuments({ isSeedUser: true }),
       ReferralModel.countDocuments({ isSeedUser: true }),
       AffiliateRewardModel.countDocuments({ isSeedUser: true }),
       UserBadgeModel.countDocuments({ isSeedUser: true }),
@@ -764,11 +712,10 @@ async function main() {
     console.log('\nFinal counts:')
     console.log(`  - Users:            ${finalCounts[0].toLocaleString()}`)
     console.log(`  - Spins:            ${finalCounts[1].toLocaleString()}`)
-    console.log(`  - Payments:         ${finalCounts[2].toLocaleString()}`)
-    console.log(`  - Referrals:        ${finalCounts[3].toLocaleString()}`)
-    console.log(`  - Affiliate Rewards: ${finalCounts[4].toLocaleString()}`)
-    console.log(`  - User Badges:      ${finalCounts[5].toLocaleString()}`)
-    console.log(`  - User Profiles:    ${finalCounts[6].toLocaleString()}`)
+    console.log(`  - Referrals:        ${finalCounts[2].toLocaleString()}`)
+    console.log(`  - Affiliate Rewards: ${finalCounts[3].toLocaleString()}`)
+    console.log(`  - User Badges:      ${finalCounts[4].toLocaleString()}`)
+    console.log(`  - User Profiles:    ${finalCounts[5].toLocaleString()}`)
     console.log(`\n  Total: ${finalCounts.reduce((a, b) => a + b, 0).toLocaleString()} records`)
     console.log(`  Duration: ${totalDuration} seconds (${Math.round(usersCreated / totalDuration)} users/sec)`)
     console.log('\n✓ You can now test with realistic data!\n')

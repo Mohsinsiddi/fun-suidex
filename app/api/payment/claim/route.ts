@@ -6,7 +6,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
-import { UserModel, PaymentModel, AdminConfigModel } from '@/lib/db/models'
+import { UserModel, ChainTransactionModel, AdminConfigModel } from '@/lib/db/models'
 import { verifyPayment, getIncomingTransactions } from '@/lib/sui/client'
 import { withAuth, AuthContext } from '@/lib/auth/withAuth'
 import { checkRateLimit } from '@/lib/utils/rateLimit'
@@ -47,30 +47,48 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     }
 
     // Check if already claimed
-    const existingPayment = await PaymentModel.findOne({ txHash })
-    if (existingPayment) {
-      if (existingPayment.claimStatus === 'claimed') {
+    const existing = await ChainTransactionModel.findOne({ txHash })
+    if (existing) {
+      if (existing.creditStatus === 'credited') {
         return errors.conflict(ERRORS.PAYMENT_ALREADY_CLAIMED)
       }
-      if (existingPayment.claimStatus === 'pending_approval') {
+      if (existing.creditStatus === 'pending_approval') {
         return NextResponse.json({
           success: false,
           error: 'This payment is pending admin approval',
           data: { status: 'pending_approval' },
         })
       }
+      if (existing.creditStatus === 'rejected') {
+        return NextResponse.json({
+          success: false,
+          error: existing.adminNote
+            ? `This payment was rejected: ${existing.adminNote}`
+            : 'This payment was rejected by admin',
+          data: { status: 'rejected' },
+        })
+      }
     }
 
+    // Use stored recipient for already-recorded unclaimed TXs
+    // (survives admin wallet changes — the on-chain data hasn't changed)
+    const verifyRecipient =
+      existing && existing.creditStatus === 'unclaimed'
+        ? existing.recipient
+        : config.adminWalletAddress
+
     // Verify the payment on chain
-    const tx = await verifyPayment(
+    // Use spinRateSUI as minimum — 1 spin's worth is the smallest useful payment
+    const minPayment = Math.min(config.minPaymentSUI ?? Infinity, config.spinRateSUI)
+    const { tx, error: verifyError } = await verifyPayment(
       txHash,
       wallet,
-      config.adminWalletAddress,
-      config.minPaymentSUI
+      verifyRecipient,
+      minPayment
     )
 
     if (!tx) {
-      return errors.badRequest(ERRORS.PAYMENT_NOT_FOUND)
+      return errors.badRequest(verifyError || ERRORS.PAYMENT_NOT_FOUND)
     }
 
     // Check lookback period
@@ -83,7 +101,7 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     }
 
     // Calculate spins
-    const spinsCredited = Math.floor(tx.amountSUI / config.spinRateSUI)
+    const spinsCredited = Math.floor(+(tx.amountSUI / config.spinRateSUI).toFixed(6))
 
     if (spinsCredited <= 0) {
       return errors.badRequest(
@@ -91,25 +109,26 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
       )
     }
 
-    // Check if requires admin approval (> 10 SUI)
+    // Check if requires admin approval (> auto-approval limit)
     const requiresApproval = tx.amountSUI > config.autoApprovalLimitSUI
 
-    // Create or update payment record
-    const payment = await PaymentModel.findOneAndUpdate(
+    // Create or update ChainTransaction record
+    const chainTx = await ChainTransactionModel.findOneAndUpdate(
       { txHash },
       {
         $setOnInsert: {
           txHash,
-          senderWallet: tx.sender,
-          recipientWallet: tx.recipient,
+          sender: tx.sender,
+          recipient: tx.recipient,
           amountMIST: tx.amountMIST,
           amountSUI: tx.amountSUI,
           blockNumber: tx.blockNumber,
           timestamp: tx.timestamp,
+          success: true,
           discoveredAt: new Date(),
         },
         $set: {
-          claimStatus: requiresApproval ? 'pending_approval' : 'claimed',
+          creditStatus: requiresApproval ? 'pending_approval' : 'credited',
           claimedBy: wallet,
           claimedAt: new Date(),
           spinsCredited: requiresApproval ? 0 : spinsCredited,
@@ -130,7 +149,6 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     }
 
     // Credit spins to user - atomic update with verification
-    // Use findOneAndUpdate to ensure atomicity and get updated document
     const updatedUser = await UserModel.findOneAndUpdate(
       { wallet },
       { $inc: { purchasedSpins: spinsCredited } },
@@ -138,10 +156,10 @@ export const POST = withAuth(async (request: NextRequest, { wallet }: AuthContex
     )
 
     if (!updatedUser) {
-      // Rollback: Mark payment as unclaimed if user update fails
-      await PaymentModel.findOneAndUpdate(
+      // Rollback: Mark TX as unclaimed if user update fails
+      await ChainTransactionModel.findOneAndUpdate(
         { txHash },
-        { $set: { claimStatus: 'unclaimed', spinsCredited: 0 } }
+        { $set: { creditStatus: 'unclaimed', spinsCredited: 0 } }
       )
       return errors.internal('Failed to credit spins. Payment has been reset - please try again.')
     }
@@ -179,7 +197,7 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
     const fromDate = new Date(Date.now() - lookbackMs)
 
     // Get transactions from chain
-    const transactions = await getIncomingTransactions(config.adminWalletAddress, fromDate)
+    const { transactions } = await getIncomingTransactions(config.adminWalletAddress, fromDate)
 
     // Filter for this user's transactions
     const userTxs = transactions.filter(
@@ -188,10 +206,10 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
 
     // Check which are already claimed
     const txHashes = userTxs.map((tx) => tx.txHash)
-    const claimedPayments = await PaymentModel.find({
+    const claimedTxs = await ChainTransactionModel.find({
       txHash: { $in: txHashes },
     })
-    const claimedHashes = new Set(claimedPayments.map((p) => p.txHash))
+    const claimedHashes = new Set(claimedTxs.map((t) => t.txHash))
 
     // Build response
     const unclaimedTxs = userTxs
@@ -199,7 +217,7 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
       .map((tx) => ({
         txHash: tx.txHash,
         amountSUI: tx.amountSUI,
-        suggestedSpins: Math.floor(tx.amountSUI / config.spinRateSUI),
+        suggestedSpins: Math.floor(+(tx.amountSUI / config.spinRateSUI).toFixed(6)),
         timestamp: tx.timestamp,
         requiresApproval: tx.amountSUI > config.autoApprovalLimitSUI,
       }))
