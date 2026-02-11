@@ -5,7 +5,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { AdminModel, AdminConfigModel, AdminLogModel, PaymentModel } from '@/lib/db/models'
+import { AdminModel, AdminConfigModel, AdminLogModel, ChainTransactionModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { DEFAULT_ADMIN_CONFIG } from '@/constants'
 
@@ -166,21 +166,21 @@ export async function PUT(request: NextRequest) {
       body.adminWalletAddress !== oldWallet &&
       !body.force
     ) {
-      const pendingPayments = await PaymentModel.aggregate([
+      const pendingPayments = await ChainTransactionModel.aggregate([
         {
           $match: {
-            recipientWallet: oldWallet.toLowerCase(),
-            claimStatus: { $in: ['unclaimed', 'pending_approval'] },
+            recipient: oldWallet.toLowerCase(),
+            creditStatus: { $in: ['unclaimed', 'pending_approval'] },
           },
         },
         {
           $group: {
             _id: null,
             total: { $sum: 1 },
-            unclaimed: { $sum: { $cond: [{ $eq: ['$claimStatus', 'unclaimed'] }, 1, 0] } },
-            pendingApproval: { $sum: { $cond: [{ $eq: ['$claimStatus', 'pending_approval'] }, 1, 0] } },
+            unclaimed: { $sum: { $cond: [{ $eq: ['$creditStatus', 'unclaimed'] }, 1, 0] } },
+            pendingApproval: { $sum: { $cond: [{ $eq: ['$creditStatus', 'pending_approval'] }, 1, 0] } },
             totalSUI: { $sum: '$amountSUI' },
-            uniqueSenders: { $addToSet: '$senderWallet' },
+            uniqueSenders: { $addToSet: '$sender' },
             oldestTx: { $min: '$timestamp' },
             newestTx: { $max: '$timestamp' },
           },

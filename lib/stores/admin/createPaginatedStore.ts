@@ -237,19 +237,3 @@ export const useAffiliatesStore = createPaginatedStore<AffiliateReward>(
   { limit: 20 }
 )
 
-// Revenue Store
-export interface PaymentRecord {
-  _id: string
-  wallet: string
-  txHash: string
-  amountSUI: number
-  spinsGranted: number
-  status: 'pending' | 'approved' | 'rejected'
-  createdAt: string
-  processedAt?: string
-}
-
-export const useRevenueStore = createPaginatedStore<PaymentRecord>(
-  '/api/admin/revenue',
-  { limit: 20 }
-)

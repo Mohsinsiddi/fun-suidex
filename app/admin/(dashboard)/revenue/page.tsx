@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, DollarSign, ExternalLink, Download, ArrowDownToLine, X, Inbox, CheckCircle2 } from 'lucide-react'
+import { RefreshCw, DollarSign, ExternalLink, Download, ArrowDownToLine, X, Inbox, CheckCircle2, ChevronLeft, ChevronRight } from 'lucide-react'
 import { SkeletonCardGrid, SkeletonTable, EmptyState, Pagination, PaginationInfo } from '@/components/ui'
 import { AdminTable, StatusBadge, BulkActionBar } from '@/components/admin'
 import type { Column } from '@/components/admin'
@@ -24,6 +24,8 @@ interface ChainTx {
   paymentId: string | null
   spinsCredited: number
   claimedBy: string | null
+  manualCredit: boolean
+  creditedByAdmin: string | null
 }
 
 interface ChainStats {
@@ -45,6 +47,13 @@ interface PreviewTx {
   blockNumber: number
   success: boolean
   suggestedSpins: number
+}
+
+interface PageBreakdown {
+  page: number
+  rpcBlocks: number
+  suiTxs: number
+  filtered: number
 }
 
 // ----------------------------------------
@@ -88,11 +97,15 @@ export default function AdminRevenuePage() {
   const [previewHasMore, setPreviewHasMore] = useState(false)
   const [previewCursor, setPreviewCursor] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [previewPage, setPreviewPage] = useState(1)
+  const [pageBreakdown, setPageBreakdown] = useState<PageBreakdown[]>([])
+  const [duplicatesFiltered, setDuplicatesFiltered] = useState(0)
+  const [totalRpcBlocks, setTotalRpcBlocks] = useState(0)
 
   // Selection + bulk credit
   const [selectedTxHashes, setSelectedTxHashes] = useState<string[]>([])
   const [bulkProcessing, setBulkProcessing] = useState(false)
-  const [bulkResult, setBulkResult] = useState<{ credited: number; skipped: number; failed: number } | null>(null)
+  const [bulkResult, setBulkResult] = useState<{ credited: number; skipped: number; failed: number; type?: 'credit' | 'sync' } | null>(null)
 
   // Dedup refs
   const txFetchingRef = useRef(false)
@@ -152,6 +165,10 @@ export default function AdminRevenuePage() {
         setPreviewTotalSUI(json.data.totalSUI)
         setPreviewHasMore(json.data.hasMore)
         setPreviewCursor(json.data.newCursor)
+        setPageBreakdown(json.data.pages || [])
+        setDuplicatesFiltered(json.data.duplicatesFiltered || 0)
+        setTotalRpcBlocks(json.data.totalRpcBlocks || 0)
+        setPreviewPage(1)
         setPreviewOpen(true)
       } else {
         alert(json.error || 'Sync preview failed')
@@ -191,6 +208,15 @@ export default function AdminRevenuePage() {
         // Refresh table
         lastTxFetchRef.current = ''
         fetchTxs()
+        // Show result with verification info
+        if (json.data.synced > 0 || json.data.duplicatesSkipped > 0 || json.data.rejected > 0) {
+          setBulkResult({
+            credited: json.data.synced,
+            skipped: json.data.duplicatesSkipped || 0,
+            failed: json.data.rejected || 0,
+            type: 'sync',
+          })
+        }
       } else {
         alert(json.error || 'Sync confirm failed')
       }
@@ -202,6 +228,10 @@ export default function AdminRevenuePage() {
   const handlePreviewClose = useCallback(() => {
     setPreviewOpen(false)
     setPreviewTxs([])
+    setPageBreakdown([])
+    setDuplicatesFiltered(0)
+    setTotalRpcBlocks(0)
+    setPreviewPage(1)
   }, [])
 
   // ---- Status filter ----
@@ -301,7 +331,20 @@ export default function AdminRevenuePage() {
     {
       key: 'dbStatus',
       header: 'Status',
-      render: (tx) => <StatusBadge status={tx.dbStatus} />,
+      render: (tx) => (
+        <div className="flex flex-col gap-0.5">
+          <StatusBadge status={tx.dbStatus} />
+          {tx.dbStatus === 'claimed' && (
+            <span className="text-[10px] text-[var(--text-secondary)]">
+              {tx.manualCredit
+                ? `by ${tx.creditedByAdmin || 'admin'}`
+                : tx.claimedBy
+                  ? 'user claim'
+                  : ''}
+            </span>
+          )}
+        </div>
+      ),
     },
     {
       key: 'timestamp',
@@ -414,15 +457,21 @@ export default function AdminRevenuePage() {
         </div>
       )}
 
-      {/* Bulk credit result */}
+      {/* Bulk action / sync result */}
       {bulkResult && (
         <div className="mb-4 p-3 rounded-lg bg-[var(--card)] border border-[var(--border)] text-sm">
-          <span className="text-[var(--success)] font-medium">{bulkResult.credited} credited</span>
+          <span className="text-[var(--success)] font-medium">
+            {bulkResult.credited} {bulkResult.type === 'sync' ? 'synced' : 'credited'}
+          </span>
           {bulkResult.skipped > 0 && (
-            <span className="text-[var(--text-secondary)]">, {bulkResult.skipped} skipped</span>
+            <span className="text-[var(--text-secondary)]">
+              , {bulkResult.skipped} {bulkResult.type === 'sync' ? 'duplicates skipped' : 'skipped'}
+            </span>
           )}
           {bulkResult.failed > 0 && (
-            <span className="text-[var(--error)]">, {bulkResult.failed} failed</span>
+            <span className="text-[var(--error)]">
+              , {bulkResult.failed} {bulkResult.type === 'sync' ? 'rejected (chain verify failed)' : 'failed'}
+            </span>
           )}
           <button
             onClick={() => setBulkResult(null)}
@@ -540,108 +589,177 @@ export default function AdminRevenuePage() {
       </div>
 
       {/* ====== Sync Preview Modal ====== */}
-      {previewOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          {/* Backdrop */}
-          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handlePreviewClose} />
+      {previewOpen && (() => {
+        const PREVIEW_PAGE_SIZE = 20
+        const previewTotalPages = Math.ceil(previewTxs.length / PREVIEW_PAGE_SIZE)
+        const previewStart = (previewPage - 1) * PREVIEW_PAGE_SIZE
+        const previewEnd = Math.min(previewStart + PREVIEW_PAGE_SIZE, previewTxs.length)
+        const visibleTxs = previewTxs.slice(previewStart, previewEnd)
+        const totalNonSuiFiltered = pageBreakdown.reduce((sum, p) => sum + p.filtered, 0)
 
-          {/* Modal */}
-          <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border)]">
-              <div>
-                <h3 className="text-lg font-bold">
-                  {previewTxs.length > 0
-                    ? `${previewTxs.length} new transaction${previewTxs.length !== 1 ? 's' : ''} found`
-                    : 'No new transactions'}
-                </h3>
-                {previewTxs.length > 0 && (
-                  <p className="text-sm text-[var(--text-secondary)] mt-0.5">
-                    {previewTotalSUI.toFixed(4)} SUI total
-                  </p>
-                )}
-              </div>
-              <button onClick={handlePreviewClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
-                <X className="w-5 h-5 text-[var(--text-secondary)]" />
-              </button>
-            </div>
+        return (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            {/* Backdrop */}
+            <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={handlePreviewClose} />
 
-            {/* Body — scrollable list */}
-            <div className="flex-1 overflow-y-auto p-4 sm:p-5">
-              {previewTxs.length === 0 ? (
-                <div className="text-center py-8 text-[var(--text-secondary)]">
-                  <ArrowDownToLine className="w-10 h-10 mx-auto mb-3 opacity-40" />
-                  <p className="text-sm">Chain is fully synced. No new transactions since last sync.</p>
-                </div>
-              ) : (
-                <div className="space-y-2">
-                  {previewTxs.map((tx) => (
-                    <div
-                      key={tx.txHash}
-                      className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]"
-                    >
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-mono text-xs text-[var(--text-secondary)]">
-                            {tx.sender.slice(0, 8)}...{tx.sender.slice(-4)}
-                          </span>
-                          <a
-                            href={`https://suiscan.xyz/${suiNetwork}/tx/${tx.txHash}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-[var(--accent)] hover:underline"
-                          >
-                            <ExternalLink className="w-3 h-3" />
-                          </a>
-                        </div>
-                        <span className="text-xs text-[var(--text-secondary)]">
-                          {new Date(tx.timestamp).toLocaleString()}
+            {/* Modal */}
+            <div className="relative bg-[var(--card)] border border-[var(--border)] rounded-xl shadow-2xl w-full max-w-2xl max-h-[80vh] flex flex-col">
+              {/* Header */}
+              <div className="flex items-center justify-between p-4 sm:p-5 border-b border-[var(--border)]">
+                <div>
+                  <h3 className="text-lg font-bold">
+                    {previewTxs.length > 0
+                      ? `${previewTxs.length} new SUI transaction${previewTxs.length !== 1 ? 's' : ''} found`
+                      : 'No new transactions'}
+                  </h3>
+                  {previewTxs.length > 0 && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                      {previewTotalSUI.toFixed(4)} SUI total
+                      {pageBreakdown.length > 0 && (
+                        <span>
+                          {' '}· {pageBreakdown.length} RPC page{pageBreakdown.length !== 1 ? 's' : ''}
+                          {totalNonSuiFiltered > 0 && `, ${totalNonSuiFiltered} non-SUI filtered`}
+                          {duplicatesFiltered > 0 && `, ${duplicatesFiltered} duplicate${duplicatesFiltered !== 1 ? 's' : ''}`}
                         </span>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <p className="text-[var(--accent)] font-medium text-sm">{tx.amountSUI.toFixed(4)} SUI</p>
-                        <p className="text-xs text-[var(--warning)]">{tx.suggestedSpins} spin{tx.suggestedSpins !== 1 ? 's' : ''}</p>
-                      </div>
-                    </div>
+                      )}
+                    </p>
+                  )}
+                  {previewTxs.length === 0 && duplicatesFiltered > 0 && (
+                    <p className="text-sm text-[var(--text-secondary)] mt-0.5">
+                      {duplicatesFiltered} already in DB
+                    </p>
+                  )}
+                </div>
+                <button onClick={handlePreviewClose} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
+                  <X className="w-5 h-5 text-[var(--text-secondary)]" />
+                </button>
+              </div>
+
+              {/* Page breakdown chips */}
+              {pageBreakdown.length > 1 && (
+                <div className="px-4 sm:px-5 pt-3 flex flex-wrap gap-1.5">
+                  {pageBreakdown.map((p) => (
+                    <span
+                      key={p.page}
+                      className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-[var(--background)] border border-[var(--border)] text-[10px] text-[var(--text-secondary)]"
+                    >
+                      <span className="font-medium text-[var(--text-primary)]">P{p.page}</span>
+                      {p.rpcBlocks}→{p.suiTxs} SUI
+                      {p.filtered > 0 && (
+                        <span className="text-[var(--warning)]">({p.filtered} filtered)</span>
+                      )}
+                    </span>
                   ))}
                 </div>
               )}
 
-              {previewHasMore && (
-                <div className="mt-3 p-2.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-xs text-[var(--warning)]">
-                  More transactions available on chain. Save these first, then sync again.
-                </div>
-              )}
-            </div>
+              {/* Body — paginated list */}
+              <div className="flex-1 overflow-y-auto p-4 sm:p-5">
+                {previewTxs.length === 0 ? (
+                  <div className="text-center py-8 text-[var(--text-secondary)]">
+                    <ArrowDownToLine className="w-10 h-10 mx-auto mb-3 opacity-40" />
+                    <p className="text-sm">Chain is fully synced. No new transactions since last sync.</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      {visibleTxs.map((tx) => (
+                        <div
+                          key={tx.txHash}
+                          className="flex items-center justify-between gap-3 p-3 rounded-lg bg-[var(--background)] border border-[var(--border)]"
+                        >
+                          <div className="min-w-0 flex-1">
+                            <div className="flex items-center gap-2 mb-1">
+                              <span className="font-mono text-xs text-[var(--text-secondary)]">
+                                {tx.sender.slice(0, 8)}...{tx.sender.slice(-4)}
+                              </span>
+                              <a
+                                href={`https://suiscan.xyz/${suiNetwork}/tx/${tx.txHash}`}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-[var(--accent)] hover:underline"
+                              >
+                                <ExternalLink className="w-3 h-3" />
+                              </a>
+                            </div>
+                            <span className="text-xs text-[var(--text-secondary)]">
+                              {new Date(tx.timestamp).toLocaleString()}
+                            </span>
+                          </div>
+                          <div className="text-right flex-shrink-0">
+                            <p className="text-[var(--accent)] font-medium text-sm">{tx.amountSUI.toFixed(4)} SUI</p>
+                            <p className="text-xs text-[var(--warning)]">{tx.suggestedSpins} spin{tx.suggestedSpins !== 1 ? 's' : ''}</p>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
 
-            {/* Footer */}
-            <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-[var(--border)]">
-              <button
-                onClick={handlePreviewClose}
-                className="btn btn-secondary text-sm"
-              >
-                Cancel
-              </button>
-              {previewTxs.length > 0 && (
+                    {/* Preview pagination */}
+                    {previewTotalPages > 1 && (
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-[var(--border)]">
+                        <span className="text-xs text-[var(--text-secondary)]">
+                          Showing {previewStart + 1}-{previewEnd} of {previewTxs.length}
+                        </span>
+                        <div className="flex items-center gap-1">
+                          <button
+                            onClick={() => setPreviewPage((p) => Math.max(1, p - 1))}
+                            disabled={previewPage <= 1}
+                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ChevronLeft className="w-4 h-4" />
+                          </button>
+                          <span className="text-xs text-[var(--text-secondary)] px-2">
+                            {previewPage} / {previewTotalPages}
+                          </span>
+                          <button
+                            onClick={() => setPreviewPage((p) => Math.min(previewTotalPages, p + 1))}
+                            disabled={previewPage >= previewTotalPages}
+                            className="p-1 rounded hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed"
+                          >
+                            <ChevronRight className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {previewHasMore && (
+                  <div className="mt-3 p-2.5 rounded-lg bg-[var(--warning)]/10 border border-[var(--warning)]/30 text-xs text-[var(--warning)]">
+                    More transactions available on chain. Save these first, then sync again.
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="flex items-center justify-end gap-3 p-4 sm:p-5 border-t border-[var(--border)]">
                 <button
-                  onClick={handleSyncConfirm}
-                  disabled={confirming}
-                  className="btn btn-primary text-sm"
+                  onClick={handlePreviewClose}
+                  className="btn btn-secondary text-sm"
                 >
-                  {confirming ? (
-                    <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Saving...
-                    </>
-                  ) : (
-                    `Save ${previewTxs.length} to DB`
-                  )}
+                  Cancel
                 </button>
-              )}
+                {previewTxs.length > 0 && (
+                  <button
+                    onClick={handleSyncConfirm}
+                    disabled={confirming}
+                    className="btn btn-primary text-sm"
+                  >
+                    {confirming ? (
+                      <>
+                        <RefreshCw className="w-4 h-4 animate-spin" />
+                        Saving...
+                      </>
+                    ) : (
+                      `Save ${previewTxs.length} to DB`
+                    )}
+                  </button>
+                )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      })()}
     </>
   )
 }

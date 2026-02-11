@@ -172,45 +172,6 @@ export interface Spin {
 }
 
 // ----------------------------------------
-// Payment Types
-// ----------------------------------------
-
-export type PaymentClaimStatus = 'unclaimed' | 'claimed' | 'manual' | 'pending_approval' | 'rejected'
-
-export interface Payment {
-  _id: string
-  
-  // TX Details
-  txHash: string
-  senderWallet: string
-  recipientWallet: string
-  amountMIST: string
-  amountSUI: number
-  
-  // Claim
-  claimStatus: PaymentClaimStatus
-  claimedBy: string | null
-  claimedAt: Date | null
-  
-  // Spins
-  spinsCredited: number
-  rateAtClaim: number
-  
-  // Manual credit
-  manualCredit: boolean
-  creditedByAdmin: string | null
-  adminNote: string | null
-  
-  // Blockchain
-  blockNumber: number
-  timestamp: Date
-  
-  // Processing
-  discoveredAt: Date
-  createdAt: Date
-}
-
-// ----------------------------------------
 // Referral Types
 // ----------------------------------------
 

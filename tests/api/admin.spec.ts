@@ -96,7 +96,6 @@ test.describe('Admin Auth', () => {
       '/api/admin/stats',
       '/api/admin/users',
       '/api/admin/distribute',
-      '/api/admin/revenue',
       '/api/admin/affiliates',
       '/api/admin/config',
       '/api/admin/logs',
@@ -206,57 +205,6 @@ test.describe('Admin APIs (authenticated)', () => {
       const res = await request.get('/api/admin/distribute?status=pending&wallet=0x', { headers: authHeaders() })
       expect(res.status()).toBe(200)
       expect((await res.json()).success).toBe(true)
-    })
-  })
-
-  // ------------------------------------------
-  // Revenue API
-  // ------------------------------------------
-
-  test.describe('Revenue API', () => {
-    test('returns stats and recentPayments', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue', { headers: authHeaders() })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      expect(json.success).toBe(true)
-      expect(json.data.stats).toBeTruthy()
-      expect(typeof json.data.stats.totalRevenueSUI).toBe('number')
-      expect(typeof json.data.stats.totalPayments).toBe('number')
-      expect(Array.isArray(json.data.recentPayments)).toBe(true)
-    })
-
-    test('pagination limits results', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?page=1&limit=3', { headers: authHeaders() })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      expect(json.pagination.page).toBe(1)
-      expect(json.pagination.limit).toBe(3)
-      expect(json.data.recentPayments.length).toBeLessThanOrEqual(3)
-    })
-
-    test('status filter returns matching payments', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?status=claimed', { headers: authHeaders() })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      for (const p of json.data.recentPayments) {
-        expect(p.claimStatus).toBe('claimed')
-      }
-    })
-
-    test('date range filter accepted', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?dateFrom=2024-01-01&dateTo=2030-12-31', { headers: authHeaders() })
-      expect(res.status()).toBe(200)
-      expect((await res.json()).success).toBe(true)
-    })
-
-    test('sorting by amount desc returns ordered results', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?sortBy=amountSUI&sortOrder=desc&limit=20', { headers: authHeaders() })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      const amounts = json.data.recentPayments.map((p: any) => p.amountSUI)
-      for (let i = 1; i < amounts.length; i++) {
-        expect(amounts[i - 1]).toBeGreaterThanOrEqual(amounts[i])
-      }
     })
   })
 

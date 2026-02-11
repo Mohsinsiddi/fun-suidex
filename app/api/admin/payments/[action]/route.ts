@@ -7,7 +7,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
-import { PaymentModel, UserModel, AdminConfigModel, AdminLogModel } from '@/lib/db/models'
+import { ChainTransactionModel, UserModel, AdminConfigModel, AdminLogModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { validateBody, mongoIdSchema } from '@/lib/validations'
 import { z } from 'zod'
@@ -85,13 +85,13 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
 
   const { paymentId, note } = data
 
-  // Find payment
-  const payment = await PaymentModel.findOne({
+  // Find chain transaction
+  const chainTx = await ChainTransactionModel.findOne({
     _id: paymentId,
-    claimStatus: 'pending_approval',
+    creditStatus: 'pending_approval',
   })
 
-  if (!payment) {
+  if (!chainTx) {
     return NextResponse.json(
       { success: false, error: 'Payment not found or not pending approval' },
       { status: 404 }
@@ -108,7 +108,7 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
   }
 
   // Calculate spins
-  const spinsCredited = Math.floor(+(payment.amountSUI / config.spinRateSUI).toFixed(6))
+  const spinsCredited = Math.floor(+(chainTx.amountSUI / config.spinRateSUI).toFixed(6))
 
   if (spinsCredited <= 0) {
     return NextResponse.json(
@@ -117,12 +117,12 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
     )
   }
 
-  // Update payment atomically
-  const updatedPayment = await PaymentModel.findOneAndUpdate(
-    { _id: paymentId, claimStatus: 'pending_approval' },
+  // Update chain transaction atomically
+  const updated = await ChainTransactionModel.findOneAndUpdate(
+    { _id: paymentId, creditStatus: 'pending_approval' },
     {
       $set: {
-        claimStatus: 'claimed',
+        creditStatus: 'credited',
         spinsCredited,
         creditedByAdmin: adminUsername,
         adminNote: note || null,
@@ -131,7 +131,7 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
     { new: true }
   )
 
-  if (!updatedPayment) {
+  if (!updated) {
     return NextResponse.json(
       { success: false, error: 'Payment was already processed' },
       { status: 409 }
@@ -140,15 +140,15 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
 
   // Credit spins to user
   const updatedUser = await UserModel.findOneAndUpdate(
-    { wallet: payment.claimedBy },
+    { wallet: chainTx.claimedBy },
     { $inc: { purchasedSpins: spinsCredited } },
     { new: true }
   )
 
   if (!updatedUser) {
-    // Rollback payment status
-    await PaymentModel.findByIdAndUpdate(paymentId, {
-      $set: { claimStatus: 'pending_approval', spinsCredited: 0, creditedByAdmin: null, adminNote: null },
+    // Rollback
+    await ChainTransactionModel.findByIdAndUpdate(paymentId, {
+      $set: { creditStatus: 'pending_approval', spinsCredited: 0, creditedByAdmin: null, adminNote: null },
     })
     return NextResponse.json(
       { success: false, error: 'User not found. Payment rolled back.' },
@@ -162,8 +162,8 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
     adminUsername,
     targetType: 'payment',
     targetId: paymentId,
-    before: { claimStatus: 'pending_approval', spinsCredited: 0 },
-    after: { claimStatus: 'claimed', spinsCredited, wallet: payment.claimedBy },
+    before: { creditStatus: 'pending_approval', spinsCredited: 0 },
+    after: { creditStatus: 'credited', spinsCredited, wallet: chainTx.claimedBy },
     ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
   })
 
@@ -172,8 +172,8 @@ async function handleApprove(request: NextRequest, adminUsername: string) {
     data: {
       paymentId,
       spinsCredited,
-      wallet: payment.claimedBy,
-      amountSUI: payment.amountSUI,
+      wallet: chainTx.claimedBy,
+      amountSUI: chainTx.amountSUI,
     },
   })
 }
@@ -188,19 +188,19 @@ async function handleReject(request: NextRequest, adminUsername: string) {
 
   const { paymentId, reason } = data
 
-  // Find and update payment atomically
-  const updatedPayment = await PaymentModel.findOneAndUpdate(
-    { _id: paymentId, claimStatus: 'pending_approval' },
+  // Find and update atomically
+  const updated = await ChainTransactionModel.findOneAndUpdate(
+    { _id: paymentId, creditStatus: 'pending_approval' },
     {
       $set: {
-        claimStatus: 'rejected',
+        creditStatus: 'rejected',
         adminNote: reason || null,
       },
     },
     { new: true }
   )
 
-  if (!updatedPayment) {
+  if (!updated) {
     return NextResponse.json(
       { success: false, error: 'Payment not found or not pending approval' },
       { status: 404 }
@@ -213,8 +213,8 @@ async function handleReject(request: NextRequest, adminUsername: string) {
     adminUsername,
     targetType: 'payment',
     targetId: paymentId,
-    before: { claimStatus: 'pending_approval' },
-    after: { claimStatus: 'rejected', reason: reason || null },
+    before: { creditStatus: 'pending_approval' },
+    after: { creditStatus: 'rejected', reason: reason || null },
     ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
   })
 

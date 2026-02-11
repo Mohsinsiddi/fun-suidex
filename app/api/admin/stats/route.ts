@@ -4,7 +4,7 @@
 
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
-import { UserModel, SpinModel, PaymentModel } from '@/lib/db/models'
+import { UserModel, SpinModel, ChainTransactionModel } from '@/lib/db/models'
 import { verifyAdminToken } from '@/lib/auth/jwt'
 import { cookies } from 'next/headers'
 
@@ -47,12 +47,12 @@ export async function GET(req: NextRequest) {
       SpinModel.countDocuments(),
       SpinModel.countDocuments({ status: 'pending', prizeAmount: { $gt: 0 } }),
       SpinModel.countDocuments({ createdAt: { $gte: startOfDay } }),
-      PaymentModel.aggregate([
-        { $match: { claimStatus: 'claimed' } },
+      ChainTransactionModel.aggregate([
+        { $match: { creditStatus: 'credited' } },
         { $group: { _id: null, total: { $sum: '$amountSUI' } } },
       ]),
-      PaymentModel.aggregate([
-        { $match: { claimStatus: 'claimed', claimedAt: { $gte: startOfDay } } },
+      ChainTransactionModel.aggregate([
+        { $match: { creditStatus: 'credited', claimedAt: { $gte: startOfDay } } },
         { $group: { _id: null, total: { $sum: '$amountSUI' } } },
       ]),
     ])

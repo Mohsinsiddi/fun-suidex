@@ -264,37 +264,6 @@ test.describe('Admin Payments API (authenticated)', () => {
   })
 
   // ------------------------------------------
-  // Revenue API - Status Filters
-  // ------------------------------------------
-
-  test.describe('Revenue API - Rejected Filter', () => {
-    test('rejected status filter is accepted', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?status=rejected', {
-        headers: authHeaders(),
-      })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      expect(json.success).toBe(true)
-      // All returned payments (if any) should have rejected status
-      for (const p of json.data.recentPayments) {
-        expect(p.claimStatus).toBe('rejected')
-      }
-    })
-
-    test('pending_approval status filter still works', async ({ request }) => {
-      const res = await request.get('/api/admin/revenue?status=pending_approval', {
-        headers: authHeaders(),
-      })
-      expect(res.status()).toBe(200)
-      const json = await res.json()
-      expect(json.success).toBe(true)
-      for (const p of json.data.recentPayments) {
-        expect(p.claimStatus).toBe('pending_approval')
-      }
-    })
-  })
-
-  // ------------------------------------------
   // Audit Logs - Payment Actions
   // ------------------------------------------
 

@@ -21,8 +21,16 @@ export interface ChainTransaction {
   blockNumber: number
   success: boolean
   creditStatus: 'new' | 'credited' | 'unclaimed' | 'pending_approval' | 'rejected'
-  paymentId: string | null
   discoveredAt: Date
+
+  // Claim / credit fields (formerly on Payment)
+  spinsCredited: number
+  rateAtClaim: number | null
+  claimedBy: string | null
+  claimedAt: Date | null
+  manualCredit: boolean
+  creditedByAdmin: string | null
+  adminNote: string | null
 }
 
 export interface ChainTransactionDocument extends Omit<ChainTransaction, '_id'>, Document {}
@@ -77,13 +85,40 @@ const ChainTransactionSchema = new Schema<ChainTransactionDocument>(
       default: 'new',
       index: true,
     },
-    paymentId: {
-      type: String,
-      default: null,
-    },
     discoveredAt: {
       type: Date,
       default: Date.now,
+    },
+
+    // Claim / credit fields (formerly on Payment)
+    spinsCredited: {
+      type: Number,
+      default: 0,
+    },
+    rateAtClaim: {
+      type: Number,
+      default: null,
+    },
+    claimedBy: {
+      type: String,
+      default: null,
+      lowercase: true,
+    },
+    claimedAt: {
+      type: Date,
+      default: null,
+    },
+    manualCredit: {
+      type: Boolean,
+      default: false,
+    },
+    creditedByAdmin: {
+      type: String,
+      default: null,
+    },
+    adminNote: {
+      type: String,
+      default: null,
     },
   },
   {

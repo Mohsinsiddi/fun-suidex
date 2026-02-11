@@ -8,7 +8,6 @@ import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { connectDB } from '@/lib/db/mongodb'
 import {
-  PaymentModel,
   UserModel,
   AdminConfigModel,
   AdminLogModel,
@@ -55,9 +54,9 @@ const postSchema = z.discriminatedUnion('action', [
 // Helpers
 // ----------------------------------------
 
-/** Upsert chain TXs into ChainTransaction collection */
-async function upsertChainTxs(txs: TransactionInfo[]) {
-  if (txs.length === 0) return
+/** Upsert chain TXs into ChainTransaction collection. Returns insert/existed counts. */
+async function upsertChainTxs(txs: TransactionInfo[]): Promise<{ inserted: number; existed: number }> {
+  if (txs.length === 0) return { inserted: 0, existed: 0 }
 
   const ops = txs.map((tx) => ({
     updateOne: {
@@ -73,7 +72,6 @@ async function upsertChainTxs(txs: TransactionInfo[]) {
           blockNumber: tx.blockNumber,
           success: tx.success,
           creditStatus: 'new',
-          paymentId: null,
           discoveredAt: new Date(),
         },
       },
@@ -81,33 +79,8 @@ async function upsertChainTxs(txs: TransactionInfo[]) {
     },
   }))
 
-  await ChainTransactionModel.bulkWrite(ops, { ordered: false })
-}
-
-/** Sync credit statuses from Payment collection into ChainTransaction */
-async function syncCreditStatuses(txHashes: string[]) {
-  if (txHashes.length === 0) return
-
-  const payments = await PaymentModel.find(
-    { txHash: { $in: txHashes } },
-    { txHash: 1, claimStatus: 1, _id: 1 }
-  ).lean()
-
-  if (payments.length === 0) return
-
-  const ops = payments.map((p) => ({
-    updateOne: {
-      filter: { txHash: p.txHash },
-      update: {
-        $set: {
-          creditStatus: p.claimStatus === 'claimed' ? 'credited' : p.claimStatus,
-          paymentId: String(p._id),
-        },
-      },
-    },
-  }))
-
-  await ChainTransactionModel.bulkWrite(ops, { ordered: false })
+  const result = await ChainTransactionModel.bulkWrite(ops, { ordered: false })
+  return { inserted: result.upsertedCount, existed: txs.length - result.upsertedCount }
 }
 
 // ----------------------------------------
@@ -154,18 +127,9 @@ export async function GET(request: NextRequest) {
       ChainTransactionModel.countDocuments(query),
     ])
 
-    // Cross-reference with Payment DB for spinsCredited + claimedBy
-    const txHashes = docs.map((d) => d.txHash)
-    const payments = txHashes.length > 0
-      ? await PaymentModel.find({ txHash: { $in: txHashes } }).lean()
-      : []
-    const paymentMap = new Map(payments.map((p) => [p.txHash, p]))
-
     const transactions = docs.map((doc) => {
-      const payment = paymentMap.get(doc.txHash)
-      const dbStatus = payment
-        ? payment.claimStatus
-        : doc.creditStatus === 'credited' ? 'claimed' : doc.creditStatus
+      // Map creditStatus to dbStatus for frontend compatibility
+      const dbStatus = doc.creditStatus === 'credited' ? 'claimed' : doc.creditStatus
 
       return {
         txHash: doc.txHash,
@@ -176,9 +140,11 @@ export async function GET(request: NextRequest) {
         timestamp: doc.timestamp,
         success: doc.success,
         dbStatus,
-        paymentId: payment ? String(payment._id) : doc.paymentId,
-        spinsCredited: payment ? payment.spinsCredited : 0,
-        claimedBy: payment ? payment.claimedBy : null,
+        paymentId: String(doc._id),
+        spinsCredited: doc.spinsCredited || 0,
+        claimedBy: doc.claimedBy || null,
+        manualCredit: doc.manualCredit || false,
+        creditedByAdmin: doc.creditedByAdmin || null,
       }
     })
 
@@ -282,6 +248,7 @@ async function handleSyncPreview() {
   const maxPages = 20
   const allTxs: TransactionInfo[] = []
   let newCursor: string | null = storedCursor
+  const pages: Array<{ page: number; rpcBlocks: number; suiTxs: number; filtered: number }> = []
 
   console.log('[chain-sync-preview] starting', {
     adminWallet: config.adminWalletAddress,
@@ -299,8 +266,17 @@ async function handleSyncPreview() {
       'ascending'
     )
 
-    console.log('[chain-sync-preview] page', pageNum, {
-      txCount: chainPage.transactions.length,
+    pages.push({
+      page: pageNum + 1,
+      rpcBlocks: chainPage.rpcBlockCount,
+      suiTxs: chainPage.transactions.length,
+      filtered: chainPage.rpcBlockCount - chainPage.transactions.length,
+    })
+
+    console.log('[chain-sync-preview] page', pageNum + 1, {
+      rpcBlocks: chainPage.rpcBlockCount,
+      suiTxs: chainPage.transactions.length,
+      filtered: chainPage.rpcBlockCount - chainPage.transactions.length,
       hasNextPage: chainPage.hasNextPage,
     })
 
@@ -313,7 +289,53 @@ async function handleSyncPreview() {
     }
 
     cursor = chainPage.nextCursor
-    hasMore = chainPage.hasNextPage && chainPage.transactions.length > 0
+    hasMore = chainPage.hasNextPage
+  }
+
+  // Safety net: query recent TXs in descending order (no cursor)
+  // to catch any TXs that fell behind the cursor due to RPC indexing lag.
+  // Stops early if a full page has zero new TXs (all already known).
+  const cursorTxHashes = new Set(allTxs.map((t) => t.txHash))
+  let safetyNetCount = 0
+
+  if (storedCursor) {
+    const safetyMaxPages = 2
+    let safetyCursor: string | null = null
+    let safetyHasMore = true
+
+    for (let i = 0; i < safetyMaxPages && safetyHasMore; i++) {
+      const safetyPage = await getIncomingTransactions(
+        config.adminWalletAddress,
+        lookbackDate,
+        now,
+        safetyCursor,
+        50,
+        'descending'
+      )
+
+      let pageNewCount = 0
+      for (const tx of safetyPage.transactions) {
+        if (!cursorTxHashes.has(tx.txHash)) {
+          allTxs.push(tx)
+          cursorTxHashes.add(tx.txHash)
+          safetyNetCount++
+          pageNewCount++
+        }
+      }
+
+      // Stop early: if this entire page had nothing new, deeper pages won't either
+      if (pageNewCount === 0 && safetyPage.transactions.length > 0) {
+        console.log('[chain-sync-preview] safety net: page', i + 1, 'had 0 new TXs, stopping early')
+        break
+      }
+
+      safetyCursor = safetyPage.nextCursor
+      safetyHasMore = safetyPage.hasNextPage
+    }
+
+    if (safetyNetCount > 0) {
+      console.log('[chain-sync-preview] safety net caught', safetyNetCount, 'TXs missed by cursor')
+    }
   }
 
   // Filter out TXs already in DB
@@ -327,14 +349,20 @@ async function handleSyncPreview() {
     : new Set<string>()
 
   const newTxs = allTxs.filter((tx) => !existingHashes.has(tx.txHash))
+  const duplicatesFiltered = allTxs.length - newTxs.length
+  const totalRpcBlocks = pages.reduce((sum, p) => sum + p.rpcBlocks, 0)
 
   const totalSUI = newTxs.reduce((sum, tx) => sum + tx.amountSUI, 0)
 
   console.log('[chain-sync-preview] done', {
     totalFetched: allTxs.length,
     newCount: newTxs.length,
+    duplicatesFiltered,
+    safetyNetCaught: safetyNetCount,
+    totalRpcBlocks,
     totalSUI,
     hasMore,
+    pages,
   })
 
   return NextResponse.json({
@@ -356,6 +384,9 @@ async function handleSyncPreview() {
       hasMore,
       newCursor,
       rate: config.spinRateSUI,
+      pages,
+      duplicatesFiltered,
+      totalRpcBlocks,
     },
   })
 }
@@ -387,30 +418,52 @@ async function handleSyncConfirm(
   const storedCursor = config.chainSyncCursor || null
   const now = new Date()
 
-  // Convert preview TXs to TransactionInfo format and upsert
-  const txInfos: TransactionInfo[] = transactions.map((tx) => ({
-    txHash: tx.txHash,
-    sender: tx.sender,
-    recipient: tx.recipient,
-    amountMIST: tx.amountMIST,
-    amountSUI: tx.amountSUI,
-    timestamp: new Date(tx.timestamp),
-    blockNumber: tx.blockNumber,
-    success: tx.success,
-  }))
+  // Re-verify every TX against the blockchain before saving
+  // Process in batches of 20 to avoid overwhelming the RPC
+  const BATCH_SIZE = 20
+  const verifiedTxs: TransactionInfo[] = []
+  const rejected: Array<{ txHash: string; reason: string }> = []
 
-  if (txInfos.length > 0) {
-    await upsertChainTxs(txInfos)
+  for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
+    const batch = transactions.slice(i, i + BATCH_SIZE)
+    const results = await Promise.allSettled(
+      batch.map((tx) => getTransaction(tx.txHash))
+    )
+
+    for (let j = 0; j < results.length; j++) {
+      const frontendTx = batch[j]
+      const result = results[j]
+
+      if (result.status === 'rejected' || !result.value) {
+        rejected.push({ txHash: frontendTx.txHash, reason: 'Not found on-chain' })
+        continue
+      }
+
+      const chainTx = result.value
+
+      // Verify key fields match — use on-chain data, not frontend data
+      if (chainTx.recipient.toLowerCase() !== config.adminWalletAddress.toLowerCase()) {
+        rejected.push({ txHash: frontendTx.txHash, reason: 'Recipient mismatch' })
+        continue
+      }
+
+      if (!chainTx.success) {
+        rejected.push({ txHash: frontendTx.txHash, reason: 'TX failed on-chain' })
+        continue
+      }
+
+      // Use the verified on-chain data (not frontend data)
+      verifiedTxs.push(chainTx)
+    }
   }
 
-  // Sync credit statuses for 'new' TXs
-  const newTxDocs = await ChainTransactionModel.find(
-    { creditStatus: 'new' },
-    { txHash: 1 }
-  ).lean()
-  if (newTxDocs.length > 0) {
-    await syncCreditStatuses(newTxDocs.map((d) => d.txHash))
+  if (rejected.length > 0) {
+    console.log('[chain-sync-confirm] rejected', rejected.length, 'TXs:', rejected)
   }
+
+  const insertResult = verifiedTxs.length > 0
+    ? await upsertChainTxs(verifiedTxs)
+    : { inserted: 0, existed: 0 }
 
   // Update cursor and lastSyncAt
   await AdminConfigModel.findByIdAndUpdate('main', {
@@ -428,16 +481,24 @@ async function handleSyncConfirm(
     targetType: 'chain_transaction',
     targetId: `sync_${transactions.length}`,
     before: { cursor: storedCursor },
-    after: { cursor: newCursor, synced: transactions.length },
+    after: {
+      cursor: newCursor,
+      synced: insertResult.inserted,
+      duplicatesSkipped: insertResult.existed,
+      rejected: rejected.length,
+    },
     ip: request.headers.get('x-forwarded-for') || request.headers.get('x-real-ip') || 'unknown',
   })
 
-  console.log('[chain-sync-confirm] saved', transactions.length, 'TXs, cursor updated')
+  console.log('[chain-sync-confirm] verified:', verifiedTxs.length, '| saved:', insertResult.inserted, '| dupes:', insertResult.existed, '| rejected:', rejected.length)
 
   return NextResponse.json({
     success: true,
     data: {
-      synced: transactions.length,
+      synced: insertResult.inserted,
+      duplicatesSkipped: insertResult.existed,
+      rejected: rejected.length,
+      rejectedDetails: rejected.length > 0 ? rejected : undefined,
       lastSyncAt: now,
     },
   })
@@ -466,9 +527,9 @@ async function handleCredit(
     return NextResponse.json({ success: false, error: 'System configuration not found' }, { status: 500 })
   }
 
-  // Check which TXs already exist in Payment DB
-  const existingPayments = await PaymentModel.find({ txHash: { $in: txHashes } }).lean()
-  const existingMap = new Map(existingPayments.map((p) => [p.txHash, p]))
+  // Check which TXs already exist in ChainTransaction with credited/pending_approval status
+  const existingTxs = await ChainTransactionModel.find({ txHash: { $in: txHashes } }).lean()
+  const existingMap = new Map(existingTxs.map((t) => [t.txHash, t]))
 
   const details: Array<{
     txHash: string
@@ -483,27 +544,26 @@ async function handleCredit(
   let failed = 0
 
   for (const txHash of txHashes) {
-    // Skip if already claimed/pending_approval
+    // Skip if already credited/pending_approval
     const existing = existingMap.get(txHash)
-    if (existing && (existing.claimStatus === 'claimed' || existing.claimStatus === 'pending_approval')) {
-      details.push({ txHash, status: 'skipped', reason: `Already ${existing.claimStatus}` })
+    if (existing && (existing.creditStatus === 'credited' || existing.creditStatus === 'pending_approval')) {
+      details.push({ txHash, status: 'skipped', reason: `Already ${existing.creditStatus}` })
       skipped++
       continue
     }
 
     // Try to get from ChainTransaction cache first, then fallback to chain
     let tx: TransactionInfo | null = null
-    const cached = await ChainTransactionModel.findOne({ txHash }).lean()
-    if (cached) {
+    if (existing) {
       tx = {
-        txHash: cached.txHash,
-        sender: cached.sender,
-        recipient: cached.recipient,
-        amountMIST: cached.amountMIST,
-        amountSUI: cached.amountSUI,
-        timestamp: cached.timestamp,
-        blockNumber: cached.blockNumber,
-        success: cached.success,
+        txHash: existing.txHash,
+        sender: existing.sender,
+        recipient: existing.recipient,
+        amountMIST: existing.amountMIST,
+        amountSUI: existing.amountSUI,
+        timestamp: existing.timestamp,
+        blockNumber: existing.blockNumber,
+        success: existing.success,
       }
     } else {
       tx = await getTransaction(txHash)
@@ -538,32 +598,30 @@ async function handleCredit(
     // Check if user exists
     const user = await UserModel.findOne({ wallet: tx.sender })
 
-    // Create or update payment record
-    const paymentData = {
-      txHash: tx.txHash,
-      senderWallet: tx.sender,
-      recipientWallet: tx.recipient,
-      amountMIST: tx.amountMIST,
-      amountSUI: tx.amountSUI,
-      blockNumber: tx.blockNumber,
-      timestamp: tx.timestamp,
-      rateAtClaim: config.spinRateSUI,
-      manualCredit: true,
-      creditedByAdmin: payload.username,
-      discoveredAt: new Date(),
-    }
-
     if (user) {
-      // User exists -> credit spins
-      const paymentDoc = await PaymentModel.findOneAndUpdate(
+      // User exists -> credit spins directly on ChainTransaction
+      await ChainTransactionModel.findOneAndUpdate(
         { txHash: tx.txHash },
         {
+          $setOnInsert: {
+            txHash: tx.txHash,
+            sender: tx.sender,
+            recipient: tx.recipient,
+            amountMIST: tx.amountMIST,
+            amountSUI: tx.amountSUI,
+            blockNumber: tx.blockNumber,
+            timestamp: tx.timestamp,
+            success: tx.success,
+            discoveredAt: new Date(),
+          },
           $set: {
-            ...paymentData,
-            claimStatus: 'claimed',
+            creditStatus: 'credited',
             claimedBy: tx.sender,
             claimedAt: new Date(),
             spinsCredited,
+            rateAtClaim: config.spinRateSUI,
+            manualCredit: true,
+            creditedByAdmin: payload.username,
           },
         },
         { upsert: true, new: true }
@@ -574,33 +632,34 @@ async function handleCredit(
         { $inc: { purchasedSpins: spinsCredited } }
       )
 
-      // Update ChainTransaction cache
-      await ChainTransactionModel.findOneAndUpdate(
-        { txHash: tx.txHash },
-        { $set: { creditStatus: 'credited', paymentId: String(paymentDoc._id) } }
-      )
-
       details.push({ txHash, status: 'credited', spinsCredited, wallet: tx.sender })
       credited++
     } else {
-      // No user -> store payment as unclaimed
-      const paymentDoc = await PaymentModel.findOneAndUpdate(
+      // No user -> store as unclaimed
+      await ChainTransactionModel.findOneAndUpdate(
         { txHash: tx.txHash },
         {
+          $setOnInsert: {
+            txHash: tx.txHash,
+            sender: tx.sender,
+            recipient: tx.recipient,
+            amountMIST: tx.amountMIST,
+            amountSUI: tx.amountSUI,
+            blockNumber: tx.blockNumber,
+            timestamp: tx.timestamp,
+            success: tx.success,
+            discoveredAt: new Date(),
+          },
           $set: {
-            ...paymentData,
-            claimStatus: 'unclaimed',
+            creditStatus: 'unclaimed',
             claimedBy: tx.sender,
             spinsCredited: 0,
+            rateAtClaim: config.spinRateSUI,
+            manualCredit: true,
+            creditedByAdmin: payload.username,
           },
         },
         { upsert: true, new: true }
-      )
-
-      // Update ChainTransaction cache
-      await ChainTransactionModel.findOneAndUpdate(
-        { txHash: tx.txHash },
-        { $set: { creditStatus: 'unclaimed', paymentId: String(paymentDoc._id) } }
       )
 
       details.push({ txHash, status: 'skipped', reason: 'User not registered — payment saved as unclaimed' })

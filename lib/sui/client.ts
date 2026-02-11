@@ -39,6 +39,7 @@ export interface IncomingTxPage {
   transactions: TransactionInfo[]
   nextCursor: string | null
   hasNextPage: boolean
+  rpcBlockCount: number  // blocks returned by RPC before client-side SUI filter
 }
 
 /**
@@ -72,7 +73,9 @@ export async function getIncomingTransactions(
       ...(cursor ? { cursor } : {}),
     })
 
-    console.log('[getIncomingTxs] RPC returned', txns.data.length, 'blocks for', recipientAddress)
+    const rpcBlockCount = txns.data.length
+
+    console.log('[getIncomingTxs] RPC returned', rpcBlockCount, 'blocks for', recipientAddress)
 
     for (const tx of txns.data) {
       // Parse timestamp
@@ -83,7 +86,7 @@ export async function getIncomingTransactions(
       // In ascending order, we rely on cursor position — skip by timestamp instead
       if (order === 'descending') {
         if (txTimestamp < fromTimestamp) {
-          return { transactions, nextCursor: null, hasNextPage: false }
+          return { transactions, nextCursor: null, hasNextPage: false, rpcBlockCount }
         }
       } else {
         // Ascending: skip TXs outside the time window
@@ -94,7 +97,7 @@ export async function getIncomingTransactions(
       if (txTimestamp > toTimestamp) {
         if (order === 'ascending') {
           // In ascending order, once we're past toTimestamp all remaining will be too
-          return { transactions, nextCursor: null, hasNextPage: false }
+          return { transactions, nextCursor: null, hasNextPage: false, rpcBlockCount }
         }
         continue
       }
@@ -132,10 +135,11 @@ export async function getIncomingTransactions(
       transactions,
       nextCursor: txns.nextCursor ?? null,
       hasNextPage: txns.hasNextPage,
+      rpcBlockCount,
     }
   } catch (error) {
     console.error('Error fetching transactions:', error)
-    return { transactions, nextCursor: null, hasNextPage: false }
+    return { transactions, nextCursor: null, hasNextPage: false, rpcBlockCount: 0 }
   }
 }
 
