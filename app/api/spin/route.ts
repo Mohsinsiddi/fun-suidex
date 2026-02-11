@@ -90,6 +90,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (!user) {
+      // No purchased spins, try free spins (from LP staking/swaps)
+      user = await UserModel.findOneAndUpdate(
+        { wallet: wallet, freeSpins: { $gt: 0 } },
+        { $inc: { freeSpins: -1 } },
+        { new: true }
+      )
+      spinType = 'free'
+    }
+
+    if (!user) {
       // Check if user exists but has no spins
       const existingUser = await UserModel.findOne({ wallet: wallet })
       if (!existingUser) {
@@ -134,7 +144,7 @@ export async function POST(request: NextRequest) {
     } catch (spinCreateError) {
       // Rollback: Restore the spin that was deducted
       console.error('Spin creation failed, rolling back spin deduction:', spinCreateError)
-      const rollbackField = spinType === 'bonus' ? 'bonusSpins' : 'purchasedSpins'
+      const rollbackField = spinType === 'bonus' ? 'bonusSpins' : spinType === 'free' ? 'freeSpins' : 'purchasedSpins'
       await UserModel.updateOne(
         { wallet: wallet },
         { $inc: { [rollbackField]: 1 } }
@@ -210,7 +220,7 @@ export async function POST(request: NextRequest) {
         prizeValueUSD: liveValueUSD,
         // Include updated spin counts so client doesn't need to refetch
         spins: {
-          free: 0, // freeSpins are always 0 (no longer used)
+          free: updatedUser?.freeSpins ?? 0,
           purchased: updatedUser?.purchasedSpins ?? 0,
           bonus: updatedUser?.bonusSpins ?? 0,
         },
@@ -241,7 +251,8 @@ export async function GET(request: NextRequest) {
     const user = await UserModel.findOne({ wallet })
     if (!user) return NextResponse.json({ success: false, error: ERRORS.UNAUTHORIZED }, { status: 401 })
 
-    const canSpin = user.purchasedSpins > 0 || user.bonusSpins > 0
+    const freeSpins = user.freeSpins || 0
+    const canSpin = user.purchasedSpins > 0 || user.bonusSpins > 0 || freeSpins > 0
 
     return NextResponse.json({
       success: true,
@@ -249,7 +260,7 @@ export async function GET(request: NextRequest) {
         canSpin,
         purchasedSpins: user.purchasedSpins,
         bonusSpins: user.bonusSpins,
-        freeSpinsAvailable: 0,
+        freeSpinsAvailable: freeSpins,
         nextFreeSpinAt: null,
         totalSpins: user.totalSpins,
         totalWinsUSD: user.totalWinsUSD,

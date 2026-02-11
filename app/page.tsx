@@ -207,6 +207,51 @@ function HomePageContent() {
           </div>
         </section>
 
+        {/* LP Staking / Swap Banner */}
+        <section className="py-8 sm:py-10 px-4">
+          <div className="max-w-5xl mx-auto">
+            <div className="relative rounded-2xl overflow-hidden border border-accent/20 bg-gradient-to-r from-accent/5 via-purple-500/5 to-accent/5">
+              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,229,255,0.08),transparent_50%)]" />
+              <div className="relative p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6">
+                {/* Pool Icons */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  <div className="flex -space-x-2">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-sm font-bold text-accent">V</div>
+                    <div className="w-10 h-10 rounded-full bg-blue-500/20 border-2 border-blue-500/40 flex items-center justify-center text-sm font-bold text-blue-400">$</div>
+                  </div>
+                  <div className="w-px h-8 bg-border/50 mx-1 hidden md:block" />
+                  <div className="flex -space-x-2">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-sm font-bold text-accent">V</div>
+                    <div className="w-10 h-10 rounded-full bg-[#4da2ff]/20 border-2 border-[#4da2ff]/40 flex items-center justify-center text-sm font-bold text-[#4da2ff]">S</div>
+                  </div>
+                </div>
+
+                {/* Text */}
+                <div className="flex-1 text-center md:text-left">
+                  <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
+                    Earn Free Spins by Staking LP or Swapping
+                  </h3>
+                  <p className="text-text-secondary text-sm">
+                    1 free spin for every <span className="text-accent font-semibold">$20</span> in LP staked or swapped on SuiDex
+                  </p>
+                </div>
+
+                {/* CTA */}
+                <a
+                  href="https://suidex.org"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-accent text-black hover:bg-accent-hover transition-all hover:scale-[1.02]"
+                >
+                  <Zap className="w-4 h-4" />
+                  Stake Now
+                  <ArrowRight className="w-4 h-4" />
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
         {/* Live Activity Feed */}
         <section className="py-8 sm:py-12 px-4 border-y border-border/50 bg-surface/30">
           <div className="max-w-6xl mx-auto">
@@ -303,7 +348,7 @@ function HomePageContent() {
                             })}
                             {/* Center Circle */}
                             <circle cx="100" cy="100" r="22" fill="#0f1218" stroke="#00e5ff" strokeWidth="3" filter="url(#glow)" />
-                            <text x="100" y="107" textAnchor="middle" fontSize="20" fill="white">🎰</text>
+                            <image href="/icons/icon-96.png" x="82" y="82" width="36" height="36" style={{ filter: 'drop-shadow(0 0 3px rgba(0,229,255,0.5))' }} />
                           </svg>
                         </div>
                       </div>
@@ -496,7 +541,7 @@ function HomePageContent() {
                                 )
                               })}
                               <circle cx="100" cy="100" r="18" fill="#0f1218" stroke="#00e5ff" strokeWidth="2" />
-                              <text x="100" y="105" textAnchor="middle" fontSize="14">🎰</text>
+                              <image href="/icons/icon-96.png" x="86" y="86" width="28" height="28" style={{ filter: 'drop-shadow(0 0 2px rgba(0,229,255,0.5))' }} />
                             </svg>
                           </div>
                         ) : game.slug === 'lottery' ? (

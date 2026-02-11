@@ -14,6 +14,7 @@ export interface User {
   sessions: UserSession[]
 
   // Spin balance
+  freeSpins: number
   purchasedSpins: number
   bonusSpins: number
 
@@ -205,6 +206,25 @@ export interface AffiliateReward {
 }
 
 // ----------------------------------------
+// LP Credit Types
+// ----------------------------------------
+
+export interface LPCredit {
+  _id: string
+  wallet: string
+  txHash: string
+  eventType: 'lp_stake' | 'swap' | 'other'
+  pair: string
+  amountUSD: number
+  spinsCredited: number
+  ratePerSpin: number
+  status: 'credited' | 'reversed'
+  creditedAt: Date
+  reversedAt: Date | null
+  metadata: Record<string, unknown>
+}
+
+// ----------------------------------------
 // Config Types
 // ----------------------------------------
 
@@ -252,6 +272,10 @@ export interface AdminConfig {
   profileSharingEnabled: boolean
   profileShareMinSpins: number
   earlyBirdCutoffDate: Date | null
+
+  // LP Credit
+  lpCreditEnabled: boolean
+  lpSpinRateUSD: number
 
   // Chain Sync
   chainSyncCursor: string | null

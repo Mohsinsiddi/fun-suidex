@@ -71,6 +71,10 @@ export const DEFAULT_ADMIN_CONFIG: Omit<AdminConfig, 'updatedAt' | 'updatedBy'> 
   profileShareMinSpins: 10,
   earlyBirdCutoffDate: null,
 
+  // LP Credit
+  lpCreditEnabled: true,
+  lpSpinRateUSD: 20,
+
   // Chain Sync
   chainSyncCursor: null,
   chainSyncLastAt: null,

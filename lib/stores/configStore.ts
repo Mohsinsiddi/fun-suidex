@@ -35,6 +35,8 @@ interface ConfigState {
   referralEnabled: boolean
   referralCommissionPercent: number
   freeSpinMinStakeUSD: number
+  lpCreditEnabled: boolean
+  lpSpinRateUSD: number
   tokenPrices: TokenPrices
 
   // Cache tracking
@@ -59,6 +61,8 @@ const initialState = {
   referralEnabled: false,
   referralCommissionPercent: 10,
   freeSpinMinStakeUSD: 20,
+  lpCreditEnabled: true,
+  lpSpinRateUSD: 20,
   tokenPrices: { vict: 0, trump: 0 },
   lastFetched: null,
 }
@@ -117,6 +121,8 @@ export const useConfigStore = create<ConfigState>()(
             referralEnabled: config.referralEnabled ?? false,
             referralCommissionPercent: config.referralCommissionPercent || 10,
             freeSpinMinStakeUSD: config.freeSpinMinStakeUSD || 20,
+            lpCreditEnabled: config.lpCreditEnabled ?? true,
+            lpSpinRateUSD: config.lpSpinRateUSD || 20,
             tokenPrices: config.tokenPrices || { vict: 0, trump: 0, victChange24h: 0, trumpChange24h: 0 },
             lastFetched: Date.now(),
             error: null,
@@ -147,6 +153,8 @@ export const useConfigStore = create<ConfigState>()(
         referralEnabled: state.referralEnabled,
         referralCommissionPercent: state.referralCommissionPercent,
         freeSpinMinStakeUSD: state.freeSpinMinStakeUSD,
+        lpCreditEnabled: state.lpCreditEnabled,
+        lpSpinRateUSD: state.lpSpinRateUSD,
         tokenPrices: state.tokenPrices,
         lastFetched: state.lastFetched,
       }),

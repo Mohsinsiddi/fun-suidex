@@ -61,7 +61,7 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
     // Build response
     const responseData: any = {
       wallet: user.wallet,
-      freeSpins: 0,
+      freeSpins: user.freeSpins || 0,
       purchasedSpins: user.purchasedSpins,
       bonusSpins: user.bonusSpins,
       totalSpins: user.totalSpins,

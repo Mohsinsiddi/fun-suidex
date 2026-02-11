@@ -37,14 +37,14 @@ export function Header() {
     <header className="sticky top-0 z-40">
       <div className="h-0.5 bg-gradient-to-r from-transparent via-accent to-transparent" />
 
-      <div className="bg-surface/95 backdrop-blur-md border-b border-border/50">
+      <div className="bg-[#080a0f]/95 backdrop-blur-md border-b border-border/30">
         <div className="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-          <div className="flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center justify-between h-16 sm:h-18">
             {/* Logo */}
             <Link href="/" className="flex items-center group flex-shrink-0">
               <div className="relative">
                 <div className="absolute inset-0 bg-accent/20 blur-xl rounded-full group-hover:bg-accent/30 transition-colors" />
-                <Image src="/logo-full.png" alt="SuiDex Games" width={200} height={64} className="relative h-8 lg:h-12 w-auto" priority />
+                <Image src="/logo-full.png" alt="SuiDex Games" width={200} height={64} className="relative h-10 sm:h-14 w-auto" priority />
               </div>
             </Link>
 
@@ -174,6 +174,7 @@ export function Header() {
 
         </div>
       </div>
+      <div className="h-px bg-gradient-to-r from-transparent via-accent/30 to-transparent" />
 
       {/* Mobile Sidebar Overlay */}
       <div

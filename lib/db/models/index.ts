@@ -15,6 +15,7 @@ export { UserBadgeModel } from './UserBadge'
 export { UserProfileModel } from './UserProfile'
 export { default as DistributionCheckpointModel } from './DistributionCheckpoint'
 export { default as ChainTransactionModel } from './ChainTransaction'
+export { default as LPCreditModel } from './LPCredit'
 
 // Re-export document types
 export type { UserDocument } from './User'
@@ -30,3 +31,4 @@ export type { UserBadgeDocument } from './UserBadge'
 export type { UserProfileDocument } from './UserProfile'
 export type { DistributionCheckpointDocument, DistributionCheckpoint } from './DistributionCheckpoint'
 export type { ChainTransactionDocument, ChainTransaction } from './ChainTransaction'
+export type { LPCreditDocument } from './LPCredit'

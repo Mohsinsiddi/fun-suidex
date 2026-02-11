@@ -158,6 +158,17 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
       default: null,  // Set by admin when launching
     },
 
+    // LP Credit
+    lpCreditEnabled: {
+      type: Boolean,
+      default: true,
+    },
+    lpSpinRateUSD: {
+      type: Number,
+      default: 20,
+      min: 1,
+    },
+
     // Chain Sync (cursor-based incremental sync)
     chainSyncCursor: {
       type: String,

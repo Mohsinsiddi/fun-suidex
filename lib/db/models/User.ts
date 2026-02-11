@@ -30,6 +30,7 @@ const PushSubscriptionSchema = new Schema({
 const UserSchema = new Schema<UserDocument>({
   wallet: { type: String, required: true, unique: true, lowercase: true },
   sessions: { type: [SessionSchema], default: [] },
+  freeSpins: { type: Number, default: 0 },
   purchasedSpins: { type: Number, default: 0 },
   bonusSpins: { type: Number, default: 0 },
   totalSpins: { type: Number, default: 0 },

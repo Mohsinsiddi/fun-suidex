@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
 import { SPIN_UI } from '@/constants'
-import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw } from 'lucide-react'
+import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw, Volume2, VolumeX } from 'lucide-react'
+import { soundManager } from '@/lib/utils/sounds'
 import Link from 'next/link'
 
 const DEFAULT_WHEEL_SLOTS: WheelSlot[] = [
@@ -79,6 +80,13 @@ export default function PWAGamePage() {
   const [modalPaused, setModalPaused] = useState(false)
   const pendingAutoSpinRef = useRef(false)
   const pendingResultRef = useRef<WheelSlot | null>(null)
+  const [isMuted, setIsMuted] = useState(true)
+
+  // Init sounds on mount
+  useEffect(() => {
+    soundManager.init()
+    setIsMuted(soundManager.muted)
+  }, [])
 
   const spins = { free: freeSpins, purchased: purchasedSpins, bonus: bonusSpins }
   const slotCount = wheelSlots.length
@@ -199,18 +207,26 @@ export default function PWAGamePage() {
     let deltaRotation = targetAngle - currentNormalized
     if (deltaRotation <= 0) deltaRotation += 360
     const fullRotations = (5 + Math.floor(Math.random() * 3)) * 360
-    setRotation(rotation + fullRotations + deltaRotation)
+    const totalSpinDegrees = fullRotations + deltaRotation
+    setRotation(rotation + totalSpinDegrees)
+
+    // Play tick sound — one tick per slot boundary crossing
+    soundManager.playTick(totalSpinDegrees, slotCount)
 
     setTimeout(() => {
       setIsSpinning(false)
+      soundManager.stopTick()
       // Use the captured slot to prevent flicker
       const winningSlot = pendingResultRef.current || wheelSlots[slotToLandOn]
       setResult(winningSlot)
       setModalPaused(false) // Reset pause state for new result
       pendingResultRef.current = null
       if (winningSlot.type !== 'no_prize') {
+        soundManager.playWin()
         setShowConfetti(true)
         setTimeout(() => setShowConfetti(false), SPIN_UI.CONFETTI_DURATION_MS)
+      } else {
+        soundManager.playNoPrize()
       }
     }, 6000) // Match wheel animation duration
   }
@@ -385,6 +401,13 @@ ${hashtags}`
               <div className="text-[10px] text-text-muted">Won</div>
             </div>
           </div>
+          <button
+            onClick={() => { soundManager.init(); setIsMuted(soundManager.toggleMute()) }}
+            className="p-2 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors"
+            title={isMuted ? 'Unmute sounds' : 'Mute sounds'}
+          >
+            {isMuted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
+          </button>
         </div>
 
         {/* Tabs */}
@@ -489,10 +512,20 @@ ${hashtags}`
                   )
                 })}
 
-                <circle cx={cx} cy={cy} r="38" fill="#0a1a0a" stroke="#00e5ff" strokeWidth="3" />
-                <circle cx={cx} cy={cy} r="30" fill="#0f1a2a" />
-                <circle cx={cx} cy={cy} r="22" fill="#0a1a0a" stroke="rgba(0,229,255,0.3)" strokeWidth="1" />
-                <text x={cx} y={cy + 1} textAnchor="middle" dominantBaseline="middle" fontSize="18">🎰</text>
+                <g style={isSpinning ? { animation: 'counter-rotate 3s linear infinite' } : undefined} transform-origin={`${cx} ${cy}`}>
+                  <circle cx={cx} cy={cy} r="38" fill="#0a1a0a" stroke="#00e5ff" strokeWidth="3">
+                    {!isSpinning && <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />}
+                  </circle>
+                  <circle cx={cx} cy={cy} r="30" fill="#0f1a2a" />
+                  <circle cx={cx} cy={cy} r="22" fill="#0a1a0a" stroke="rgba(0,229,255,0.3)" strokeWidth="1" />
+                  <image href="/icons/icon-96.png" x={cx - 22} y={cy - 22} width="44" height="44" style={{ filter: 'drop-shadow(0 0 4px rgba(0,229,255,0.5))' }} />
+                </g>
+                {isSpinning && (
+                  <circle cx={cx} cy={cy} r="50" fill="none" stroke="#00e5ff" strokeWidth="2" opacity="0.15">
+                    <animate attributeName="r" values="40;60;40" dur="1s" repeatCount="indefinite" />
+                    <animate attributeName="opacity" values="0.2;0.05;0.2" dur="1s" repeatCount="indefinite" />
+                  </circle>
+                )}
               </svg>
 
               {/* LED Lights */}
@@ -517,7 +550,7 @@ ${hashtags}`
             {/* Spin Button */}
             <div className="mt-5 w-full max-w-[280px] space-y-2">
               <button
-                onClick={handleSpin}
+                onClick={() => { soundManager.init(); handleSpin() }}
                 disabled={isSubmitting || isSpinning || totalSpins <= 0}
                 className={`w-full py-3.5 rounded-xl font-bold text-base transition-all ${
                   isSubmitting || isSpinning
@@ -526,8 +559,21 @@ ${hashtags}`
                       ? 'bg-gradient-to-r from-accent to-secondary text-black hover:shadow-lg hover:shadow-accent/30 active:scale-[0.98]'
                       : 'bg-gray-700 text-gray-400'
                 }`}
+                style={totalSpins > 0 && !isSubmitting && !isSpinning ? { animation: 'pulse-glow 2s ease-in-out infinite' } : undefined}
               >
-                {isSubmitting && !isSpinning ? '⏳ Loading...' : isSpinning ? '🎰 Spinning...' : totalSpins > 0 ? `🎯 SPIN (${totalSpins})` : '❌ No Spins'}
+                {isSubmitting && !isSpinning ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <RotateCw className="w-4 h-4 animate-spin" /> Loading...
+                  </span>
+                ) : isSpinning ? (
+                  <span className="flex items-center justify-center gap-2">
+                    <RotateCw className="w-4 h-4 animate-spin" /> Spinning...
+                  </span>
+                ) : totalSpins > 0 ? (
+                  `🎯 SPIN (${totalSpins})`
+                ) : (
+                  '❌ No Spins'
+                )}
               </button>
 
               {/* Auto-spin toggle */}
@@ -620,10 +666,12 @@ ${hashtags}`
                 <Sparkles className="w-4 h-4 text-accent" /> Your Spins
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between p-2.5 bg-background rounded-lg">
-                  <div className="flex items-center gap-2"><Gift className="w-4 h-4 text-accent" /><span className="text-text-secondary text-sm">Free</span></div>
-                  <span className="font-bold text-white">{spins.free}</span>
-                </div>
+                {spins.free > 0 && (
+                  <div className="flex items-center justify-between p-2.5 bg-green-500/10 border border-green-500/20 rounded-lg">
+                    <div className="flex items-center gap-2"><Gift className="w-4 h-4 text-green-400" /><span className="text-green-300 text-sm">Free (LP)</span></div>
+                    <span className="font-bold text-green-300">{spins.free}</span>
+                  </div>
+                )}
                 <div className="flex items-center justify-between p-2.5 bg-background rounded-lg">
                   <div className="flex items-center gap-2"><Coins className="w-4 h-4 text-yellow-400" /><span className="text-text-secondary text-sm">Purchased</span></div>
                   <span className="font-bold text-white">{spins.purchased}</span>
