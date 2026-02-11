@@ -5,6 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { useCurrentAccount, useSignPersonalMessage } from '@mysten/dapp-kit'
 import { GAMES } from '@/constants'
+import { TOKENS, LP_POOLS, SWAP_PAIRS, getPoolTokens } from '@/constants/pools'
 import { Header } from '@/components/shared/Header'
 import { Footer } from '@/components/shared/Footer'
 import { GameCard } from '@/components/ui/GameCard'
@@ -208,45 +209,94 @@ function HomePageContent() {
         </section>
 
         {/* LP Staking / Swap Banner */}
-        <section className="py-8 sm:py-10 px-4">
+        <section className="py-8 sm:py-12 px-4">
           <div className="max-w-5xl mx-auto">
-            <div className="relative rounded-2xl overflow-hidden border border-accent/20 bg-gradient-to-r from-accent/5 via-purple-500/5 to-accent/5">
-              <div className="absolute inset-0 bg-[radial-gradient(circle_at_20%_50%,rgba(0,229,255,0.08),transparent_50%)]" />
-              <div className="relative p-6 sm:p-8 flex flex-col md:flex-row items-center gap-6">
-                {/* Pool Icons */}
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <div className="flex -space-x-2">
-                    <div className="w-10 h-10 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-sm font-bold text-accent">V</div>
-                    <div className="w-10 h-10 rounded-full bg-blue-500/20 border-2 border-blue-500/40 flex items-center justify-center text-sm font-bold text-blue-400">$</div>
+            <div className="rounded-2xl border border-border/60 bg-gradient-to-b from-surface/80 to-background overflow-hidden">
+              {/* Banner Header */}
+              <div className="p-5 sm:p-6 border-b border-border/40 bg-gradient-to-r from-green-500/5 via-transparent to-accent/5">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg sm:text-xl font-bold text-white flex items-center gap-2">
+                      <Sparkles className="w-5 h-5 text-accent" />
+                      Earn Free Spins
+                    </h3>
+                    <p className="text-text-secondary text-sm mt-1">
+                      1 free spin for every <span className="text-accent font-semibold">$20</span> in LP staked or swapped on SuiDex
+                    </p>
                   </div>
-                  <div className="w-px h-8 bg-border/50 mx-1 hidden md:block" />
-                  <div className="flex -space-x-2">
-                    <div className="w-10 h-10 rounded-full bg-accent/20 border-2 border-accent/40 flex items-center justify-center text-sm font-bold text-accent">V</div>
-                    <div className="w-10 h-10 rounded-full bg-[#4da2ff]/20 border-2 border-[#4da2ff]/40 flex items-center justify-center text-sm font-bold text-[#4da2ff]">S</div>
+                  <div className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 border border-green-500/20">
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse" />
+                    <span className="text-[11px] font-medium text-green-400">Active</span>
                   </div>
                 </div>
+              </div>
 
-                {/* Text */}
-                <div className="flex-1 text-center md:text-left">
-                  <h3 className="text-lg sm:text-xl font-bold text-white mb-1">
-                    Earn Free Spins by Staking LP or Swapping
-                  </h3>
-                  <p className="text-text-secondary text-sm">
-                    1 free spin for every <span className="text-accent font-semibold">$20</span> in LP staked or swapped on SuiDex
-                  </p>
+              {/* LP Pools */}
+              <div className="p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Lock className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-xs font-semibold text-green-400 uppercase tracking-wider">Stake LP</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-green-500/20 to-transparent" />
                 </div>
+                <div className="grid sm:grid-cols-2 gap-3">
+                  {LP_POOLS.filter(p => p.enabled).map((pool) => {
+                    const { token0, token1 } = getPoolTokens(pool)
+                    return (
+                      <a
+                        key={pool.id}
+                        href={pool.farmUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group relative flex items-center gap-3 p-4 rounded-xl border border-border/60 bg-[#0a0c10]/60 hover:border-green-500/30 hover:bg-green-500/5 transition-all"
+                      >
+                        <div className="flex -space-x-2 flex-shrink-0">
+                          <img src={token0.logo} alt={token0.symbol} className="w-9 h-9 rounded-full border-2 border-[#0a0c10] bg-[#0a0c10]" />
+                          <img src={token1.logo} alt={token1.symbol} className="w-9 h-9 rounded-full border-2 border-[#0a0c10] bg-[#0a0c10]" />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <div className="text-sm font-semibold text-white">{pool.label}</div>
+                          <div className="text-[11px] text-text-muted">farm.suidex.org</div>
+                        </div>
+                        <div className="flex items-center gap-1.5 text-xs font-medium text-green-400 opacity-60 group-hover:opacity-100 transition-opacity">
+                          <span>Stake</span>
+                          <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+                        </div>
+                      </a>
+                    )
+                  })}
+                </div>
+              </div>
 
-                {/* CTA */}
-                <a
-                  href="https://suidex.org"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex-shrink-0 inline-flex items-center gap-2 px-6 py-3 rounded-xl font-bold text-sm bg-accent text-black hover:bg-accent-hover transition-all hover:scale-[1.02]"
-                >
-                  <Zap className="w-4 h-4" />
-                  Stake Now
-                  <ArrowRight className="w-4 h-4" />
-                </a>
+              {/* Divider */}
+              <div className="mx-5 sm:mx-6 h-px bg-gradient-to-r from-transparent via-border/60 to-transparent" />
+
+              {/* Swap Pairs */}
+              <div className="p-5 sm:p-6">
+                <div className="flex items-center gap-2 mb-3">
+                  <Zap className="w-3.5 h-3.5 text-yellow-400" />
+                  <span className="text-xs font-semibold text-yellow-400 uppercase tracking-wider">Swap</span>
+                  <div className="flex-1 h-px bg-gradient-to-r from-yellow-500/20 to-transparent" />
+                </div>
+                <div className="grid grid-cols-2 lg:grid-cols-4 gap-2">
+                  {SWAP_PAIRS.filter(p => p.enabled).map((pair) => {
+                    const { token0, token1 } = getPoolTokens(pair)
+                    return (
+                      <a
+                        key={pair.id}
+                        href={pair.swapUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="group flex items-center gap-2.5 p-3 rounded-xl border border-border/40 bg-[#0a0c10]/40 hover:border-yellow-500/20 hover:bg-yellow-500/5 transition-all"
+                      >
+                        <div className="flex -space-x-1.5 flex-shrink-0">
+                          <img src={token0.logo} alt={token0.symbol} className="w-6 h-6 rounded-full border border-[#0a0c10] bg-[#0a0c10]" />
+                          <img src={token1.logo} alt={token1.symbol} className="w-6 h-6 rounded-full border border-[#0a0c10] bg-[#0a0c10]" />
+                        </div>
+                        <span className="text-xs font-medium text-text-secondary group-hover:text-white transition-colors truncate">{pair.label}</span>
+                      </a>
+                    )
+                  })}
+                </div>
               </div>
             </div>
           </div>

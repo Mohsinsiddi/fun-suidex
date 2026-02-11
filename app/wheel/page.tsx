@@ -8,6 +8,8 @@ import { BuySpinsModal } from '@/components/wheel/BuySpinsModal'
 import { useAuthStore } from '@/lib/stores/authStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
 import { SPIN_UI } from '@/constants'
+import { TOKENS } from '@/constants/pools'
+import { PoolsModal } from '@/components/wheel/PoolsModal'
 import { Gift, Coins, ShoppingCart, Trophy, Clock, X, Sparkles, Zap, CircleDot, ListChecks, Lock, Droplets, TrendingUp, RefreshCw, RotateCw, Volume2, VolumeX, ChevronRight } from 'lucide-react'
 import { soundManager } from '@/lib/utils/sounds'
 
@@ -81,6 +83,7 @@ export default function WheelPage() {
   const [showConfetti, setShowConfetti] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [showBuyModal, setShowBuyModal] = useState(false)
+  const [showPoolsModal, setShowPoolsModal] = useState(false)
   const [hoveredSlot, setHoveredSlot] = useState<WheelSlot | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [tooltipPos, setTooltipPos] = useState({ x: 0, y: 0 })
@@ -756,23 +759,22 @@ ${hashtags}`
                   </div>
 
                   {/* Earn Free Spins CTA */}
-                  <a
-                    href="https://suidex.org"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/20 hover:border-green-500/40 transition-all group"
+                  <button
+                    onClick={() => setShowPoolsModal(true)}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/20 hover:border-green-500/40 transition-all group text-left"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
-                        <Gift className="w-4 h-4 text-green-400" />
+                      <div className="flex -space-x-1.5">
+                        <img src={TOKENS.SUI.logo} alt="SUI" className="w-7 h-7 rounded-full border border-background bg-background" />
+                        <img src={TOKENS.VICTORY.logo} alt="VICTORY" className="w-7 h-7 rounded-full border border-background bg-background" />
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-green-300">Earn Free Spins</div>
-                        <div className="text-[10px] text-text-muted">1 spin per $20 LP staked or swapped</div>
+                        <div className="text-[10px] text-text-muted">Stake LP or swap on SuiDex</div>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-green-400/50 group-hover:text-green-400 group-hover:translate-x-0.5 transition-all" />
-                  </a>
+                  </button>
 
                   <button onClick={() => setShowBuyModal(true)} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl font-bold text-sm bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border border-yellow-500/30 text-yellow-400 hover:border-yellow-500/50 transition-all">
                     <ShoppingCart className="w-4 h-4" /> Buy More Spins <Zap className="w-4 h-4 text-orange-400" />
@@ -898,6 +900,9 @@ ${hashtags}`
 
         {/* Buy Modal */}
         <BuySpinsModal isOpen={showBuyModal} onClose={() => setShowBuyModal(false)} onSuccess={handleBuySpinsSuccess} />
+
+        {/* Pools Modal */}
+        <PoolsModal open={showPoolsModal} onClose={() => setShowPoolsModal(false)} />
 
         {/* Result Modal */}
         {result && (
