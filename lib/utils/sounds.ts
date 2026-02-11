@@ -65,85 +65,53 @@ class SoundManager {
   }
 
   // ------------------------------------------------
-  // TICK — realistic wheel flapper hitting pegs
+  // TICK — clean peg click (like Wheel of Fortune)
   // ------------------------------------------------
-  // Real wheel-of-fortune sound: a leather flapper snapping
-  // against wooden/metal pegs. Two layered components:
-  // 1) Sharp transient "snap" (filtered noise, very short)
-  // 2) Resonant "thwack" body (tuned oscillator w/ fast decay)
+  // Two clean layers:
+  // 1) Sharp sine "click" — short pitched impulse (like tapping a wooden peg)
+  // 2) Softer overtone for brightness
+  // No noise, no sub bass — just a crisp, satisfying click.
 
   private singleTick(loud = 1) {
     const ctx = this.getCtx()
     if (!ctx || this._muted) return
 
     const now = ctx.currentTime
-    const vol = this._volume * 0.45 * loud
+    const vol = this._volume * 0.5 * loud
 
-    // --- Layer 1: The "snap" — sharp broadband transient ---
-    const snapLen = Math.floor(ctx.sampleRate * 0.008) // 8ms
-    const snapBuf = ctx.createBuffer(1, snapLen, ctx.sampleRate)
-    const snapData = snapBuf.getChannelData(0)
-    for (let i = 0; i < snapLen; i++) {
-      // Instant attack, exponential decay
-      const env = Math.pow(1 - i / snapLen, 6)
-      snapData[i] = (Math.random() * 2 - 1) * env
-    }
-    const snap = ctx.createBufferSource()
-    snap.buffer = snapBuf
+    // Slight random pitch variation so ticks don't sound robotic
+    const pitchVar = 0.95 + Math.random() * 0.1 // ±5%
 
-    // Highpass to make it "snappy" not "thuddy"
-    const snapHP = ctx.createBiquadFilter()
-    snapHP.type = 'highpass'
-    snapHP.frequency.value = 2000
+    // --- Layer 1: Primary click — short sine burst ---
+    const clickFreq = 1800 * pitchVar
+    const click = ctx.createOscillator()
+    click.type = 'sine'
+    click.frequency.setValueAtTime(clickFreq, now)
+    click.frequency.exponentialRampToValueAtTime(clickFreq * 0.5, now + 0.006)
 
-    // Resonant peak for the "click" character
-    const snapBP = ctx.createBiquadFilter()
-    snapBP.type = 'peaking'
-    snapBP.frequency.value = 3500 + Math.random() * 500
-    snapBP.Q.value = 5
-    snapBP.gain.value = 12
+    const clickGain = ctx.createGain()
+    clickGain.gain.setValueAtTime(vol, now)
+    clickGain.gain.exponentialRampToValueAtTime(0.001, now + 0.008)
 
-    const snapGain = ctx.createGain()
-    snapGain.gain.setValueAtTime(vol, now)
-    snapGain.gain.exponentialRampToValueAtTime(0.001, now + 0.015)
+    click.connect(clickGain)
+    clickGain.connect(ctx.destination)
+    click.start(now)
+    click.stop(now + 0.012)
 
-    snap.connect(snapHP)
-    snapHP.connect(snapBP)
-    snapBP.connect(snapGain)
-    snapGain.connect(ctx.destination)
-    snap.start(now)
-    snap.stop(now + 0.02)
+    // --- Layer 2: Bright overtone for "snap" character ---
+    const overtone = ctx.createOscillator()
+    overtone.type = 'sine'
+    overtone.frequency.setValueAtTime(3600 * pitchVar, now)
+    overtone.frequency.exponentialRampToValueAtTime(2000, now + 0.004)
 
-    // --- Layer 2: The "thwack" body — tuned resonance ---
-    const bodyFreq = 800 + Math.random() * 200  // wooden peg resonance
-    const body = ctx.createOscillator()
-    body.type = 'triangle'
-    body.frequency.setValueAtTime(bodyFreq, now)
-    body.frequency.exponentialRampToValueAtTime(bodyFreq * 0.6, now + 0.025)
+    const overtoneGain = ctx.createGain()
+    overtoneGain.gain.setValueAtTime(vol * 0.3, now)
+    overtoneGain.gain.exponentialRampToValueAtTime(0.001, now + 0.005)
 
-    const bodyGain = ctx.createGain()
-    bodyGain.gain.setValueAtTime(vol * 0.5, now)
-    bodyGain.gain.exponentialRampToValueAtTime(0.001, now + 0.03)
-
-    body.connect(bodyGain)
-    bodyGain.connect(ctx.destination)
-    body.start(now)
-    body.stop(now + 0.04)
-
-    // --- Layer 3: Sub hit for weight (low thud) ---
-    const sub = ctx.createOscillator()
-    sub.type = 'sine'
-    sub.frequency.setValueAtTime(180, now)
-    sub.frequency.exponentialRampToValueAtTime(80, now + 0.02)
-
-    const subGain = ctx.createGain()
-    subGain.gain.setValueAtTime(vol * 0.25, now)
-    subGain.gain.exponentialRampToValueAtTime(0.001, now + 0.025)
-
-    sub.connect(subGain)
-    subGain.connect(ctx.destination)
-    sub.start(now)
-    sub.stop(now + 0.03)
+    overtone.connect(overtoneGain)
+    overtoneGain.connect(ctx.destination)
+    overtone.start(now)
+    overtone.stop(now + 0.008)
   }
 
   // ------------------------------------------------

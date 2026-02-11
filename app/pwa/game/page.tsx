@@ -512,7 +512,7 @@ ${hashtags}`
                   )
                 })}
 
-                <g style={isSpinning ? { animation: 'counter-rotate 3s linear infinite' } : undefined} transform-origin={`${cx} ${cy}`}>
+                <g style={isSpinning ? { animation: 'counter-rotate 3s linear infinite', transformOrigin: `${cx}px ${cy}px` } : { transformOrigin: `${cx}px ${cy}px` }}>
                   <circle cx={cx} cy={cy} r="38" fill="#0a1a0a" stroke="#00e5ff" strokeWidth="3">
                     {!isSpinning && <animate attributeName="stroke-opacity" values="0.6;1;0.6" dur="2s" repeatCount="indefinite" />}
                   </circle>

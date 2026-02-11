@@ -592,7 +592,7 @@ ${hashtags}`
                   })}
                   
                   {/* Center hub */}
-                  <g style={isSpinning ? { animation: 'counter-rotate 3s linear infinite' } : undefined} transform-origin={`${cx} ${cy}`}>
+                  <g style={isSpinning ? { animation: 'counter-rotate 3s linear infinite', transformOrigin: `${cx}px ${cy}px` } : { transformOrigin: `${cx}px ${cy}px` }}>
                     {/* Outer glow ring */}
                     <circle cx={cx} cy={cy} r="42" fill="none" stroke="rgba(0,229,255,0.15)" strokeWidth="2">
                       {!isSpinning && <animate attributeName="stroke-opacity" values="0.1;0.25;0.1" dur="2s" repeatCount="indefinite" />}
