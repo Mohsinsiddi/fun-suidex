@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import { usePWAAuthStore, pwaFetch } from '@/lib/stores/pwaAuthStore'
 import { useConfigStore, formatPrizeTableForWheel } from '@/lib/stores/configStore'
 import { SPIN_UI } from '@/constants'
-import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw, Volume2, VolumeX } from 'lucide-react'
+import { Gift, Coins, Trophy, Clock, X, Sparkles, CircleDot, ListChecks, Lock, Droplets, TrendingUp, Settings, History, Search, Home, RotateCw, Volume2, VolumeX, ChevronRight } from 'lucide-react'
 import { soundManager } from '@/lib/utils/sounds'
 import Link from 'next/link'
 
@@ -666,12 +666,16 @@ ${hashtags}`
                 <Sparkles className="w-4 h-4 text-accent" /> Your Spins
               </h3>
               <div className="space-y-2">
-                {spins.free > 0 && (
-                  <div className="flex items-center justify-between p-2.5 bg-green-500/10 border border-green-500/20 rounded-lg">
-                    <div className="flex items-center gap-2"><Gift className="w-4 h-4 text-green-400" /><span className="text-green-300 text-sm">Free (LP)</span></div>
-                    <span className="font-bold text-green-300">{spins.free}</span>
+                <div className={`flex items-center justify-between p-2.5 rounded-lg ${spins.free > 0 ? 'bg-green-500/10 border border-green-500/20' : 'bg-background'}`}>
+                  <div className="flex items-center gap-2">
+                    <Gift className={`w-4 h-4 ${spins.free > 0 ? 'text-green-400' : 'text-text-muted'}`} />
+                    <div>
+                      <span className={`text-sm ${spins.free > 0 ? 'text-green-300' : 'text-text-secondary'}`}>Free Spins</span>
+                      <div className="text-[10px] text-text-muted">Earn via LP staking / swaps</div>
+                    </div>
                   </div>
-                )}
+                  <span className={`font-bold ${spins.free > 0 ? 'text-green-300' : 'text-text-muted'}`}>{spins.free}</span>
+                </div>
                 <div className="flex items-center justify-between p-2.5 bg-background rounded-lg">
                   <div className="flex items-center gap-2"><Coins className="w-4 h-4 text-yellow-400" /><span className="text-text-secondary text-sm">Purchased</span></div>
                   <span className="font-bold text-white">{spins.purchased}</span>
@@ -688,6 +692,25 @@ ${hashtags}`
                 </div>
               </div>
             </div>
+
+            {/* Earn Free Spins CTA */}
+            <a
+              href="https://suidex.org"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="w-full flex items-center justify-between p-3 rounded-xl bg-green-500/5 border border-green-500/20 hover:border-green-500/40 transition-all group"
+            >
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-lg bg-green-500/10 flex items-center justify-center">
+                  <Gift className="w-4 h-4 text-green-400" />
+                </div>
+                <div>
+                  <div className="text-sm font-semibold text-green-300">Earn Free Spins</div>
+                  <div className="text-[10px] text-text-muted">1 spin per $20 LP staked or swapped</div>
+                </div>
+              </div>
+              <ChevronRight className="w-4 h-4 text-green-400/50 group-hover:text-green-400 group-hover:translate-x-0.5 transition-all" />
+            </a>
 
             <p className="text-center text-text-muted text-xs">
               Buy more spins from the web app
