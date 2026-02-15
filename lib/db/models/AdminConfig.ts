@@ -51,7 +51,7 @@ const AdminConfigSchema = new Schema<AdminConfigDocument>(
     spinRateSUI: {
       type: Number,
       default: 1,
-      min: 0.1,
+      min: 0.001,
     },
     spinPurchaseEnabled: {
       type: Boolean,

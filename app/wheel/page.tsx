@@ -143,12 +143,19 @@ export default function WheelPage() {
   }, [])
 
   // Auto-close modal with countdown
+  // Wins stay open until user clicks away (unless auto-spin is ON)
+  // No-prize always auto-closes
   useEffect(() => {
     if (!result || modalPaused) return
 
-    const autoCloseMs = result.type === 'no_prize'
-      ? SPIN_UI.NO_PRIZE_AUTO_CLOSE_MS
-      : SPIN_UI.WIN_AUTO_CLOSE_MS
+    const isWin = result.type !== 'no_prize'
+
+    // Wins stay open unless auto-spin is enabled
+    if (isWin && !autoSpin) return
+
+    const autoCloseMs = isWin
+      ? SPIN_UI.WIN_AUTO_CLOSE_MS
+      : SPIN_UI.NO_PRIZE_AUTO_CLOSE_MS
 
     const countdownSeconds = Math.ceil(autoCloseMs / 1000)
     setCountdown(countdownSeconds)
@@ -801,26 +808,34 @@ ${hashtags}`
               </div>
               
               <div className="grid grid-cols-2 gap-1.5">
-                {wheelSlots.map((slot) => (
-                  <div 
-                    key={slot.index} 
-                    className="flex items-center gap-2 p-2 bg-surface rounded-lg border border-border hover:border-white/20 transition-colors"
-                  >
-                    <div 
-                      className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0" 
-                      style={{ backgroundColor: slot.color, color: slot.type === 'no_prize' ? '#fff' : '#000' }}
+                {wheelSlots.map((slot) => {
+                  const estUSD = slot.rawAmount > 0 && slot.tokenPrice > 0 ? slot.rawAmount * slot.tokenPrice : 0
+                  return (
+                    <div
+                      key={slot.index}
+                      className="flex items-center gap-2 p-2 bg-surface rounded-lg border border-border hover:border-white/20 transition-colors"
                     >
-                      {slot.index + 1}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-1">
-                        <span className="font-bold text-white text-sm">{slot.label}</span>
-                        {getTypeIcon(slot.type, "w-3 h-3")}
+                      <div
+                        className="w-7 h-7 rounded flex items-center justify-center text-[10px] font-bold flex-shrink-0"
+                        style={{ backgroundColor: slot.color, color: slot.type === 'no_prize' ? '#fff' : '#000' }}
+                      >
+                        {slot.index + 1}
                       </div>
-                      <div className="text-[10px] text-text-muted truncate">{slot.lockType} {slot.tokenSymbol}</div>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-1">
+                          <span className="font-bold text-white text-sm">{slot.label}</span>
+                          {getTypeIcon(slot.type, "w-3 h-3")}
+                        </div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-text-muted truncate">{slot.lockType} {slot.tokenSymbol}</span>
+                          {estUSD > 0 && (
+                            <span className="text-[10px] text-accent font-semibold">~${estUSD < 1 ? estUSD.toFixed(4) : estUSD.toFixed(2)}</span>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  )
+                })}
               </div>
 
               <div className="flex flex-wrap gap-3 justify-center pt-3 mt-3 border-t border-border">
@@ -976,6 +991,9 @@ ${hashtags}`
                     </p>
                   )}
                   {modalPaused && <p className="text-accent text-[10px] mt-2">Paused - tap to resume</p>}
+                  {countdown === null && !modalPaused && !autoSpin && (
+                    <p className="text-text-muted text-[10px] mt-2">Tap anywhere to close</p>
+                  )}
 
                   <div className="flex gap-2 mt-3">
                     <button onClick={shareOnTwitter} className="flex-1 flex items-center justify-center gap-1.5 py-2.5 bg-[#1DA1F2] hover:bg-[#1a8cd8] rounded-lg text-white font-medium text-xs transition-colors">

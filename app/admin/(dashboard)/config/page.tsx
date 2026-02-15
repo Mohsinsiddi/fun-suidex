@@ -279,6 +279,16 @@ export default function AdminConfigPage() {
     setError(null)
     setSuccess(null)
 
+    // Validate numeric fields before saving
+    if (!config.spinRateSUI || config.spinRateSUI <= 0) {
+      setError('Spin rate must be a positive number')
+      return
+    }
+    if (!config.autoApprovalLimitSUI || config.autoApprovalLimitSUI < 1) {
+      setError('Auto-approval limit must be at least 1 SUI')
+      return
+    }
+
     const payload = force ? { ...(config as any), force: true } : (config as any)
     const result = await saveConfig(payload)
     if (result) {
@@ -478,7 +488,8 @@ export default function AdminConfigPage() {
                 <input
                   type="number"
                   value={config.spinRateSUI}
-                  onChange={(e) => setConfig({ ...config, spinRateSUI: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setConfig({ ...config, spinRateSUI: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onBlur={(e) => { if (!parseFloat(e.target.value)) setConfig({ ...config, spinRateSUI: config.spinRateSUI || 1 }) }}
                   className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
                   step="0.1"
                 />
@@ -488,7 +499,8 @@ export default function AdminConfigPage() {
                 <input
                   type="number"
                   value={config.autoApprovalLimitSUI}
-                  onChange={(e) => setConfig({ ...config, autoApprovalLimitSUI: parseFloat(e.target.value) || 0 })}
+                  onChange={(e) => setConfig({ ...config, autoApprovalLimitSUI: e.target.value === '' ? 0 : parseFloat(e.target.value) })}
+                  onBlur={(e) => { if (!parseFloat(e.target.value)) setConfig({ ...config, autoApprovalLimitSUI: config.autoApprovalLimitSUI || 10 }) }}
                   className="w-full px-3 sm:px-4 py-2 sm:py-2.5 bg-background border border-border rounded-lg text-sm sm:text-base"
                 />
               </div>
