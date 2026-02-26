@@ -47,7 +47,7 @@ interface ConfigState {
   invalidate: () => void
 }
 
-// Cache duration: 5 minutes
+// Cache duration: 5 minutes (only applies within same page session)
 const CACHE_DURATION = 5 * 60 * 1000
 
 const initialState = {
@@ -82,8 +82,7 @@ export const useConfigStore = create<ConfigState>()(
         // Don't fetch if already loading or fetch in progress
         if (state.isLoading || fetchInProgress) return
 
-        // Check if already loaded and cache is still valid
-        // Force refresh if tokenPrices are missing (pre-migration cache)
+        // Cache check — uses persisted lastFetched from localStorage
         const hasPrices = state.tokenPrices.vict > 0 || state.tokenPrices.trump > 0
         if (state.isLoaded && state.lastFetched && hasPrices) {
           const cacheAge = Date.now() - state.lastFetched
@@ -143,7 +142,7 @@ export const useConfigStore = create<ConfigState>()(
     }),
     {
       name: 'suidex-config',
-      // Persist all config data for offline/refresh
+      // Persist config + cache timestamp to localStorage
       partialize: (state) => ({
         isLoaded: state.isLoaded,
         prizeTable: state.prizeTable,
@@ -218,7 +217,7 @@ function formatTokenLabel(amount: number, type: string): string {
 
 function formatSublabel(type: string, lock?: string): string {
   if (type === 'no_prize') return 'No Prize'
-  if (type === 'suitrump') return 'Trump'
+  if (type === 'suitrump') return 'SuiTrump'
   if (type === 'liquid_victory') return 'Liquid'
   if (lock === '1_week') return '1W Lock'
   if (lock === '3_month') return '3M Lock'
@@ -229,7 +228,7 @@ function formatSublabel(type: string, lock?: string): string {
 
 function formatAmount(amt: number, type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return `${amt.toLocaleString()} TRUMP`
+  if (type === 'suitrump') return `${amt.toLocaleString()} SUITRUMP`
   if (amt >= 1000000) return `${(amt / 1000000).toFixed(amt % 1000000 === 0 ? 0 : 1)}M VICT`
   if (amt >= 1000) return `${(amt / 1000).toFixed(amt % 1000 === 0 ? 0 : 1)}K VICT`
   return `${amt.toLocaleString()} VICT`
@@ -261,6 +260,6 @@ function getLockType(type: string, lock?: string): string {
 
 function getTokenSymbol(type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return 'TRUMP'
+  if (type === 'suitrump') return 'SUITRUMP'
   return 'VICT'
 }
