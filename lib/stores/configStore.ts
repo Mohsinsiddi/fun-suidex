@@ -228,7 +228,7 @@ function formatSublabel(type: string, lock?: string): string {
 
 function formatAmount(amt: number, type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return `${amt.toLocaleString()} TRUMP`
+  if (type === 'suitrump') return `${amt.toLocaleString()} SUITRUMP`
   if (amt >= 1000000) return `${(amt / 1000000).toFixed(amt % 1000000 === 0 ? 0 : 1)}M VICT`
   if (amt >= 1000) return `${(amt / 1000).toFixed(amt % 1000 === 0 ? 0 : 1)}K VICT`
   return `${amt.toLocaleString()} VICT`
@@ -260,6 +260,6 @@ function getLockType(type: string, lock?: string): string {
 
 function getTokenSymbol(type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return 'TRUMP'
+  if (type === 'suitrump') return 'SUITRUMP'
   return 'VICT'
 }

@@ -24,9 +24,9 @@ const DEFAULT_WHEEL_SLOTS: WheelSlot[] = [
   { index: 9, label: "400K", sublabel: "3Y Lock", color: "#7B1FA2", amount: "400K VICT", rawAmount: 400000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
   { index: 10, label: "1.6M", sublabel: "3Y Lock", color: "#8E24AA", amount: "1.6M VICT", rawAmount: 1600000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
   { index: 11, label: "2.4M", sublabel: "3Y Lock", color: "#9C27B0", amount: "2.4M VICT", rawAmount: 2400000, type: "locked_victory", valueUSD: 0, lockType: "3Y LOCK", tokenSymbol: "VICT", tokenPrice: 0, tokenChange24h: 0 },
-  { index: 12, label: "10", sublabel: "SuiTrump", color: "#EF5350", amount: "10 TRUMP", rawAmount: 10, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
-  { index: 13, label: "50", sublabel: "SuiTrump", color: "#F44336", amount: "50 TRUMP", rawAmount: 50, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
-  { index: 14, label: "500", sublabel: "SuiTrump", color: "#E53935", amount: "500 TRUMP", rawAmount: 500, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "TRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 12, label: "10", sublabel: "SuiTrump", color: "#EF5350", amount: "10 SUITRUMP", rawAmount: 10, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "SUITRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 13, label: "50", sublabel: "SuiTrump", color: "#F44336", amount: "50 SUITRUMP", rawAmount: 50, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "SUITRUMP", tokenPrice: 0, tokenChange24h: 0 },
+  { index: 14, label: "500", sublabel: "SuiTrump", color: "#E53935", amount: "500 SUITRUMP", rawAmount: 500, type: "suitrump", valueUSD: 0, lockType: "MEME", tokenSymbol: "SUITRUMP", tokenPrice: 0, tokenChange24h: 0 },
   { index: 15, label: "NONE", sublabel: "No Prize", color: "#546E7A", amount: "", rawAmount: 0, type: "no_prize", valueUSD: 0, lockType: "NONE", tokenSymbol: "", tokenPrice: 0, tokenChange24h: 0 },
 ]
 
