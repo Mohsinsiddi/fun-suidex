@@ -275,7 +275,7 @@ export default function PWAHomePage() {
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="px-1.5 py-0.5 bg-yellow-400/10 rounded text-yellow-400 text-[9px] font-medium">Up to $3.5K</span>
                   <span className="px-1.5 py-0.5 bg-purple-400/10 rounded text-purple-400 text-[9px] font-medium">Locked</span>
-                  <span className="px-1.5 py-0.5 bg-cyan-400/10 rounded text-cyan-400 text-[9px] font-medium">Trump</span>
+                  <span className="px-1.5 py-0.5 bg-cyan-400/10 rounded text-cyan-400 text-[9px] font-medium">SuiTrump</span>
                 </div>
               </div>
 
