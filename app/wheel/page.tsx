@@ -742,7 +742,7 @@ ${hashtags}`
                           <Gift className={`w-4 h-4 ${spins.free > 0 ? 'text-green-400' : 'text-text-muted'}`} />
                           <div>
                             <span className={`text-sm ${spins.free > 0 ? 'text-green-300' : 'text-text-secondary'}`}>Free Spins</span>
-                            <div className="text-[10px] text-text-muted">Earn via LP staking / swaps</div>
+                            <div className="text-[10px] text-text-muted">Earn via LP staking</div>
                           </div>
                         </div>
                         <span className={`font-bold ${spins.free > 0 ? 'text-green-300' : 'text-text-muted'}`}>{spins.free}</span>
@@ -776,15 +776,17 @@ ${hashtags}`
                       </div>
                       <div>
                         <div className="text-sm font-semibold text-green-300">Earn Free Spins</div>
-                        <div className="text-[10px] text-text-muted">Stake LP or swap on SuiDex</div>
+                        <div className="text-[10px] text-text-muted">Stake LP on SuiDex</div>
                       </div>
                     </div>
                     <ChevronRight className="w-4 h-4 text-green-400/50 group-hover:text-green-400 group-hover:translate-x-0.5 transition-all" />
                   </button>
 
+                  {/* Buy spins - disabled for now, may re-enable later
                   <button onClick={() => setShowBuyModal(true)} className="w-full flex items-center justify-center gap-2 p-3 rounded-xl font-bold text-sm bg-gradient-to-r from-yellow-500/15 to-orange-500/15 border border-yellow-500/30 text-yellow-400 hover:border-yellow-500/50 transition-all">
                     <ShoppingCart className="w-4 h-4" /> Buy More Spins <Zap className="w-4 h-4 text-orange-400" />
                   </button>
+                  */}
 
                   {totalSpins > 0 && (
                     <button onClick={() => setActiveTab('wheel')} className="w-full py-2.5 rounded-xl font-bold text-sm bg-accent text-black hover:bg-accent-hover transition-all">

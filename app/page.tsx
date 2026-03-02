@@ -168,7 +168,7 @@ function HomePageContent() {
 
             <p className="text-lg sm:text-xl md:text-2xl text-text-secondary max-w-2xl mx-auto mb-8 leading-relaxed">
               Spin to win <span className="text-accent font-semibold">Victory tokens</span>!
-              {' '}Free daily spins for stakers. Up to{' '}
+              {' '}Free spins for LP stakers. Up to{' '}
               <span className="text-yellow-400 font-bold">$3,500</span> per spin.
             </p>
 
@@ -198,7 +198,7 @@ function HomePageContent() {
               </div>
               <div className="flex items-center gap-2 text-text-secondary">
                 <Gift className="w-4 h-4 text-accent" />
-                <span><strong className="text-white">Free</strong> Daily Spins</span>
+                <span><strong className="text-white">Free</strong> Spins for Stakers</span>
               </div>
               <div className="flex items-center gap-2 text-text-secondary">
                 <Users className="w-4 h-4 text-purple-400" />
@@ -275,12 +275,10 @@ function HomePageContent() {
                 </div>
               </div>
 
-              {/* Gradient Divider */}
+              {/* Swap Pairs - hidden for now, may re-enable later
               <div className="mx-5 sm:mx-6 lg:mx-8">
                 <div className="h-px bg-gradient-to-r from-transparent via-border/50 to-transparent" />
               </div>
-
-              {/* Swap Pairs */}
               <div className="p-5 sm:p-6 lg:p-8">
                 <div className="flex items-center gap-2 mb-4">
                   <div className="flex items-center justify-center w-7 h-7 rounded-lg bg-yellow-500/10 border border-yellow-500/20">
@@ -312,6 +310,7 @@ function HomePageContent() {
                   })}
                 </div>
               </div>
+              */}
 
               {/* Footer CTA */}
               <div className="px-5 sm:px-6 lg:px-8 pb-5 sm:pb-6 lg:pb-8">
@@ -477,7 +476,7 @@ function HomePageContent() {
                   Wheel of Victory
                 </h2>
                 <p className="text-text-secondary text-lg mb-8 max-w-md">
-                  Spin to win Victory tokens, SuiTrump, and more. Free daily spins for stakers!
+                  Spin to win Victory tokens, SuiTrump, and more. Free spins for LP stakers!
                 </p>
 
                 {/* Prize Types - Compact */}
@@ -696,7 +695,7 @@ function HomePageContent() {
                 number={2}
                 icon={<TrendingUp className="w-7 h-7" />}
                 title="Get Spins"
-                description="Stake $20+ for free daily spins, or purchase additional spins with SUI tokens."
+                description="Stake $20+ in LP to earn free spins on SuiDex."
                 color="purple"
               />
               <StepCard
