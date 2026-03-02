@@ -5,6 +5,14 @@
 import type { PrizeSlot, AdminConfig, AdminPermissions } from '@/types'
 
 // ----------------------------------------
+// App Base URL
+// ----------------------------------------
+// Single source of truth — update this when moving to production domain
+
+export const APP_BASE_URL =
+  process.env.NEXT_PUBLIC_APP_URL || 'https://fun-suidex.vercel.app'
+
+// ----------------------------------------
 // Default Prize Table (16 slots)
 // ----------------------------------------
 
@@ -213,7 +221,7 @@ export const SPIN_UI = {
 
   // Tweet configuration
   TWEET_HASHTAGS: ['SuiDex', 'WheelOfVictory', 'Crypto', 'SUI'],
-  TWEET_BASE_URL: 'https://fun-suidex.vercel.app',
+  TWEET_BASE_URL: APP_BASE_URL,
 }
 
 // ----------------------------------------

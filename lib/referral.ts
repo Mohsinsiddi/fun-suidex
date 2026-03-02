@@ -1,6 +1,7 @@
+import { APP_BASE_URL } from '@/constants'
+
 export function generateReferralLink(wallet: string): string {
-  const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://fun-suidex.vercel.app'
-  return `${baseUrl}?ref=${wallet}`
+  return `${APP_BASE_URL}?ref=${wallet}`
 }
 
 export function getWeekEndingDate(date: Date = new Date()): Date {

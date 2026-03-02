@@ -1,6 +1,7 @@
 import { MetadataRoute } from 'next'
+import { APP_BASE_URL } from '@/constants'
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://games.suidex.org'
+const baseUrl = APP_BASE_URL
 
 export default function robots(): MetadataRoute.Robots {
   return {
