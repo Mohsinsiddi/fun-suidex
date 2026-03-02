@@ -21,7 +21,7 @@ export function PoolsModal({ open, onClose }: PoolsModalProps) {
         <div className="flex items-center justify-between p-4 border-b border-border">
           <div>
             <h2 className="text-base font-bold text-white">Earn Free Spins</h2>
-            <p className="text-[11px] text-text-muted">1 spin per $20 LP staked or swapped</p>
+            <p className="text-[11px] text-text-muted">1 spin per $20 LP staked</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-lg text-text-secondary hover:text-white hover:bg-white/5 transition-colors">
             <X className="w-5 h-5" />
@@ -66,7 +66,7 @@ export function PoolsModal({ open, onClose }: PoolsModalProps) {
             </div>
           </div>
 
-          {/* Swap Pairs */}
+          {/* Swap Pairs - hidden for now, may re-enable later
           <div>
             <div className="flex items-center gap-2 mb-3">
               <Zap className="w-3.5 h-3.5 text-yellow-400" />
@@ -94,6 +94,7 @@ export function PoolsModal({ open, onClose }: PoolsModalProps) {
               })}
             </div>
           </div>
+          */}
         </div>
 
         {/* Footer */}

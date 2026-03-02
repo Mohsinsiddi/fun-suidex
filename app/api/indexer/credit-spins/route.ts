@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, AdminConfigModel, LPCreditModel } from '@/lib/db/models'
+import { isValidCreditPair, normalizePair, VALID_CREDIT_PAIRS_LIST } from '@/constants/pools'
 
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get('x-indexer-key')
@@ -40,6 +41,13 @@ export async function POST(request: NextRequest) {
       )
     }
 
+    if (!isValidCreditPair(pair)) {
+      return NextResponse.json(
+        { success: false, error: `Invalid pair "${pair}". Valid pairs: ${VALID_CREDIT_PAIRS_LIST.join(', ')}` },
+        { status: 400 }
+      )
+    }
+
     await connectDB()
 
     // Check if LP credits are enabled
@@ -70,11 +78,12 @@ export async function POST(request: NextRequest) {
     const spinsCredited = Math.floor(amountUSD / ratePerSpin)
 
     // Create LP credit record
+    const normalizedPair = normalizePair(pair)
     const credit = await LPCreditModel.create({
       wallet: wallet.toLowerCase(),
       txHash,
       eventType,
-      pair,
+      pair: normalizedPair,
       amountUSD,
       spinsCredited,
       ratePerSpin,
