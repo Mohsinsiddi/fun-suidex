@@ -155,6 +155,30 @@ export const ADD_LIQUIDITY_URLS: Record<string, string> = {
 }
 
 // ----------------------------------------
+// Valid Credit Pairs (for indexer API validation)
+// ----------------------------------------
+// Derived from LP_POOLS + SWAP_PAIRS using their `id` field.
+// When you add a new pool/swap pair above, it automatically
+// becomes eligible. To expand: just add to LP_POOLS or SWAP_PAIRS.
+
+export const VALID_CREDIT_PAIRS_LIST: string[] = [
+  ...LP_POOLS.filter((p) => p.enabled).map((p) => p.id),
+  ...SWAP_PAIRS.filter((p) => p.enabled).map((p) => p.id),
+]
+
+const VALID_CREDIT_PAIRS_SET = new Set(VALID_CREDIT_PAIRS_LIST)
+
+/** Normalize a pair string for validation (trim, lowercase) */
+export function normalizePair(pair: string): string {
+  return pair.trim().toLowerCase()
+}
+
+/** Check if a pair is eligible for credits */
+export function isValidCreditPair(pair: string): boolean {
+  return VALID_CREDIT_PAIRS_SET.has(normalizePair(pair))
+}
+
+// ----------------------------------------
 // Helper: get token pair logos for a pool/swap
 // ----------------------------------------
 

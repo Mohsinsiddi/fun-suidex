@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, AdminConfigModel, LPCreditModel } from '@/lib/db/models'
+import { isValidCreditPair, normalizePair } from '@/constants/pools'
 
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get('x-indexer-key')
@@ -84,6 +85,11 @@ export async function POST(request: NextRequest) {
         continue
       }
 
+      if (!isValidCreditPair(entry.pair)) {
+        skipped++
+        continue
+      }
+
       if (existingSet.has(entry.txHash)) {
         skipped++
         continue
@@ -96,7 +102,7 @@ export async function POST(request: NextRequest) {
         wallet: walletLower,
         txHash: entry.txHash,
         eventType: entry.eventType,
-        pair: entry.pair,
+        pair: normalizePair(entry.pair),
         amountUSD: entry.amountUSD,
         spinsCredited,
         ratePerSpin,

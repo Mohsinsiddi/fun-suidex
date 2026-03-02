@@ -12,6 +12,7 @@ import {
   LogOut,
   UserPlus,
   FileText,
+  Zap,
   Menu,
   X,
 } from 'lucide-react'
@@ -23,6 +24,7 @@ const NAV_ITEMS = [
   { href: '/admin/users', icon: Users, label: 'Users' },
   { href: '/admin/config', icon: Settings, label: 'Config' },
   { href: '/admin/affiliates', icon: UserPlus, label: 'Affiliates' },
+  { href: '/admin/lp-credits', icon: Zap, label: 'LP Credits' },
   { href: '/admin/logs', icon: FileText, label: 'Audit Logs' },
 ]
 
