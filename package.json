@@ -24,8 +24,8 @@
     "test:report": "playwright show-report"
   },
   "dependencies": {
-    "@mysten/dapp-kit": "0.14.37",
-    "@mysten/sui": "1.18.0",
+    "@mysten/dapp-kit": "1.0.3",
+    "@mysten/sui": "2.5.0",
     "@tanstack/react-query": "5.62.8",
     "bcryptjs": "^3.0.3",
     "dotenv": "16.4.7",

@@ -3,7 +3,7 @@ import { config } from 'dotenv'
 config({ path: '.env.local' })
 import mongoose from 'mongoose'
 import { connectDB, disconnectDB } from '../lib/db/mongodb'
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 
 const ADMIN = '0xd86db01c43b2c04de7da56e76616db15e8cde5849e5fe8fd7314ccd4cb8d4332'
 
@@ -14,7 +14,7 @@ async function main() {
 
   const cfg = await db.collection('adminconfigs').findOne({ _id: 'main' as unknown as mongoose.Types.ObjectId })
   const storedCursor = cfg?.chainSyncCursor || null
-  const client = new SuiClient({ url: getFullnodeUrl('testnet') })
+  const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' })
 
   console.log('=== CURSOR VERIFICATION ===\n')
   console.log('Stored cursor:', storedCursor)

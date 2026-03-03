@@ -6,6 +6,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { cookies } from 'next/headers'
 import { verifyPersonalMessageSignature } from '@mysten/sui/verify'
+import { SuiGraphQLClient } from '@mysten/sui/graphql'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, ReferralModel } from '@/lib/db/models'
 import { createAccessToken, createRefreshToken, hashToken } from '@/lib/auth/jwt'
@@ -14,6 +15,17 @@ import { checkRateLimit } from '@/lib/utils/rateLimit'
 import { validateBody, authVerifySchema } from '@/lib/validations'
 import { errors, success } from '@/lib/utils/apiResponse'
 import { validateAndConsumeNonce } from '@/lib/auth/nonceStore'
+import { getSuiNetwork } from '@/lib/sui/network'
+
+const GRAPHQL_URLS: Record<string, string> = {
+  mainnet: 'https://graphql.mainnet.sui.io/graphql',
+  testnet: 'https://graphql.testnet.sui.io/graphql',
+}
+
+function getGraphQLClient() {
+  const network = getSuiNetwork()
+  return new SuiGraphQLClient({ url: GRAPHQL_URLS[network], network })
+}
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,14 +53,14 @@ export async function POST(request: NextRequest) {
     }
 
     // Cryptographically verify the signature
+    // Supports Ed25519, Secp256k1, Secp256r1, and zkLogin (Slush/Google) wallets.
+    // zkLogin signatures are verified via Sui's GraphQL API.
     try {
       const messageBytes = new TextEncoder().encode(nonce)
-      const publicKey = await verifyPersonalMessageSignature(messageBytes, signature)
-      const signerAddress = publicKey.toSuiAddress().toLowerCase()
-
-      if (signerAddress !== wallet.toLowerCase()) {
-        return errors.unauthorized('Signature does not match wallet address')
-      }
+      await verifyPersonalMessageSignature(messageBytes, signature, {
+        client: getGraphQLClient(),
+        address: wallet.toLowerCase(),
+      })
     } catch (sigError) {
       console.error('Signature verification failed:', sigError)
       return errors.unauthorized('Invalid signature')

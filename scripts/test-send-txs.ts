@@ -11,7 +11,7 @@
 // Sender: 0xc17889dee9255f80462972cd1218165c3a16e37d5242aa4c2070af4f46cebb01
 // Admin:  0xd86db01c43b2c04de7da56e76616db15e8cde5849e5fe8fd7314ccd4cb8d4332
 
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { Transaction } from '@mysten/sui/transactions'
 
@@ -41,7 +41,7 @@ async function main() {
 
   const keypair = Ed25519Keypair.fromSecretKey(privateKey)
   const sender = keypair.getPublicKey().toSuiAddress()
-  const client = new SuiClient({ url: getFullnodeUrl(NETWORK) })
+  const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl(NETWORK), network: NETWORK })
 
   console.log(`\n=== Test TX Sender ===`)
   console.log(`Network:  ${NETWORK}`)

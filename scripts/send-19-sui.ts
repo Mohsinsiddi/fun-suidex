@@ -1,5 +1,5 @@
 #!/usr/bin/env tsx
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 import { Ed25519Keypair } from '@mysten/sui/keypairs/ed25519'
 import { Transaction } from '@mysten/sui/transactions'
 
@@ -11,7 +11,7 @@ async function main() {
 
   const keypair = Ed25519Keypair.fromSecretKey(pk)
   const sender = keypair.getPublicKey().toSuiAddress()
-  const client = new SuiClient({ url: getFullnodeUrl('testnet') })
+  const client = new SuiJsonRpcClient({ url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' })
 
   console.log('Sender:', sender)
   console.log('Admin:', ADMIN)

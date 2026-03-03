@@ -7,7 +7,7 @@
 
 import '@mysten/dapp-kit/dist/index.css'
 import { createNetworkConfig, SuiClientProvider, WalletProvider } from '@mysten/dapp-kit'
-import { getFullnodeUrl } from '@mysten/sui/client'
+import { getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { ReactNode, useState } from 'react'
 import type { ThemeVars } from '@mysten/dapp-kit'
@@ -80,8 +80,8 @@ const darkTheme: ThemeVars = {
 // ----------------------------------------
 
 const { networkConfig } = createNetworkConfig({
-  mainnet: { url: getFullnodeUrl('mainnet') },
-  testnet: { url: getFullnodeUrl('testnet') },
+  mainnet: { url: getJsonRpcFullnodeUrl('mainnet'), network: 'mainnet' },
+  testnet: { url: getJsonRpcFullnodeUrl('testnet'), network: 'testnet' },
 })
 
 // ----------------------------------------
@@ -111,7 +111,7 @@ export function SuiProvider({ children }: SuiProviderProps) {
           autoConnect={true}
           preferredWallets={['Slush', 'Nightly', 'Phantom', 'Sui Wallet']}
           theme={darkTheme}
-          stashedWallet={{
+          slushWallet={{
             name: 'SuiDex Games PWA',
           }}
         >

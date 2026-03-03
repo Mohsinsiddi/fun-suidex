@@ -2,7 +2,7 @@
 // SUI Blockchain Utilities
 // ============================================
 
-import { SuiClient, getFullnodeUrl } from '@mysten/sui/client'
+import { SuiJsonRpcClient, getJsonRpcFullnodeUrl } from '@mysten/sui/jsonRpc'
 import { SUI } from '@/constants'
 import { getSuiNetwork } from './network'
 
@@ -10,12 +10,13 @@ import { getSuiNetwork } from './network'
 // SUI Client Singleton
 // ----------------------------------------
 
-let suiClient: SuiClient | null = null
+let suiClient: SuiJsonRpcClient | null = null
 
-export function getSuiClient(): SuiClient {
+export function getSuiClient(): SuiJsonRpcClient {
   if (!suiClient) {
-    const rpcUrl = getFullnodeUrl(getSuiNetwork())
-    suiClient = new SuiClient({ url: rpcUrl })
+    const network = getSuiNetwork()
+    const rpcUrl = getJsonRpcFullnodeUrl(network)
+    suiClient = new SuiJsonRpcClient({ url: rpcUrl, network })
   }
   return suiClient
 }
