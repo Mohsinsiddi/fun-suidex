@@ -4,6 +4,7 @@ import './globals.css'
 import '@mysten/dapp-kit/dist/index.css'
 import { SuiProvider } from '@/components/providers/SuiProvider'
 import { ServiceWorkerRegistration } from '@/components/pwa/ServiceWorkerRegistration'
+import { APP_BASE_URL } from '@/constants'
 
 // ----------------------------------------
 // Fonts
@@ -55,7 +56,7 @@ export const metadata: Metadata = {
   authors: [{ name: 'SuiDex Team' }],
   creator: 'SuiDex',
   publisher: 'SuiDex',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
+  metadataBase: new URL(APP_BASE_URL),
   manifest: '/manifest.json',
   appleWebApp: {
     capable: true,
@@ -118,7 +119,7 @@ export const viewport: Viewport = {
 // JSON-LD Structured Data
 // ----------------------------------------
 
-const baseUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://games.suidex.org'
+const baseUrl = APP_BASE_URL
 
 const organizationSchema = {
   '@context': 'https://schema.org',
