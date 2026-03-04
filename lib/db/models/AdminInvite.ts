@@ -23,6 +23,7 @@ const PermissionsSchema = new Schema<AdminPermissions>(
     canInviteAdmins: { type: Boolean, default: false },
     canManualCreditSpins: { type: Boolean, default: true },
     canViewRevenue: { type: Boolean, default: true },
+    canManageBadges: { type: Boolean, default: false },
   },
   { _id: false }
 )
