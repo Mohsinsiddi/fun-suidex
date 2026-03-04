@@ -9,10 +9,8 @@ import {
   Users,
   Gift,
   RefreshCw,
-  Database,
   TrendingUp,
   Activity,
-  CheckCircle,
   AlertCircle,
   FileText,
   CloudCog,
@@ -37,9 +35,6 @@ interface SyncStatus {
 export default function AdminDashboardPage() {
   const router = useRouter()
   const { stats, isLoading: loading, error, fetchStats, invalidate } = useAdminStatsStore()
-  const [seeding, setSeeding] = useState(false)
-  const [seedResult, setSeedResult] = useState<{ success: boolean; message: string } | null>(null)
-
   // Distribution Sync state
   const [syncStatus, setSyncStatus] = useState<SyncStatus | null>(null)
   const [syncLoading, setSyncLoading] = useState(false)
@@ -115,30 +110,6 @@ export default function AdminDashboardPage() {
     }
   }
 
-  const handleSeedDefaults = async () => {
-    if (!confirm('This will seed default configuration. Continue?')) return
-
-    setSeeding(true)
-    setSeedResult(null)
-
-    try {
-      const res = await fetch('/api/admin/seed', { method: 'POST' })
-      const data = await res.json()
-
-      setSeedResult({
-        success: data.success,
-        message: data.message || (data.success ? 'Defaults seeded successfully!' : 'Failed to seed'),
-      })
-    } catch (err) {
-      setSeedResult({
-        success: false,
-        message: 'Network error. Please try again.',
-      })
-    } finally {
-      setSeeding(false)
-    }
-  }
-
   return (
     <>
       {/* Failed Verifications Alert Banner — only when real distributions exist */}
@@ -185,7 +156,7 @@ export default function AdminDashboardPage() {
       </div>
 
       {/* Distribution Sync + Today's Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
         {/* Today Card */}
         <div className="card p-4 sm:p-6">
           <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4">Today</h3>
@@ -298,31 +269,6 @@ export default function AdminDashboardPage() {
           )}
         </div>
 
-        {/* Seed Defaults Card */}
-        <div className="card p-4 sm:p-6">
-          <h3 className="text-base sm:text-lg font-semibold mb-3 sm:mb-4 flex items-center gap-2">
-            <Database className="w-4 h-4 sm:w-5 sm:h-5" />
-            Database Setup
-          </h3>
-          <p className="text-text-secondary text-xs sm:text-sm mb-3 sm:mb-4">
-            Initialize the database with default prize table, rates, and configuration.
-          </p>
-
-          {seedResult && (
-            <div className={`flex items-center gap-2 p-2.5 sm:p-3 rounded-lg mb-3 sm:mb-4 text-xs sm:text-sm ${seedResult.success ? 'bg-success/10 text-success' : 'bg-error/10 text-error'}`}>
-              {seedResult.success ? <CheckCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" /> : <AlertCircle className="w-3.5 h-3.5 sm:w-4 sm:h-4 flex-shrink-0" />}
-              <span>{seedResult.message}</span>
-            </div>
-          )}
-
-          <button onClick={handleSeedDefaults} disabled={seeding} className="btn btn-secondary w-full text-sm sm:text-base">
-            {seeding ? (
-              <><RefreshCw className="w-4 h-4 animate-spin" />Seeding...</>
-            ) : (
-              <><Database className="w-4 h-4" />Seed Defaults</>
-            )}
-          </button>
-        </div>
       </div>
 
       {/* Quick Actions */}

@@ -16,27 +16,27 @@ export const APP_BASE_URL =
 // Default Prize Table (16 slots)
 // ----------------------------------------
 
-// Prize Table - Adjusted for VICT @ $0.00126 (Feb 2026)
-// Total weight: 1000, no_prize: 665 (66.5%)
+// Prize Table - Adjusted for sustainability (Mar 2026)
+// Total weight: 10,000 | Win rate: ~35% | Jackpot: 1/10,000 | EV: ~$1.80/spin
 export const DEFAULT_PRIZE_TABLE: PrizeSlot[] = [
-  { slotIndex: 0, type: 'liquid_victory', amount: 4000, weight: 80, lockDuration: null },        // 8%  ~$5
-  { slotIndex: 1, type: 'liquid_victory', amount: 40000, weight: 20, lockDuration: null },       // 2%  ~$50
-  { slotIndex: 2, type: 'liquid_victory', amount: 800000, weight: 1, lockDuration: null },       // 0.1% ~$1,000
-  { slotIndex: 3, type: 'locked_victory', amount: 4000, weight: 70, lockDuration: '1_week' },    // 7%  ~$5
-  { slotIndex: 4, type: 'locked_victory', amount: 16000, weight: 40, lockDuration: '1_week' },   // 4%  ~$20
-  { slotIndex: 5, type: 'locked_victory', amount: 20000, weight: 30, lockDuration: '3_month' },  // 3%  ~$25
-  { slotIndex: 6, type: 'locked_victory', amount: 40000, weight: 20, lockDuration: '3_month' },  // 2%  ~$50
-  { slotIndex: 7, type: 'locked_victory', amount: 80000, weight: 10, lockDuration: '1_year' },   // 1%  ~$100
-  { slotIndex: 8, type: 'locked_victory', amount: 200000, weight: 4, lockDuration: '1_year' },   // 0.4% ~$250
-  { slotIndex: 9, type: 'locked_victory', amount: 400000, weight: 2, lockDuration: '3_year' },   // 0.2% ~$500
-  { slotIndex: 10, type: 'locked_victory', amount: 1600000, weight: 1, lockDuration: '3_year' }, // 0.1% ~$2,000
-  { slotIndex: 11, type: 'locked_victory', amount: 2400000, weight: 1, lockDuration: '3_year' }, // 0.1% ~$3,000 (jackpot)
-  { slotIndex: 12, type: 'suitrump', amount: 10, weight: 40, lockDuration: null },               // 4%
-  { slotIndex: 13, type: 'suitrump', amount: 50, weight: 15, lockDuration: null },               // 1.5%
-  { slotIndex: 14, type: 'suitrump', amount: 500, weight: 1, lockDuration: null },               // 0.1%
-  { slotIndex: 15, type: 'no_prize', amount: 0, weight: 665, lockDuration: null },               // 66.5%
+  { slotIndex: 0, type: 'liquid_victory', amount: 1500, weight: 1200, lockDuration: null },         // 12%
+  { slotIndex: 1, type: 'liquid_victory', amount: 2500, weight: 850, lockDuration: null },          // 8.5%
+  { slotIndex: 2, type: 'liquid_victory', amount: 30000, weight: 90, lockDuration: null },          // 0.9%
+  { slotIndex: 3, type: 'locked_victory', amount: 5000, weight: 350, lockDuration: '1_week' },     // 3.5%
+  { slotIndex: 4, type: 'locked_victory', amount: 9000, weight: 210, lockDuration: '1_week' },     // 2.1%
+  { slotIndex: 5, type: 'locked_victory', amount: 5000, weight: 150, lockDuration: '3_month' },    // 1.5%
+  { slotIndex: 6, type: 'locked_victory', amount: 30000, weight: 80, lockDuration: '3_month' },    // 0.8%
+  { slotIndex: 7, type: 'locked_victory', amount: 30000, weight: 5, lockDuration: '1_year' },      // 0.05%
+  { slotIndex: 8, type: 'locked_victory', amount: 300000, weight: 2, lockDuration: '1_year' },     // 0.02%
+  { slotIndex: 9, type: 'locked_victory', amount: 40000, weight: 5, lockDuration: '3_year' },      // 0.05%
+  { slotIndex: 10, type: 'locked_victory', amount: 300000, weight: 2, lockDuration: '3_year' },    // 0.02%
+  { slotIndex: 11, type: 'locked_victory', amount: 1500000, weight: 1, lockDuration: '3_year' },   // 0.01% (jackpot)
+  { slotIndex: 12, type: 'suitrump', amount: 200000, weight: 400, lockDuration: null },            // 4%
+  { slotIndex: 13, type: 'suitrump', amount: 500000, weight: 150, lockDuration: null },            // 1.5%
+  { slotIndex: 14, type: 'suitrump', amount: 10000000, weight: 9, lockDuration: null },            // 0.09%
+  { slotIndex: 15, type: 'no_prize', amount: 0, weight: 6496, lockDuration: null },                // 64.96%
 ]
-// EV: ~$12.40/spin at VICT=$0.00126
+// EV: ~$1.80/spin | Jackpot: 1 in 10,000 spins
 
 // ----------------------------------------
 // Default Admin Config

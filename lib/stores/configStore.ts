@@ -208,8 +208,7 @@ export function formatPrizeTableForWheel(
 
 function formatTokenLabel(amount: number, type: string): string {
   if (type === 'no_prize' || amount === 0) return 'NONE'
-  if (type === 'suitrump') return String(amount)
-  // VICT amounts — compact format
+  // Compact format for all token types
   if (amount >= 1_000_000) return `${(amount / 1_000_000).toFixed(amount % 1_000_000 === 0 ? 0 : 1)}M`
   if (amount >= 1_000) return `${(amount / 1_000).toFixed(amount % 1_000 === 0 ? 0 : 1)}K`
   return String(amount)
@@ -228,10 +227,10 @@ function formatSublabel(type: string, lock?: string): string {
 
 function formatAmount(amt: number, type: string): string {
   if (type === 'no_prize') return ''
-  if (type === 'suitrump') return `${amt.toLocaleString()} SUITRUMP`
-  if (amt >= 1000000) return `${(amt / 1000000).toFixed(amt % 1000000 === 0 ? 0 : 1)}M VICT`
-  if (amt >= 1000) return `${(amt / 1000).toFixed(amt % 1000 === 0 ? 0 : 1)}K VICT`
-  return `${amt.toLocaleString()} VICT`
+  const symbol = type === 'suitrump' ? 'SUITRUMP' : 'VICT'
+  if (amt >= 1000000) return `${(amt / 1000000).toFixed(amt % 1000000 === 0 ? 0 : 1)}M ${symbol}`
+  if (amt >= 1000) return `${(amt / 1000).toFixed(amt % 1000 === 0 ? 0 : 1)}K ${symbol}`
+  return `${amt.toLocaleString()} ${symbol}`
 }
 
 function getSlotColor(type: string, amount: number, idx: number): string {
