@@ -606,7 +606,7 @@ export default function AdminConfigPage() {
                           type="number"
                           value={slot.weight}
                           onChange={(e) => updatePrizeSlot(i, 'weight', parseInt(e.target.value) || 1)}
-                          className="w-14 sm:w-20 px-1.5 sm:px-2 py-1 bg-background border border-border rounded text-xs sm:text-sm"
+                          className="w-16 sm:w-24 px-1.5 sm:px-2 py-1 bg-background border border-border rounded text-xs sm:text-sm"
                           min="1"
                         />
                       </td>
@@ -626,10 +626,14 @@ export default function AdminConfigPage() {
               </table>
             </div>
 
-            <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-background rounded-lg">
+            <div className="mt-3 sm:mt-4 p-3 sm:p-4 bg-background rounded-lg space-y-1">
               <p className="text-xs sm:text-sm text-text-secondary">
                 <strong className="text-accent">Weight:</strong> Higher weight = more likely to land.
                 Total: {config.prizeTable.reduce((sum, s) => sum + s.weight, 0)}
+              </p>
+              <p className="text-xs text-text-muted">
+                Win rate: {((1 - (config.prizeTable.find(s => s.type === 'no_prize')?.weight || 0) / config.prizeTable.reduce((sum, s) => sum + s.weight, 0)) * 100).toFixed(1)}%
+                {' | '}Jackpot odds: 1 in {config.prizeTable.reduce((sum, s) => sum + s.weight, 0).toLocaleString()}
               </p>
             </div>
           </div>
