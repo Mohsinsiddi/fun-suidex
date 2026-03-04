@@ -52,6 +52,8 @@ const SYSTEM_COLLECTIONS = [
   'admins',
 ]
 
+const FORCE = process.argv.includes('--force')
+
 async function main() {
   console.log('\n╔══════════════════════════════════════════════╗')
   console.log('║       SuiDex Games - Fresh Start              ║')
@@ -102,10 +104,14 @@ async function main() {
     console.log('  This includes: users, spins, profiles, referrals, payments, badges earned, etc.')
     console.log('  System config, badge definitions, and admin accounts will be preserved.\n')
 
-    const confirm1 = await question('Type "FRESH START" to confirm: ')
-    if (confirm1 !== 'FRESH START') {
-      console.log('\nOperation cancelled.')
-      process.exit(0)
+    if (!FORCE) {
+      const confirm1 = await question('Type "FRESH START" to confirm: ')
+      if (confirm1 !== 'FRESH START') {
+        console.log('\nOperation cancelled.')
+        process.exit(0)
+      }
+    } else {
+      console.log('--force flag detected, skipping confirmation.\n')
     }
 
     // Drop collections
