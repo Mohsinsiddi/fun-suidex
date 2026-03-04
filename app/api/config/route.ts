@@ -4,6 +4,7 @@
 // GET /api/config - Returns public config (no auth required)
 
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { connectDB } from '@/lib/db/mongodb'
 import { AdminConfigModel } from '@/lib/db/models'
 import { getTokenPrices } from '@/lib/utils/prices'
