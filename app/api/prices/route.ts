@@ -4,6 +4,7 @@
 // GET /api/prices - Live token prices via Noodles API (5-min cache)
 
 import { NextResponse } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { getTokenPrices } from '@/lib/utils/prices'
 
 export async function GET() {

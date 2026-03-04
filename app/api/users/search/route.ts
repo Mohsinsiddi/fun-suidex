@@ -4,6 +4,7 @@
 // GET /api/users/search?q=... - Search users by slug or wallet
 
 import { NextRequest } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel } from '@/lib/db/models'
 import { errors, success } from '@/lib/utils/apiResponse'

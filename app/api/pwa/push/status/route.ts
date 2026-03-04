@@ -4,6 +4,7 @@
 // GET /api/pwa/push/status - Check if push notifications are enabled
 
 import { NextRequest } from 'next/server'
+export const dynamic = 'force-dynamic'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel } from '@/lib/db/models'
 import { verifyPWAAccessToken } from '@/lib/auth/jwt'
