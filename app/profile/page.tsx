@@ -25,6 +25,10 @@ import {
   Save,
   AlertCircle,
   CheckCircle,
+  Users,
+  Award,
+  ChevronRight,
+  Zap,
 } from 'lucide-react'
 import type { BadgeTier } from '@/types/badge'
 import { useAuthStore } from '@/lib/stores/authStore'
@@ -60,6 +64,7 @@ export default function ProfileSettingsPage() {
     profileEligible,
     profileMinSpins,
     stats,
+    ranks,
     error: authError,
     fetchUser,
     login,
@@ -487,6 +492,56 @@ export default function ProfileSettingsPage() {
                       <Calendar className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
                       Member since {formatDate(profile.memberSince)}
                     </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Leaderboard Rankings */}
+              {profile && ranks && (
+                <div className="p-4 sm:p-6 rounded-2xl bg-surface border border-border">
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 mb-3 sm:mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 sm:p-2.5 rounded-xl bg-accent/10 border border-accent/30">
+                        <Award className="w-4 h-4 sm:w-5 sm:h-5 text-accent" />
+                      </div>
+                      <div>
+                        <h2 className="text-base sm:text-lg font-bold text-white">Your Rankings</h2>
+                        <p className="text-xs sm:text-sm text-text-secondary">Where you stand on the leaderboard</p>
+                      </div>
+                    </div>
+                    <Link
+                      href="/leaderboard"
+                      className="flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2 rounded-xl text-xs sm:text-sm font-medium bg-accent/10 text-accent border border-accent/30 hover:bg-accent/20 transition-colors"
+                    >
+                      View Leaderboard
+                      <ChevronRight className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
+                    </Link>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 sm:gap-3">
+                    {[
+                      { label: 'Top Spinners', rank: ranks.spins, value: profile.totalSpins, icon: Target, color: 'text-accent', tab: 'spins' },
+                      { label: 'Top Winners', rank: ranks.wins, value: `$${(profile.totalWinsUSD || 0).toFixed(0)}`, icon: Sparkles, color: 'text-green-400', tab: 'wins' },
+                      { label: 'Biggest Win', rank: ranks.biggestWin, value: `$${(profile.biggestWinUSD || 0).toFixed(0)}`, icon: Zap, color: 'text-yellow-400', tab: 'biggestWin' },
+                      { label: 'Best Streaks', rank: ranks.streak, value: `${profile.longestStreak || 0}d`, icon: Flame, color: 'text-orange-400', tab: 'streak' },
+                      { label: 'Top Referrers', rank: ranks.referrals, value: profile.totalReferred || 0, icon: Users, color: 'text-purple-400', tab: 'referrals' },
+                    ].map(({ label, rank, value, icon: Icon, color, tab }) => (
+                      <Link
+                        key={tab}
+                        href={`/leaderboard?tab=${tab}`}
+                        className="p-3 sm:p-4 rounded-xl bg-background border border-border hover:border-accent/30 transition-colors group"
+                      >
+                        <div className="flex items-center gap-1.5 mb-1.5 sm:mb-2">
+                          <Icon className={`w-3.5 h-3.5 sm:w-4 sm:h-4 ${color}`} />
+                          <span className="text-[10px] sm:text-xs text-text-muted truncate">{label}</span>
+                        </div>
+                        {rank ? (
+                          <p className="text-lg sm:text-xl font-bold text-white">#{rank}</p>
+                        ) : (
+                          <p className="text-lg sm:text-xl font-bold text-text-muted">-</p>
+                        )}
+                        <p className={`text-[10px] sm:text-xs ${color} mt-0.5`}>{value}</p>
+                      </Link>
+                    ))}
                   </div>
                 </div>
               )}

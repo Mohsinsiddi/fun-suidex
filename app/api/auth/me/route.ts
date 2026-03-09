@@ -58,6 +58,27 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
     const profileEligible =
       user.totalSpins >= profileMinSpins && config?.profileSharingEnabled !== false
 
+    // Compute leaderboard ranks in parallel using indexed countDocuments
+    // Each query uses a descending index (e.g. totalSpins: -1) so $gt is an index scan
+    const rankFilter = { hasCompletedFirstSpin: true }
+    const [rankSpins, rankWins, rankBiggest, rankStreak, rankReferrals] = await Promise.all([
+      user.totalSpins > 0
+        ? UserModel.countDocuments({ ...rankFilter, totalSpins: { $gt: user.totalSpins } })
+        : Promise.resolve(-1),
+      user.totalWinsUSD > 0
+        ? UserModel.countDocuments({ ...rankFilter, totalWinsUSD: { $gt: user.totalWinsUSD } })
+        : Promise.resolve(-1),
+      user.biggestWinUSD > 0
+        ? UserModel.countDocuments({ ...rankFilter, biggestWinUSD: { $gt: user.biggestWinUSD } })
+        : Promise.resolve(-1),
+      (user.longestStreak || 0) > 0
+        ? UserModel.countDocuments({ ...rankFilter, longestStreak: { $gt: user.longestStreak } })
+        : Promise.resolve(-1),
+      (user.totalReferred || 0) > 0
+        ? UserModel.countDocuments({ ...rankFilter, totalReferred: { $gt: user.totalReferred } })
+        : Promise.resolve(-1),
+    ])
+
     // Build response
     const responseData: any = {
       wallet: user.wallet,
@@ -82,6 +103,14 @@ export const GET = withAuth(async (request: NextRequest, { wallet }: AuthContext
       // Timestamps
       memberSince: user.createdAt,
       lastActiveAt: user.lastActiveAt,
+      // Leaderboard ranks (rank = count of users above + 1, null if no value)
+      ranks: {
+        spins: rankSpins >= 0 ? rankSpins + 1 : null,
+        wins: rankWins >= 0 ? rankWins + 1 : null,
+        biggestWin: rankBiggest >= 0 ? rankBiggest + 1 : null,
+        streak: rankStreak >= 0 ? rankStreak + 1 : null,
+        referrals: rankReferrals >= 0 ? rankReferrals + 1 : null,
+      },
     }
 
     // Add full profile if requested

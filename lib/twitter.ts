@@ -11,19 +11,22 @@ export function generateTweetIntentUrl(params: TweetIntentParams): string {
       : String(prizeAmount)
   const symbol = prizeTokenSymbol || 'VICT'
 
-  const tweetText = `My friend just won ${tokenLabel} ${symbol} (~$${prizeUSD.toFixed(2)}) on the Wheel of Victory! 🎡🔥
+  // Use separate params per X docs: text, url, hashtags, via
+  const tweetText = `My friend just won ${tokenLabel} ${symbol} (~$${prizeUSD.toFixed(2)}) on the Wheel of Victory! 🎡🔥\n\nI earned ~$${(prizeUSD * 0.1).toFixed(2)} in referral rewards!\n\nSpin yours 👉`
 
-I earned ~$${(prizeUSD * 0.1).toFixed(2)} in referral rewards!
+  const intentParams = new URLSearchParams({
+    text: tweetText,
+    url: referralLink,
+    hashtags: 'SuiDex,WheelOfVictory',
+    via: 'suidexHQ',
+  })
 
-Spin yours 👉 ${referralLink}
-
-@suidexHQ #SuiDex #WheelOfVictory`
-  return `https://twitter.com/intent/tweet?text=${encodeURIComponent(tweetText)}`
+  return `https://x.com/intent/tweet?${intentParams.toString()}`
 }
 
 export function openTweetIntent(url: string): Window | null {
   const width = 550, height = 420
   const left = (window.screen.width - width) / 2
   const top = (window.screen.height - height) / 2
-  return window.open(url, 'twitter-share', `width=${width},height=${height},left=${left},top=${top}`)
+  return window.open(url, 'x-share', `width=${width},height=${height},left=${left},top=${top}`)
 }

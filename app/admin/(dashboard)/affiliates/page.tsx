@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { RefreshCw, Users, DollarSign, Coins } from 'lucide-react'
+import { RefreshCw, Users, DollarSign, Coins, Copy, Check } from 'lucide-react'
 import { Pagination, PaginationInfo, SkeletonTable, SkeletonCardGrid, EmptyState } from '@/components/ui'
 import {
   AdminTable,
@@ -49,6 +49,25 @@ interface Stats {
 const formatWallet = (w: string) => (w ? `${w.slice(0, 6)}...${w.slice(-4)}` : '-')
 const formatDate = (d: string) =>
   new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+
+function CopyWalletButton({ wallet }: { wallet: string }) {
+  const [copied, setCopied] = useState(false)
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    navigator.clipboard.writeText(wallet)
+    setCopied(true)
+    setTimeout(() => setCopied(false), 1500)
+  }
+  return (
+    <button
+      onClick={handleCopy}
+      title={copied ? 'Copied!' : 'Copy wallet address'}
+      className="text-[var(--text-secondary)] hover:text-[var(--accent)] transition-colors flex-shrink-0"
+    >
+      {copied ? <Check className="w-3 h-3 text-[var(--success)]" /> : <Copy className="w-3 h-3" />}
+    </button>
+  )
+}
 
 // ============================================
 // Page Component
@@ -279,18 +298,24 @@ export default function AdminAffiliatesPage() {
         header: 'Referrer',
         sortable: true,
         render: (item) => (
-          <span className="font-mono text-xs sm:text-sm" title={item.referrerWallet}>
-            {formatWallet(item.referrerWallet)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs sm:text-sm" title={item.referrerWallet}>
+              {formatWallet(item.referrerWallet)}
+            </span>
+            <CopyWalletButton wallet={item.referrerWallet} />
+          </div>
         ),
       },
       {
         key: 'refereeWallet',
         header: 'Referee',
         render: (item) => (
-          <span className="font-mono text-xs sm:text-sm text-[var(--text-secondary)]" title={item.refereeWallet}>
-            {formatWallet(item.refereeWallet)}
-          </span>
+          <div className="flex items-center gap-1.5">
+            <span className="font-mono text-xs sm:text-sm text-[var(--text-secondary)]" title={item.refereeWallet}>
+              {formatWallet(item.refereeWallet)}
+            </span>
+            <CopyWalletButton wallet={item.refereeWallet} />
+          </div>
         ),
       },
       {
