@@ -15,6 +15,14 @@ interface ProfileData {
   featuredBadges: string[]
 }
 
+interface UserRanks {
+  spins: number | null
+  wins: number | null
+  biggestWin: number | null
+  streak: number | null
+  referrals: number | null
+}
+
 interface UserStats {
   totalSpins: number
   totalWinsUSD: number
@@ -50,6 +58,9 @@ interface AuthState {
   referralCode: string | null
   referredBy: string | null
   hasCompletedFirstSpin: boolean
+
+  // Leaderboard ranks
+  ranks: UserRanks
 
   // Badge count (for quick access)
   badgeCount: number
@@ -94,6 +105,7 @@ const initialState = {
   profileEligible: false,
   profileMinSpins: 10,
   stats: initialStats,
+  ranks: { spins: null, wins: null, biggestWin: null, streak: null, referrals: null },
   referralCode: null,
   referredBy: null,
   hasCompletedFirstSpin: false,
@@ -203,6 +215,7 @@ export const useAuthStore = create<AuthState>()(
               memberSince: user.memberSince || user.createdAt || null,
               lastActiveAt: user.lastActiveAt || null,
             },
+            ranks: user.ranks || { spins: null, wins: null, biggestWin: null, streak: null, referrals: null },
             referralCode: user.referralCode || null,
             referredBy: user.referredBy || null,
             hasCompletedFirstSpin: user.hasCompletedFirstSpin || false,
