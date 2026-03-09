@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, AdminConfigModel, LPCreditModel } from '@/lib/db/models'
 import { isValidCreditPair, normalizePair } from '@/constants/pools'
+import { calculateSpinsFromUSD } from '@/lib/spinTiers'
 
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get('x-indexer-key')
@@ -52,7 +53,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ratePerSpin = config.lpSpinRateUSD || 20
+    const minStakeUSD = config.freeSpinMinStakeUSD || 20
 
     // Check which txHashes already exist
     const txHashes = credits.map(c => c.txHash)
@@ -90,12 +91,17 @@ export async function POST(request: NextRequest) {
         continue
       }
 
+      if (entry.amountUSD < minStakeUSD) {
+        skipped++
+        continue
+      }
+
       if (existingSet.has(entry.txHash)) {
         skipped++
         continue
       }
 
-      const spinsCredited = Math.floor(entry.amountUSD / ratePerSpin)
+      const spinsCredited = calculateSpinsFromUSD(entry.amountUSD)
       const walletLower = entry.wallet.toLowerCase()
 
       newCredits.push({
@@ -105,7 +111,7 @@ export async function POST(request: NextRequest) {
         pair: normalizePair(entry.pair),
         amountUSD: entry.amountUSD,
         spinsCredited,
-        ratePerSpin,
+        ratePerSpin: spinsCredited > 0 ? Math.round(entry.amountUSD / spinsCredited) : Math.max(1, Math.round(entry.amountUSD)),
         status: 'credited',
         creditedAt: new Date(),
         metadata: entry.metadata || {},

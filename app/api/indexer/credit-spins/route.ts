@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { connectDB } from '@/lib/db/mongodb'
 import { UserModel, AdminConfigModel, LPCreditModel } from '@/lib/db/models'
 import { isValidCreditPair, normalizePair, VALID_CREDIT_PAIRS_LIST } from '@/constants/pools'
+import { calculateSpinsFromUSD } from '@/lib/spinTiers'
 
 function validateApiKey(request: NextRequest): boolean {
   const apiKey = request.headers.get('x-indexer-key')
@@ -59,7 +60,14 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const ratePerSpin = config.lpSpinRateUSD || 20
+    // Validate minimum stake amount
+    const minStakeUSD = config.freeSpinMinStakeUSD || 20
+    if (amountUSD < minStakeUSD) {
+      return NextResponse.json(
+        { success: false, error: `amountUSD must be at least $${minStakeUSD}` },
+        { status: 400 }
+      )
+    }
 
     // Idempotent: check if txHash already credited
     const existing = await LPCreditModel.findOne({ txHash }).lean()
@@ -74,8 +82,8 @@ export async function POST(request: NextRequest) {
       })
     }
 
-    // Calculate spins
-    const spinsCredited = Math.floor(amountUSD / ratePerSpin)
+    // Calculate spins using tiered pricing
+    const spinsCredited = calculateSpinsFromUSD(amountUSD)
 
     // Create LP credit record
     const normalizedPair = normalizePair(pair)
@@ -86,7 +94,7 @@ export async function POST(request: NextRequest) {
       pair: normalizedPair,
       amountUSD,
       spinsCredited,
-      ratePerSpin,
+      ratePerSpin: spinsCredited > 0 ? Math.round(amountUSD / spinsCredited) : Math.max(1, Math.round(amountUSD)),
       status: 'credited',
       creditedAt: new Date(),
       metadata: metadata || {},
