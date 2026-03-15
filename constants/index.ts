@@ -214,7 +214,7 @@ export const WHEEL_CONFIG = {
 export const SPIN_UI = {
   // Modal auto-close timings (in milliseconds)
   NO_PRIZE_AUTO_CLOSE_MS: 3000,      // Auto-close no-prize modal after 3 seconds
-  WIN_AUTO_CLOSE_MS: 5000,           // Auto-close win modal after 5 seconds
+  WIN_AUTO_CLOSE_MS: 60000,          // Auto-close win modal after 60 seconds
   AUTO_SPIN_DELAY_MS: 500,           // Delay before auto-spin starts
   CONFETTI_DURATION_MS: 5000,        // Confetti animation duration
   CONFETTI_PARTICLE_COUNT: 50,       // Number of confetti particles (reduced for performance)
