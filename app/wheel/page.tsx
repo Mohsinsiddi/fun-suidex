@@ -933,7 +933,7 @@ ${hashtags}`
                 <div className="h-1 bg-black/20">
                   <div
                     className="h-full bg-accent transition-all duration-1000 ease-linear"
-                    style={{ width: `${(countdown / (result.type === 'no_prize' ? 3 : 5)) * 100}%` }}
+                    style={{ width: `${(countdown / (result.type === 'no_prize' ? SPIN_UI.NO_PRIZE_AUTO_CLOSE_MS / 1000 : SPIN_UI.WIN_AUTO_CLOSE_MS / 1000)) * 100}%` }}
                   />
                 </div>
               )}
